@@ -1,0 +1,1098 @@
+"""Module for publishing data to a network using UDP sockets.
+
+This module provides an interface between UDP sockets and
+:py:class:`.Publisher` objects. Messages are transmitted using IPv6 `multicasts
+<http://en.wikipedia.org/wiki/Multicast>`_. Note that this module inherits the
+disadvantages of UDP. That is, there is no guarantee of delivery, ordering, or
+duplicate protection.
+
+Example usage:
+
+.. testcode::
+
+    import os
+    import time
+    from mcl.network.udp import RawBroadcaster
+    from mcl.network.udp import RawListener
+
+    # Create RawBroadcaster object to send data over the network using a
+    # UDP connection with no topic.
+    broadcaster = RawBroadcaster('ff15::1')
+
+    # Create RawListener object to receive data sent over the network with a
+    # topic of 'A', using a UDP connection.
+    listener = RawListener('ff15::1', topics='A')
+
+    # Subscribe callback to print data sent over the network.
+    listener.subscribe(lambda data: os.sys.stdout.write(data[1:]))
+
+    # Publish data with empty topic. The listener is waiting for messages with
+    # an 'A' topic and will not receive this message.
+    broadcaster.publish('No topic')
+
+    # Publish data with a specified topic of 'A'. The listener will receive
+    # this message.
+    #
+    # NOTE: Since UDP is used as the underlying interface, there is no
+    #       guarantee of delivery. Issue multiple broadcasts until at least one
+    #       is received.
+    #
+    timeout = 0
+    while listener.counter < 1:
+        broadcaster.publish('topic A', topic='A')
+        time.sleep(0.1)
+        timeout += 1
+        if timeout >= 10:
+            break
+
+    # Close UDP connections.
+    broadcaster.close()
+    listener.close()
+
+.. testoutput::
+    :hide:
+
+    ('A', 'topic A')
+
+.. warning::
+
+    A bug introduced into the `linux kernel
+    <https://github.com/torvalds/linux/commit/efe4208f47f907>`_ prevents IPv6
+    multicast packets from reaching the destination sockets under certain
+    conditions. This is believed to affect linux `kernels 3.13 to 3.15`. The
+    regression was `fixed
+    <https://github.com/torvalds/linux/commit/3bfdc59a6c24608ed23e903f670aaf5f58c7a6f3>`_
+    and should not be present in recent kernels.
+
+.. note::
+
+    It is advised to increase the UDP kernel buffer size:
+        http://lcm.googlecode.com/svn/www/reference/lcm/multicast.html
+
+    In linux, a temporary method (does not persist across reboots) of
+    increasing the UDP kernel buffer size to 2MB can be achieved by issuing:
+
+    .. code-block:: bash
+
+        sudo sysctl -w net.core.rmem_max=2097152
+        sudo sysctl -w net.core.rmem_default=2097152
+
+    A permanent solution is to add the following lines to
+    ``/etc/sysctl.conf``::
+
+        net.core.rmem_max=2097152
+        net.core.rmem_default=2097152
+
+.. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
+.. codeauthor:: Stewart Worrall <s.worrall@acfr.usyd.edu.au>
+
+"""
+
+import math
+import time
+import struct
+import socket
+import threading
+
+from mcl.message.messages import Message
+from mcl.network.abstract import Connection as AbstractConnection
+from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
+from mcl.network.abstract import RawListener as AbstractRawListener
+
+
+# Use a fixed port number for all pyITS messages. Specify maximum transmission
+# unit (MTU) to determine transmission fragmentation.
+PYITS_UDP_PORT = 26000
+PYITS_ALLOWED_MULTICAST_HOPS = 3
+PYITS_MTU = 60000
+PYITS_MTU_MAX = 65000
+
+
+# We have nominated the header format:
+#
+#     (transmission counter, topic, packet, number of packets)
+#
+# If this is packed using the 'struct' package, we need to decide how much
+# memory each variable should be assigned.
+#
+# Calculations for the size of the transmission counter:
+#     2 Bytes:      65535 / (100Hz * 60)               = 10 minutes @ 100Hz
+#     4 Bytes: 4294967295 / (100Hz * 60 * 60 * 24 * 7) = 71 weeks   @ 100Hz
+#
+# Calculations for the size of the maximum number of packets:
+#     1 Bytes: (65000b / 1048576) x   255 =   15Mb
+#     2 Bytes: (65000b / 1048576) x 65535 = 4062Mb
+#
+# Using these numbers, the following header format allows 255 topics with 71
+# weeks of logging at 100Hz with a maximum data size (sent fragmented) of 4GB
+# before overflow:
+#
+#    BINARY_FORMAT = '@IBHH'
+#    HEADER_LENGTH = struct.calcsize(BINARY_FORMAT)
+#
+# The argument for nominating integers over strings in the header is minimising
+# network traffic. If we use non-binary encoded, variable length strings in the
+# header we can use strings in the topic field. How bad is this?
+#
+# In the likely case, where we log data @ 100Hz for 1hr, transferring 6kb
+# data packets on the default topic:
+#
+#     100 * 60 * 60 * 1 = 360000
+#       6 * 1024 / 6500 = 1
+#
+#     length of struct header (b): len(40:7e:05:00:00:00:01:00:01:00) = 10
+#     length of string header (b):          len('360000,0,1,1,')      = 13
+#     Difference in data transferred (Mb):  360000 * 1 * 3 / 1048576  = 1.03
+#
+# In an unlikely worst case, where we log data @ 100Hz for 6hrs, transferring
+# 500kb data packets on the largest topic:
+#
+#     100 * 60 * 60 * 6 = 2160000
+#     500 * 1024 / 6500 = ~80
+#
+#     length of struct header (b): len(80:f5:20:00:ff:00:50:00:50:00) = 10
+#     length of string header (b):          len('216000,255,80,80,')  = 18
+#     Difference in data transferred (Mb): 2160000 * 80 * 8 / 1048576 = 1318
+#
+#
+# In reality the difference in header size is NEGLIGIBLE. If a string encoded
+# header is used, the header can have a variable length. Since the header is
+# represented by characters, fixed memory does not need to be assigned to the
+# transmission counter and packet counters. The number of characters can grow
+# to suit the size of the variables being transmitted. Similarly the topic can
+# contain more complex variables - notably strings.
+
+
+HEADER_DELIMITER = ','
+HEADER_FORMAT = HEADER_DELIMITER.join(['%i', '%s', '%i', '%i'])
+HEADER_FORMAT += HEADER_DELIMITER
+
+
+class Connection(AbstractConnection):
+    """Object for encapsulating UDP connection parameters.
+
+    Args:
+        url (str): IPv6 address of connection.
+        port (int): Port to use (between 1024 and 65535).
+        topics (str): Topics associated with the network interface.
+        message (:py:class:`.Message`): pyITS message object associated with
+                                        the network interface.
+
+    Attributes:
+        url (str): IPv6 address of connection.
+        port (int): Port used in connection.
+        topics (str): Topics associated with the network interface. The
+                      `topics` attribute can be :data:`None`, a single string
+                      or a list of strings.
+        message (:py:class:`.Message`): pyITS message object associated with
+                                        the network interface.
+
+    """
+
+    def __init__(self, url, port=PYITS_UDP_PORT, topics=None, message=None):
+        """Document the __init__ method at the class level."""
+
+        # Validate inputs.
+        self.url = url
+        self.port = port
+        self.topics = topics
+        self.message = message
+
+    @property
+    def port(self):
+        return self.__port
+
+    @port.setter
+    def port(self, port):
+
+        # If no port is specified use default port.
+        if not port:
+            port = PYITS_UDP_PORT
+
+        # Check 'port' is a positive integer between 1024 and 65535. The port
+        # numbers in the range from 0 to 1023 are the well-known ports or
+        # system ports and are avoided.
+        elif not isinstance(port, (int, long)):
+            msg = 'Port must be an integer value.'
+            raise TypeError(msg)
+        elif (port < 1024) or (port > 65535):
+            msg = 'The port must be a positive integer between 1024 and 65535.'
+            raise TypeError(msg)
+
+        self.__port = port
+
+    def __str__(self):
+        """Print connection interface as a human readable string."""
+
+        if self.message:
+            msg = self.message.__name__
+        else:
+            msg = None
+
+        # Format string.
+        print_string = 'UDP; url=<%s>; port=<%i>; topics=<%s>; message=<%s>'
+        print_string = print_string % (self.url, self.port, self.topics, msg)
+
+        return print_string
+
+    @classmethod
+    def from_string(cls, string):
+        """Create and configure UDP connection object from string.
+
+        Create a :py:class:`.Connection` object from a string. Strings must
+        adhere to the following formats::
+
+            NameOfMessage = address=<string>; port=<int>; topic=<string>
+            NameOfMessage = address=<string>; port=<int>; topics=<string>
+
+        where:
+
+            - ``NameOfMessage`` is the name of the pyITS message used in the
+              connection.
+            - ``address`` is the IPv6 address of the socket to open.
+            - ``port`` is the port used in connection.
+            - ``topic`` and ``topics`` are a topic to associate with the
+              connection. These fields can be specified as a comma separated
+              list e.g. ``topics=cat, rat, mat``.
+
+        Only the ``NameOfMessage`` and ``address`` fields are
+        mandatory. ``address``, ``port`` and ``topic(s)`` may be specified in
+        any order.
+
+        Example usage:
+
+        .. testcode::
+
+            from mcl.network.udp import Connection
+            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
+            connection = Connection.from_string(string)
+
+        Args:
+            string (str): string specifying the connection configuration.
+
+        Returns:
+            :py:class:`.Connection`: Configured :py:class:`.Connection` object.
+
+        """
+
+        # Define configuration parameters.
+        url = None
+        port = None
+        topics = None
+        message = None
+
+        # Get message name and configuration options for UDP network interface.
+        message, config = tuple([opt.strip() for opt in string.split('=', 1)])
+        options = [opt.strip() for opt in config.split(';') if opt.strip()]
+
+        # Iterate through options.
+        for option in options:
+            key, value = tuple([opt.strip() for opt in option.split('=', 1)])
+
+            if key == 'address':
+                url = value
+
+            elif key == 'port':
+                port = int(value)
+
+            elif (key == 'topic') or (key == 'topics'):
+                topics = value.split(',')
+                if len(topics) == 1:
+                    topics = topics[0].strip()
+                elif len(topics) > 1:
+                    topics = [topic.strip() for topic in topics]
+
+        return cls(url, port=port, topics=topics, message=message)
+
+
+class RawBroadcaster(AbstractRawBroadcaster):
+    """Send data over the network using a UDP socket.
+
+    The :py:class:`.RawBroadcaster` object allows data to be published over a
+    UDP socket. The object marshalls broadcasts and ensures large items will be
+    fragmented into smaller sub-packets which obey the network maximum
+    transmission unit (MTU) constraints.
+
+    Data packets are published using a header-payload protocol::
+
+        --------------------
+        | header | payload |
+        --------------------
+
+    The header consists of a comma separated string::
+
+        -------------------------------------------------------------
+        | transmission counter, topic, packet number, total packets |
+        -------------------------------------------------------------
+
+    where:
+
+        - Transmission counter is an integer representing the total number of
+          data packets send using :py:class:`.RawBroadcaster`.
+        - Topic is a string representing the topic associated with the current
+          data packet. This can be used for filtering broadcasts.
+        - Packet number is an integer indicating that the current packet is the
+          Nth packet out of M packets in a sequence.
+        - Total packets is an integer indicating that the current packet is a
+          member of a sequence of M packets.
+
+    The payload is represented as a string. The :py:class:`.RawBroadcaster`
+    object does not assume any encoding on the string. To send binary data over
+    the network, it must be serialised before issuing a call to
+    :py:meth:`.publish`.
+
+    Example usage:
+
+    .. testcode::
+
+        from mcl.network.udp import RawBroadcaster
+
+        # Create RawBroadcaster object to send data over the network using a
+        # UDP connection.
+        broadcaster = RawBroadcaster('ff15::1', port=26062, topic='test')
+
+        # Publish data.
+        broadcaster.publish('test data')
+
+        # Close connection to UDP.
+        broadcaster.close()
+
+    Args:
+        address (str): Address to publish UDP broadcasts.
+        port (int): Port to publish UDP broadcasts.
+        topic (str): Topic to associate with UDP broadcasts.
+
+    Attributes:
+        url (str): IPv6 address broadcasts are received on.
+        port (int): Port broadcasts are being received on.
+        topic (str): String containing the topic :py:class:`.RawBroadcaster`
+                     will attach to broadcasts.
+        is_open (bool): Return whether the UDP socket is open.
+        counter (int): Number of broadcasts issued.
+
+    """
+
+    def __init__(self, address, port=PYITS_UDP_PORT, topic=None):
+        """Document the __init__ method at the class level."""
+
+        # Broadcasters can only store ONE default topic. Enforce this behaviour
+        # by only accepting a string.
+        if topic and not isinstance(topic, basestring):
+            raise TypeError('Topic must be None or a string.')
+
+        # Attempt to create connection object.
+        else:
+            try:
+                self.__connection = Connection(address,
+                                               port=port,
+                                               topics=topic)
+            except:
+                raise
+
+        # Create objects for handling UDP broadcasts.
+        self.__sub_socket = None
+        self.__sockaddr = None
+        self.__transmission_counter = 1
+        self.__is_open = False
+
+        # Attempt to connect to UDP interface.
+        try:
+            success = self._open()
+        except:
+            success = False
+
+        if not success:
+            msg = "Could not connect to '%s'." % address
+            raise IOError(msg)
+
+    @property
+    def url(self):
+        return self.__connection.url
+
+    @property
+    def port(self):
+        return self.__connection.port
+
+    @property
+    def topic(self):
+        return self.__connection.topics
+
+    @property
+    def is_open(self):
+        return self.__is_open
+
+    @property
+    def counter(self):
+        return self.__transmission_counter - 1
+
+    def _open(self):
+        """Open connection to UDP broadcast interface.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the socket was created. If
+                           the socket already exists, the request is ignored
+                           and the method returns :data:`False`.
+
+        """
+
+        if not self.is_open:
+
+            # Fetch address information.
+            addrinfo = socket.getaddrinfo(self.url, None)[0]
+            self.__sockaddr = (addrinfo[4][0], self.port)
+
+            # Number of hops to allow.
+            self.__sub_socket = socket.socket(addrinfo[0], socket.SOCK_DGRAM)
+
+            # Set Time-to-live (optional).
+            ttl_message = struct.pack('@i', PYITS_ALLOWED_MULTICAST_HOPS)
+            self.__sub_socket.setsockopt(socket.IPPROTO_IPV6,
+                                         socket.IPV6_MULTICAST_HOPS,
+                                         ttl_message)
+
+            self.__is_open = True
+            return True
+        else:
+            return False
+
+    def publish(self, data, topic=None):
+        """Send data over UDP interface.
+
+        Large data is fragmented into smaller MTU sized packets. The protocol
+        used during publishing is documented in :py:class:`.RawBroadcaster`.
+
+        Args:
+            data (str): Array of characters to broadcast over UDP.
+            topic (str): Broadcast message with an associated topic. This
+                         option will temporarily override the topic specified
+                         during instantiation.
+
+        Raises:
+            TypeError: If the input `topic` is not a string.
+            ValueError: If the input `topic` contains the header delimiter
+                        character.
+
+        """
+
+        if self.is_open:
+
+            # Ensure data is a string. Non-string data must be serialised
+            # before transmission.
+            if not data or not isinstance(data, basestring):
+                raise TypeError('Data must be a non-empty string.')
+
+            # Empty topic.
+            if not topic:
+                if self.topic:
+                    topic = self.topic
+                else:
+                    topic = ''
+
+            # Check 'topic' is a string.
+            elif not isinstance(topic, basestring):
+                raise TypeError("Topic for Broadcaster must be a string.")
+
+            # Check 'topic' does not contain the header delimiter.
+            elif HEADER_DELIMITER in topic:
+                msg = "The input topic '%s' cannot contain the '%s' character."
+                raise ValueError(msg % (topic, HEADER_DELIMITER))
+
+            # Break the packet up into MTU sized fragments.
+            for packet, packets, fragment in self.__fragment(data):
+
+                # Create packet header.
+                header = HEADER_FORMAT % (self.__transmission_counter,
+                                          topic, packet, packets)
+
+                # Send packet (fragment).
+                self.__sub_socket.sendto(header + fragment, self.__sockaddr)
+
+            # Record number of full messages sent (not number of fragments).
+            self.__transmission_counter += 1
+
+        else:
+            msg = 'Connection must be opened before publishing.'
+            raise IOError(msg)
+
+    def __fragment(self, data):
+        """Fragment input data into MTU sized packets."""
+
+        # Calculate number of MTU-sized packets required to send input data
+        # over the network.
+        packets = int(math.ceil(float(len(data)) / PYITS_MTU))
+        data_len = len(data)
+
+        # Issue fragments of data as a generator function.
+        for i in range(packets):
+            start_ptr = i * PYITS_MTU
+            end_ptr = min(data_len, (i + 1) * PYITS_MTU)
+
+            yield (i + 1, packets, data[start_ptr:end_ptr])
+
+    def close(self):
+        """Close connection to UDP broadcast interface.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the socket was closed. If
+                           the socket was already closed, the request is
+                           ignored and the method returns :data:`False`.
+
+        """
+
+        if self.is_open:
+            self.__sub_socket.close()
+            self.__is_open = False
+            return True
+        else:
+            return False
+
+    @classmethod
+    def from_connection(cls, connection):
+        """Create a :py:class:`.RawBroadcaster` from  a :py:class:`.Connection` object.
+
+        Example usage:
+
+        .. testcode::
+
+            from mcl.network.udp import Connection
+            from mcl.network.udp import RawBroadcaster
+            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
+            connection = Connection.from_string(string)
+            broadcaster = RawBroadcaster.from_connection(connection)
+
+        Args:
+            connection (:py:class:`.Connection`): :py:class:`.Connection`
+                                                  containing network interface
+                                                  configurations.
+
+        Returns:
+            :py:class:`.RawBroadcaster`: Returns configured
+                                         :py:class:`.RawBroadcaster` object.
+
+        Raises:
+            TypeError: If the input is not a :py:class:`.Connection` object.
+
+        """
+
+        if not isinstance(connection, Connection):
+            raise TypeError('Input must be a UDP connection object.')
+
+        return cls(connection.url,
+                   port=connection.port,
+                   topic=connection.topics)
+
+
+class RawListener(AbstractRawListener):
+    """Receive data from the network using a UDP socket.
+
+    The :py:class:`.RawListener` object subscribes to a UDP socket and issues
+    publish events when UDP data is received. The object marshalls broadcasts
+    and ensures multiple, fragmented packets will be recomposed into a single
+    packet. :py:class:`.RawListener` expects data to be published following the
+    same protocol as :py:class:`.RawBroadcaster`. See
+    :py:class:`.RawBroadcaster` for details. When data packets arrive, they are
+    made available to other objects using the publish-subscribe paradigm
+    implemented by the parent class :py:class:`.Publisher`.
+
+    **Note:** :py:class:`.RawListener` does not interpret the received data in
+    anyway. Code receiving the data must be aware of how to handle it. A method
+    for simplifying data handling is to pair a specific data type with a unique
+    network address. By adopting this paradigm, handling the data is trivial if
+    the network address is known.
+
+    Example usage:
+
+    .. testcode::
+
+        import os
+        from mcl.network.udp import RawListener
+
+        # Create RawListener object to receive data sent over the network using
+        # a UDP connection (will receive all topics).
+        listener = RawListener('ff15::1', port=26062)
+
+        # Subscribe callback to print data sent over the network.
+        listener.subscribe(lambda data: os.sys.stdout.write(data))
+
+        # Close connection to UDP.
+        listener.close()
+
+    Args:
+        address (str): Address to receive UDP broadcasts.
+        port (int): Port to receive UDP broadcasts.
+        topics (str): List of strings containing topics
+                      :py:class:`.RawListener` will receive and process.
+
+    Attributes:
+        url (str): IPv6 address broadcasts are received on.
+        port (int): Port broadcasts are being received on.
+        topics (list): List of strings containing the topics
+                       :py:class:`.RawListener` will receive and process.
+        is_open (bool): Return whether the UDP socket is open.
+        counter (int): Number of broadcasts received.
+
+    """
+
+    def __init__(self, address, port=PYITS_UDP_PORT, topics=None):
+        """Document the __init__ method at the class level."""
+
+        # Attempt to create connection object.
+        try:
+            self.__connection = Connection(address,
+                                           port=port,
+                                           topics=topics)
+        except:
+            raise
+
+        # Initialise publishing functionality.
+        super(RawListener, self).__init__()
+
+        # Check 'timeout' on socket read operations in seconds. It is unlikely
+        # a user will need to access this parameter.
+        self.__timeout = 0.1
+
+        # Number of messages to buffer.
+        self.__buffer_size = 5
+
+        # Create objects for handling received UDP messages.
+        self.__sub_socket = None
+        self.__stop_event = None
+        self.__listen_thread = None
+        self.__is_open = False
+        self.__counter_lock = threading.Lock()
+        self.__counter = 0
+
+        # Attempt to connect to UDP interface.
+        try:
+            success = self._open()
+        except:
+            success = False
+
+        if not success:
+            msg = "Could not connect to '%s'." % address
+            raise IOError(msg)
+
+    @property
+    def url(self):
+        return self.__connection.url
+
+    @property
+    def port(self):
+        return self.__connection.port
+
+    @property
+    def topics(self):
+        return self.__connection.topics
+
+    @property
+    def is_open(self):
+        return self.__is_open
+
+    @property
+    def counter(self):
+        with self.__counter_lock:
+            return self.__counter
+
+    def _open(self):
+        """Open connection to UDP receive interface.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the socket was created. If
+                           the socket already exists, the request is ignored
+                           and the method returns :data:`False`.
+
+        """
+
+        if not self.__is_open:
+            try:
+                # Fetch address information.
+                addrinfo = socket.getaddrinfo(self.url, None)[0]
+
+                # Create socket.
+                self.__sub_socket = socket.socket(addrinfo[0],
+                                                  socket.SOCK_DGRAM)
+
+                # Set a timeout on blocking socket operations. Note that if
+                # set, subsequent socket operations will raise a timeout
+                # exception if the timeout period value has elapsed before the
+                # operation has completed.
+                self.__sub_socket.settimeout(self.__timeout)
+
+                # Allow multiple copies of this program on one machine (not
+                # strictly needed).
+                self.__sub_socket.setsockopt(socket.SOL_SOCKET,
+                                             socket.SO_REUSEADDR,
+                                             1)
+
+                # Join group.
+                group_name = socket.inet_pton(addrinfo[0], addrinfo[4][0])
+                group_addr = group_name + struct.pack('@I', 0)
+                self.__sub_socket.setsockopt(socket.IPPROTO_IPV6,
+                                             socket.IPV6_JOIN_GROUP,
+                                             group_addr)
+
+                # Bind it to the port.
+                self.__sub_socket.bind((self.url, self.port))
+
+            # Could not create socket. Raise return failure.
+            except:
+                return False
+
+            # Start servicing UDP data on a new thread.
+            self.__stop_event = threading.Event()
+            self.__stop_event.clear()
+            self.__listen_thread = threading.Thread(target=self.__read)
+            self.__listen_thread.daemon = True
+            self.__listen_thread.start()
+
+            # Wait for thread to start.
+            while not self.__listen_thread.is_alive:
+                time.sleep(0.01)
+
+            self.__is_open = True
+            return True
+
+        else:
+            return False
+
+    def __read(self):
+        """Read data from UDP socket."""
+
+        # Create buffer for receiving fragmented data.
+        receive_buffer = dict()
+
+        # Poll UDP socket and publish data.
+        while not self.__stop_event.is_set():
+
+            # Attempt to read data from UDP socket.
+            try:
+                frame, sender = self.__sub_socket.recvfrom(PYITS_MTU_MAX)
+            except socket.timeout:
+                continue
+
+            # Unpack frame of data.
+            try:
+                split = frame.split(HEADER_DELIMITER, 4)
+                (transmissions, topic, packet, packets, payload) = split[:]
+                transmissions = int(transmissions)
+                packet = int(packet)
+                packets = int(packets)
+            except:
+                continue
+
+            # White list of topics is a string which does not match the current
+            # topic. Skip this data frame.
+            if isinstance(self.topics, basestring) and (topic != self.topics):
+                continue
+
+            # White list of topics is a list of strings which does not contain
+            # the current topic. Skip this data frame.
+            elif self.topics and (topic not in self.topics):
+                continue
+
+            # Data fits into one frame. Publish data immediately.
+            if packets == 1:
+                with self.__counter_lock:
+                    self.__counter += 1
+                self.__publish__((transmissions, topic, payload))
+                continue
+
+            # Data fits into multiple frames. The code from this point forwards
+            # remarshalls the data frames into a single payload.
+            #
+            # Frames of a single message are stored in a dictionary buffer.
+            # Once all frames for a particular message have been received, they
+            # are recombined and published. Note that the frames can be
+            # received out of order. The process works by:
+            #
+            #     1) Assigning a unique identifier (key) to a message
+            #
+            #     2) If the identifier (key) does NOT exist in the dictionary
+            #        buffer:
+            #
+            #            - If the buffer is full. Drop the oldest incomplete
+            #              message to prevent the buffer from accumulating a
+            #              large history of incomplete messages (memory leak).
+            #
+            #            - An empty list is associated with the new dictionary
+            #              key. The list contains one element for each frame in
+            #              the message.
+            #
+            #            - The frame that was received is populated with data.
+            #
+            #     3) If the identifier DOES exist:
+            #
+            #            - If the frame has not been populated with data, the
+            #              frame that was received is populated with data.
+            #
+            #            - If the frame HAS been populated with data, the
+            #              identifier is not unique and is clobbering cached
+            #              data. Clobber the 'stale' message by re-allocating
+            #              memory and populate the frame that was received with
+            #              data (in theory this should not happen).
+            #
+            #     4) If all frames for the message have been received, the
+            #        frames are recombined and published.
+
+            # Assign a unique identifier to the sender of the data frame.
+            frame_identifier = (sender[0], transmissions, packets, topic)
+
+            # The unique identifier does not exist in the buffer. Allocate
+            # space in the buffer.
+            if frame_identifier not in receive_buffer:
+                array = [None] * packets
+
+                # There is space in the dictionary, reserve memory for
+                # incoming packets.
+                if len(receive_buffer) <= self.__buffer_size:
+                    receive_buffer[frame_identifier] = array
+
+                # The dictionary is full. Find the earliest sequence of
+                # packets and overwrite them.
+                else:
+                    remove = None
+                    min_transmission = transmissions
+                    for key in receive_buffer:
+                        if key[1] < min_transmission:
+                            min_transmission = key[1]
+                            remove = key
+
+                    # Remove the earliest transmission if it was found.
+                    if remove:
+                        del receive_buffer[remove]
+                    else:
+                        receive_buffer.popitem()
+
+                    receive_buffer[frame_identifier] = array
+
+            # The unique identifier exists in the buffer and new frame is
+            # overwriting an existing fragment. Re-allocate space on the stale
+            # fragment.
+            elif receive_buffer[frame_identifier][packet - 1]:
+                receive_buffer[frame_identifier] = [None] * packets
+
+            # Store fragment.
+            receive_buffer[frame_identifier][packet - 1] = payload
+
+            # Publish data when all fragments have been received.
+            if receive_buffer[frame_identifier].count(None) == 0:
+
+                # Combine fragments into one payload and publish.
+                payload = ''.join(receive_buffer[frame_identifier])
+                with self.__counter_lock:
+                    self.__counter += 1
+                self.__publish__((transmissions, topic, payload))
+
+                # Free space in buffer.
+                del receive_buffer[frame_identifier]
+
+        # Close socket on exiting thread.
+        self.__sub_socket.close()
+
+    def close(self):
+        """Close connection to UDP receive interface.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the socket was closed. If
+                           the socket was already closed, the request is
+                           ignored and the method returns :data:`False`.
+
+        """
+
+        if self.is_open:
+
+            # Stop thread and wait for thread to terminate.
+            self.__stop_event.set()
+            self.__listen_thread.join()
+
+            # Close socket.
+            self.__sub_socket.close()
+
+            self.__is_open = False
+            return True
+        else:
+            return False
+
+    @classmethod
+    def from_connection(cls, connection):
+        """Create a :py:class:`.RawListener` from  a :py:class:`.Connection` object.
+
+        Example usage:
+
+        .. testcode::
+
+            from mcl.network.udp import Connection
+            from mcl.network.udp import RawListener
+
+            # Create connection from string.
+            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
+            connection = Connection.from_string(string)
+
+            # Create connection from Connection object.
+            listener = RawListener.from_connection(connection)
+
+        Args:
+            connection (:py:class:`.Connection`): :py:class:`.Connection`
+                                                  containing network interface
+                                                  configurations.
+
+        Returns:
+            :py:class:`.RawListener`: Returns configured
+                                      :py:class:`.RawListener` object.
+
+        Raises:
+            TypeError: If the input is not a :py:class:`.Connection` object.
+
+        """
+
+        if not isinstance(connection, Connection):
+            raise TypeError('Input must be a UDP connection object.')
+
+        return cls(connection.url,
+                   port=connection.port,
+                   topics=connection.topics)
+
+
+class MessageBroadcaster(RawBroadcaster):
+    """Send pyITS messages over the network using a UDP socket.
+
+    The :py:class:`.MessageBroadcaster` object extends the
+    :py:class:`.RawBroadcaster` object to broadcast pyITS
+    :py:class:`.Message` objects over the network. This is done by
+    serialising the contents of the pyITS messages into bytes using Message
+    pack before broadcasting.
+
+    Args:
+        address (str): Address to publish UDP broadcasts.
+        port (int): Port to publish UDP broadcasts.
+        topic (str): Topic to associate with UDP broadcasts.
+
+    Attributes:
+        url (str): IPv6 address broadcasts are received on.
+        port (int): Port broadcasts are being received on.
+        topic (str): String containing the topic :py:class:`.RawBroadcaster`
+                     will attach to broadcasts.
+        is_open (bool): Return whether the UDP socket is open.
+        counter (int): Number of broadcasts issued.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(MessageBroadcaster, self).__init__(*args, **kwargs)
+
+    def publish(self, message, topic=''):
+        """Serialise pyITS messages using Message pack and send over network.
+
+        Args:
+            message (:py:class:`.Message`): pyITS message object.
+            topic (str): Broadcast message with an associated topic. This
+                         option will temporarily override the topic
+                         specified during instantiation.
+
+        Raises:
+            TypeError: If the input object cannot be serialised.
+
+        """
+
+        # Attempt to serialise input data.
+        try:
+            packed_data = message.encode()
+        except:
+            raise TypeError('Could not encode input object')
+
+        # Publish serialised data.
+        super(MessageBroadcaster, self).publish(packed_data, topic=topic)
+
+
+class MessageListener(RawListener):
+    """Receive pyITS messages from the network using a UDP socket.
+
+    The :py:class:`.MessageListener` object extends the
+    :py:class:`.RawListener` object to broadcast pyITS :py:class:`.Message`
+    objects over the network. This is done by decoding the received data
+    into pyITS messages using Message pack.
+
+    Args:
+        MessageType (:py:class:`.Message`): Type of message class for
+                    network data to be decoded into.
+        address (str): Address to receive UDP broadcasts.
+        port (int): Port to receive UDP broadcasts.
+        topics (str): List of strings containing topics
+                      :py:class:`.RawListener` will receive and process.
+
+    Attributes:
+        url (str): IPv6 address broadcasts are received on.
+        port (int): Port broadcasts are being received on.
+        topics (list): List of strings containing the topics
+                       :py:class:`.RawListener` will receive and process.
+        is_open (bool): Return whether the UDP socket is open.
+        counter (int): Number of broadcasts received.
+
+    Raises:
+        TypeError: If the input message type is not a :py:class:`.Message`
+                   type.
+
+    """
+
+    def __init__(self, MessageType, *args, **kwargs):
+
+        # Ensure input is a pyITS message.
+        msg = "'MessageType' must be a Message() object."
+        try:
+            if not issubclass(MessageType, Message):
+                raise TypeError(msg)
+        except:
+            raise TypeError(msg)
+
+        # Initialise parent object.
+        super(MessageListener, self).__init__(*args, **kwargs)
+        self.__msg_cls = MessageType
+
+    def __publish__(self, packed_data):
+        """Decode serialised data into pyITS messages and publish object."""
+
+        try:
+            message = self.__msg_cls(packed_data[2])
+            super(MessageListener, self).__publish__(message)
+        except:
+            pass
+
+    @classmethod
+    def from_connection(cls, connection):
+        """Create a :py:class:`.RawListener` from  a :py:class:`.Connection` object.
+
+        Example usage:
+
+        .. testcode::
+
+            from mcl.network.udp import Connection
+            from mcl.network.udp import MessageListener
+
+            # Create connection from string.
+            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
+            connection = Connection.from_string(string)
+
+            # Create connection from Connection object.
+            listener = MessageListener.from_connection(connection)
+
+        Args:
+            connection (:py:class:`.Connection`): :py:class:`.Connection`
+                                                  containing network interface
+                                                  configurations.
+
+        Returns:
+            :py:class:`.MessageListener`: Returns configured
+                                          :py:class:`.MessageListener` object.
+
+        Raises:
+            TypeError: If the input is not a :py:class:`.Connection` object.
+
+        """
+
+        if not isinstance(connection, Connection):
+            raise TypeError('Input must be a UDP connection object.')
+
+        return cls(connection.message,
+                   connection.url,
+                   port=connection.port,
+                   topics=connection.topics)

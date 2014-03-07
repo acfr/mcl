@@ -1,0 +1,20 @@
+# Ignore python byte code.
+*.pyc
+*~
+
+# Ignore installer info.
+mcl.egg-info/
+
+# Ignore editor configurations.
+.project
+.pydevproject
+.settings
+.ipynb_checkpoints
+
+# Ignore coverage report temporary files.
+.coverage
+
+# Do not version intermediary documentation files.
+doc/build/
+doc/source/_auto
+doc/source/coverage.rst
