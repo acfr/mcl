@@ -1,10 +1,10 @@
-"""Base classes for implementing publish-subscribe design pattern.
+"""Object specification for creating messages in MCL.
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
+.. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
-
 import json
 import msgpack
 import datetime
@@ -22,9 +22,15 @@ def _get_subclasses(cls):
 
     """
 
-    subclasses = []
+    # WARNING: This may produce unwanted behaviour if subclasses have been
+    #          created in factory methods or class definitions are created
+    #          using closure. That is, the definition might be out of
+    #          scope. The base class ``cls`` will permanently store all
+    #          definitions and calls to cls.__subclassess__() will even return
+    #          out-of-scope definitions.
 
     # Iterate through derived objects.
+    subclasses = []
     for subclass in cls.__subclasses__():
         subclasses.append(subclass)
 
