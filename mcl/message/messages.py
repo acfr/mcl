@@ -73,13 +73,43 @@ def list_messages(name=False):
     return messages
 
 
-def get_message_object(message):
-    """Return message object handle."""
-    try:
-        return eval(message.split()[0])
+def get_message_object(name):
+    """Return message object from name.
 
-    except:
-        raise Exception("Could not evaluate message: '%s'." % message)
+    Args:
+        name (string): Name of message object to retrieve.
+
+    Returns:
+        :py:class:`.Message`: requested message object.
+
+    Raises:
+        Except: If ``name`` does not exist or multiple message objects are
+            found.
+
+    """
+
+    # Get available messages.
+    messages = list_messages(name=True)
+
+    # Check if 'message' exists.
+    message = list()
+    for candiatate_message, candiatate_name in messages:
+        if name == candiatate_name:
+            message.append(candiatate_message)
+
+    # Message does not exist.
+    if len(message) == 0:
+        raise Exception("Could locate the message named: '%s'." % name)
+
+    # Multiple messages with the same name exist.
+    elif len(message) > 1:
+        msg = "Multiple messages named '%s' found including:\n" % name
+        for m in message:
+            msg += '    %s.%s\n' % (m.__module__, m.__name__)
+        raise Exception(msg)
+
+    # Return unique message.
+    return message[0]
 
 
 def get_message_objects(messages):
