@@ -11,37 +11,66 @@ import datetime
 from sets import Set
 
 
-def list_messages(string=False):
-    """List messages derived from Message.
+def _get_subclasses(cls):
+    """Retrieve all derived objects from an input object.
 
     Args:
-        string (boolean, **optional**): By default (``False``) a list of
-            message objects derived from :py:class:`.Message` is returned. If
-            set to ``True``, the name of message objects derived from
-            :py:class:`.Message` are returned as a list of strings.
+        cls (object): Object to inspect and retrieve derived objects.
 
     Returns:
-        list: a list of message objects derived from :py:class:`.Message` is
-            returned. If ``string`` is set to ``True``, the name of message
-            objects derived from :py:class:`.Message` are returned as a list of
-            strings.
+        list: a list of objects and their children derived from ``cls``.
 
     """
 
-    # Get message objects deriving from Message().
-    messages = Message.__subclasses__()
+    subclasses = []
 
-    # Return message objects as string.
-    if string:
+    # Iterate through derived objects.
+    for subclass in cls.__subclasses__():
+        subclasses.append(subclass)
+
+        # Recursively get derived objects from derived objects.
+        subclasses.extend(_get_subclasses(subclass))
+
+    return subclasses
+
+
+def list_messages(name=False):
+    """List message objects derived from Message.
+
+    Args:
+
+        name (boolean, **optional**): By default (``False``) a list of message
+            objects derived from :py:class:`.Message` is returned. If set to
+            ``True``, a list of tuples containing message objects derived from
+            :py:class:`.Message` and their name as a string is returned.
+
+    Returns:
+        list: a list of message objects derived from :py:class:`.Message` is
+            returned. a list of tuples containing message objects derived from
+            :py:class:`.Message` and their name as a string is returned.
+
+    """
+
+    # Get all objects deriving from Message(). Do not include objects which
+    # cannot be instantiated.
+    messages = list()
+    for message in _get_subclasses(Message):
+        try:
+            message()
+            messages.append(message)
+        except:
+            pass
+
+    # Get message names.
+    if name:
         message_names = list()
         for message in messages:
             message_names.append(message.__name__)
 
-        return message_names
+        messages = zip(messages, message_names)
 
     # Return message objects.
-    else:
-        return messages
+    return messages
 
 
 def get_message_object(message):
