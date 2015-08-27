@@ -11,33 +11,9 @@ import datetime
 from sets import Set
 
 
-def _get_subclasses(cls):
-    """Retrieve all derived objects from an input object.
-
-    Args:
-        cls (object): Object to inspect and retrieve derived objects.
-
-    Returns:
-        list: a list of objects and their children derived from ``cls``.
-
-    """
-
-    # WARNING: This may produce unwanted behaviour if subclasses have been
-    #          created in factory methods or class definitions are created
-    #          using closure. That is, the definition might be out of
-    #          scope. The base class ``cls`` will permanently store all
-    #          definitions and calls to cls.__subclassess__() will even return
-    #          out-of-scope definitions.
-
-    # Iterate through derived objects.
-    subclasses = []
-    for subclass in cls.__subclasses__():
-        subclasses.append(subclass)
-
-        # Recursively get derived objects from derived objects.
-        subclasses.extend(_get_subclasses(subclass))
-
-    return subclasses
+# Globally track Message() definitions. The meta-class _RegisterMeta() inserts
+# Message() definitions into _MESSAGES when Message() objects are subclassed.
+_MESSAGES = list()
 
 
 def list_messages(name=False):
@@ -57,15 +33,9 @@ def list_messages(name=False):
 
     """
 
-    # Get all objects deriving from Message(). Do not include objects which
-    # cannot be instantiated.
-    messages = list()
-    for message in _get_subclasses(Message):
-        try:
-            message()
-            messages.append(message)
-        except:
-            pass
+    # Create soft copy of _MESSAGES so that _MESSAGES cannot be altered
+    # directly.
+    messages = [msg for msg in _MESSAGES]
 
     # Get message names.
     if name:
@@ -134,11 +104,37 @@ def get_message_objects(messages):
     return objects
 
 
+class _RegisterMeta(type):
+    """Meta-class for globally registering Message() objects."""
+
+    def __init__(cls, name, bases, clsdict):
+
+        # Do not allow Message() objects with the name Message() to be added.
+        if name == 'Message' and len(_MESSAGES) > 0:
+            msg = 'Cannot redefine the base Message() object.'
+            raise Exception(msg)
+
+        # Add new Message() definitions.
+        elif name != 'Message':
+
+            # Check that a message with the same name does not exist.
+            if name in [message.__name__ for message in _MESSAGES]:
+                msg = "A Message() with the name '%s' already exists."
+                raise Exception(msg % name)
+
+            # Store message definition.
+            _MESSAGES.append(cls)
+
+        super(_RegisterMeta, cls).__init__(name, bases, clsdict)
+
+
 class Message(dict):
     """Base class based on dict that is used for message passing.
     Has a set of mandatory fields that must be present.
     Additional fields will be serialised if present, but are not
     required."""
+
+    __metaclass__ = _RegisterMeta
 
     def __init__(self, mandatory_items, *args, **kwargs):
 
