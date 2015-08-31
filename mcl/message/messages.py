@@ -104,7 +104,27 @@ def get_message_objects(messages):
 
 
 class _RegisterMeta(type):
-    """Meta-class for globally registering Message() objects."""
+    """Meta-class for globally registering Message() objects.
+
+    :py:class:`._RegisterMeta` is a simple meta-class that maintains a global
+    register of :py:class:`.Message` sub-classes. :py:class:`.Message`
+    subclasses are added to the register when they are defined. During this
+    process :py:class:`._RegisterMeta` also checks to see if a
+    :py:class:`.Message` object with the same name has already been defined.
+
+    Note that the list of :py:class:`.Message` sub-classes can be acquired by
+    calling::
+
+        messages = Message.__subclasses__()
+
+    The reason the :py:class:`._RegisterMeta` is preferred is that it can
+    provide error checking at the time of definition. Note that subclasses
+    cannot easily be removed from the list returned by
+    ``Message.__subclasses__()``. By using this meta-class,
+    :py:class:`.Message` objects can be removed from the global register via
+    other methods (see :py:func:`.remove_message_object`).
+
+    """
 
     def __init__(cls, name, bases, clsdict):
 
