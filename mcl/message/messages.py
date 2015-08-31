@@ -16,93 +16,6 @@ from sets import Set
 _MESSAGES = list()
 
 
-def list_messages(names=False):
-    """List message objects derived from Message.
-
-    Args:
-        name (boolean, **optional**): By default (``False``) a list of message
-            objects derived from :py:class:`.Message` is returned. If set to
-            ``True``, a list of tuples containing message objects derived from
-            :py:class:`.Message` and their name as a string is returned.
-
-    Returns:
-        list: a list of message objects derived from :py:class:`.Message` is
-            returned. a list of tuples containing message objects derived from
-            :py:class:`.Message` and their name as a string is returned.
-
-    """
-
-    # Create soft copy of _MESSAGES so that _MESSAGES cannot be altered
-    # directly.
-    messages = [msg for msg in _MESSAGES]
-
-    # Get message names.
-    if names:
-        message_names = list()
-        for message in messages:
-            message_names.append(message.__name__)
-
-        messages = zip(messages, message_names)
-
-    # Return message objects.
-    return messages
-
-
-def get_message_object(name):
-    """Return message object from name.
-
-    Args:
-        name (string): Name of message object to retrieve.
-
-    Returns:
-        :py:class:`.Message`: requested message object.
-
-    Raises:
-        Except: If ``name`` does not exist or multiple message objects are
-            found.
-
-    """
-
-    # Get available messages.
-    messages = list_messages(names=True)
-
-    # Check if 'message' exists.
-    message = list()
-    for candiatate_message, candiatate_name in messages:
-        if name == candiatate_name:
-            message.append(candiatate_message)
-
-    # Message does not exist.
-    if len(message) == 0:
-        raise Exception("Could locate the message named: '%s'." % name)
-
-    # Multiple messages with the same name exist.
-    elif len(message) > 1:
-        msg = "Multiple messages named '%s' found including:\n" % name
-        for m in message:
-            msg += '    %s.%s\n' % (m.__module__, m.__name__)
-        raise Exception(msg)
-
-    # Return unique message.
-    return message[0]
-
-
-def get_message_objects(messages):
-    """Return message object handles from names."""
-
-    # Input is a string.
-    if isinstance(messages, basestring):
-        objects = get_message_object(messages)
-
-    # Assume input is a list.
-    else:
-        objects = list()
-        for message in messages:
-            objects.append(get_message_object(message))
-
-    return objects
-
-
 class _RegisterMeta(type):
     """Meta-class for globally registering Message() objects.
 
@@ -145,33 +58,6 @@ class _RegisterMeta(type):
             _MESSAGES.append(cls)
 
         super(_RegisterMeta, cls).__init__(name, bases, clsdict)
-
-
-def remove_message_object(name):
-    """De-register Message() object from list of known messages.
-
-    Args:
-        name (string): Name of message object to de-register.
-
-    Returns:
-        bool: ``True`` if the Message() object was de-registered. ``False`` if
-            the Message() object does not exist.
-
-    """
-
-    # Create name of available messages.
-    names = [msg.__name__ for msg in _MESSAGES]
-
-    # The message exists, remove it from the list.
-    if name in names:
-        index = names.index(name)
-        del _MESSAGES[index]
-
-        return True
-
-    # The message does not exist. No action required.
-    else:
-        return False
 
 
 class Message(dict):
@@ -323,3 +209,117 @@ class Message(dict):
         # Record the time of update.
         if not self['timestamp']:
             self.__set_time()
+
+
+def remove_message_object(name):
+    """De-register Message() object from list of known messages.
+
+    Args:
+        name (string): Name of message object to de-register.
+
+    Returns:
+        bool: ``True`` if the Message() object was de-registered. ``False`` if
+            the Message() object does not exist.
+
+    """
+
+    # Create name of available messages.
+    names = [msg.__name__ for msg in _MESSAGES]
+
+    # The message exists, remove it from the list.
+    if name in names:
+        index = names.index(name)
+        del _MESSAGES[index]
+
+        return True
+
+    # The message does not exist. No action required.
+    else:
+        return False
+
+
+def list_messages(names=False):
+    """List message objects derived from Message.
+
+    Args:
+        name (boolean, **optional**): By default (``False``) a list of message
+            objects derived from :py:class:`.Message` is returned. If set to
+            ``True``, a list of tuples containing message objects derived from
+            :py:class:`.Message` and their name as a string is returned.
+
+    Returns:
+        list: a list of message objects derived from :py:class:`.Message` is
+            returned. a list of tuples containing message objects derived from
+            :py:class:`.Message` and their name as a string is returned.
+
+    """
+
+    # Create soft copy of _MESSAGES so that _MESSAGES cannot be altered
+    # directly.
+    messages = [msg for msg in _MESSAGES]
+
+    # Get message names.
+    if names:
+        message_names = list()
+        for message in messages:
+            message_names.append(message.__name__)
+
+        messages = zip(messages, message_names)
+
+    # Return message objects.
+    return messages
+
+
+def get_message_object(name):
+    """Return message object from name.
+
+    Args:
+        name (string): Name of message object to retrieve.
+
+    Returns:
+        :py:class:`.Message`: requested message object.
+
+    Raises:
+        Except: If ``name`` does not exist or multiple message objects are
+            found.
+
+    """
+
+    # Get available messages.
+    messages = list_messages(names=True)
+
+    # Check if 'message' exists.
+    message = list()
+    for candiatate_message, candiatate_name in messages:
+        if name == candiatate_name:
+            message.append(candiatate_message)
+
+    # Message does not exist.
+    if len(message) == 0:
+        raise Exception("Could locate the message named: '%s'." % name)
+
+    # Multiple messages with the same name exist.
+    elif len(message) > 1:
+        msg = "Multiple messages named '%s' found including:\n" % name
+        for m in message:
+            msg += '    %s.%s\n' % (m.__module__, m.__name__)
+        raise Exception(msg)
+
+    # Return unique message.
+    return message[0]
+
+
+def get_message_objects(messages):
+    """Return message object handles from names."""
+
+    # Input is a string.
+    if isinstance(messages, basestring):
+        objects = get_message_object(messages)
+
+    # Assume input is a list.
+    else:
+        objects = list()
+        for message in messages:
+            objects.append(get_message_object(message))
+
+    return objects
