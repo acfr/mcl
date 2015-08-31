@@ -270,56 +270,66 @@ def list_messages(names=False):
     return messages
 
 
-def get_message_object(name):
-    """Return message object from name.
+def get_message_objects(names):
+    """Return message object(s) from name(s).
 
     Args:
-        name (string): Name of message object to retrieve.
+        name (string or list): A single (string) or multiple (list/tuple of
+            strings) message object name(s) to retrieve.
 
     Returns:
-        :py:class:`.Message`: requested message object.
+        :py:class:`.Message` or list: If a single message object is requested
+            (string input), the requested message object is returned. If
+            multiple message objects are requested, a list of message objects
+            is returned.
 
     Raises:
-        Except: If ``name`` does not exist or multiple message objects are
+        TypeError: If ``names`` is not a string or list/tuple of strings.
+        NameError: If ``names`` does not exist or multiple message objects are
             found.
 
     """
 
-    # Get available messages.
-    messages = list_messages(names=True)
-
-    # Check if 'message' exists.
-    message = list()
-    for candiatate_message, candiatate_name in messages:
-        if name == candiatate_name:
-            message.append(candiatate_message)
-
-    # Message does not exist.
-    if len(message) == 0:
-        raise Exception("Could locate the message named: '%s'." % name)
-
-    # Multiple messages with the same name exist.
-    elif len(message) > 1:
-        msg = "Multiple messages named '%s' found including:\n" % name
-        for m in message:
-            msg += '    %s.%s\n' % (m.__module__, m.__name__)
-        raise Exception(msg)
-
-    # Return unique message.
-    return message[0]
-
-
-def get_message_objects(messages):
-    """Return message object handles from names."""
-
     # Input is a string.
-    if isinstance(messages, basestring):
-        objects = get_message_object(messages)
+    if isinstance(names, basestring):
 
-    # Assume input is a list.
+        # Create name of available messages.
+        message_names = [msg.__name__ for msg in _MESSAGES]
+
+        # Cache messages with a matching name.
+        matches = list()
+        for message_name in message_names:
+            if message_name == names:
+                matches.append(message_name)
+
+        # Message does not exist.
+        if len(matches) == 0:
+            raise NameError("Could locate the message named: '%s'." % names)
+
+        # Multiple messages with the same name exist.
+        elif len(matches) > 1:
+            msg = "Multiple messages named '%s' found including:\n" % names
+            for m in matches:
+                msg += '    %s.%s\n' % (m.__module__, m.__name__)
+            raise NameError(msg)
+
+        # Return unique message.
+        index = message_names.index(names)
+        return _MESSAGES[index]
+
+    # Input is a list or tuple.
+    elif isinstance(names, (list, tuple)):
+
+        messages = list()
+        for name in names:
+            try:
+                messages.append(get_message_objects(name))
+            except:
+                raise
+
+        return messages
+
+    # Invalid input type.
     else:
-        objects = list()
-        for message in messages:
-            objects.append(get_message_object(message))
-
-    return objects
+        msg = "The input 'names' must be a string or a list/tuple of strings."
+        raise TypeError(msg)
