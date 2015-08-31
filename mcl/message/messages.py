@@ -16,11 +16,10 @@ from sets import Set
 _MESSAGES = list()
 
 
-def list_messages(name=False):
+def list_messages(names=False):
     """List message objects derived from Message.
 
     Args:
-
         name (boolean, **optional**): By default (``False``) a list of message
             objects derived from :py:class:`.Message` is returned. If set to
             ``True``, a list of tuples containing message objects derived from
@@ -38,7 +37,7 @@ def list_messages(name=False):
     messages = [msg for msg in _MESSAGES]
 
     # Get message names.
-    if name:
+    if names:
         message_names = list()
         for message in messages:
             message_names.append(message.__name__)
@@ -65,7 +64,7 @@ def get_message_object(name):
     """
 
     # Get available messages.
-    messages = list_messages(name=True)
+    messages = list_messages(names=True)
 
     # Check if 'message' exists.
     message = list()
@@ -126,6 +125,33 @@ class _RegisterMeta(type):
             _MESSAGES.append(cls)
 
         super(_RegisterMeta, cls).__init__(name, bases, clsdict)
+
+
+def remove_message_object(name):
+    """De-register Message() object from list of known messages.
+
+    Args:
+        name (string): Name of message object to de-register.
+
+    Returns:
+        bool: ``True`` if the Message() object was de-registered. ``False`` if
+            the Message() object does not exist.
+
+    """
+
+    # Create name of available messages.
+    names = [msg.__name__ for msg in _MESSAGES]
+
+    # The message exists, remove it from the list.
+    if name in names:
+        index = names.index(name)
+        del _MESSAGES[index]
+
+        return True
+
+    # The message does not exist. No action required.
+    else:
+        return False
 
 
 class Message(dict):
