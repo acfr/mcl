@@ -37,9 +37,15 @@ class _RegisterMeta(type):
     :py:class:`.Message` objects can be removed from the global register via
     other methods (see :py:func:`.remove_message_object`).
 
+    Args:
+      cls (class): is the class being instantiated.
+      name (string): is the name of the new class.
+      bases (tuple): base classes of the new class.
+      dct (dict): dictionary mapping the class attribute names to objects.
+
     """
 
-    def __init__(cls, name, bases, clsdict):
+    def __init__(cls, name, bases, dct):
 
         # Do not allow Message() objects with the name Message() to be added.
         if name == 'Message' and len(_MESSAGES) > 0:
@@ -57,7 +63,7 @@ class _RegisterMeta(type):
             # Store message definition.
             _MESSAGES.append(cls)
 
-        super(_RegisterMeta, cls).__init__(name, bases, clsdict)
+        super(_RegisterMeta, cls).__init__(name, bases, dct)
 
 
 class Message(dict):
