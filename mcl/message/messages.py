@@ -304,13 +304,13 @@ def get_message_objects(names):
     if isinstance(names, basestring):
 
         # Create name of available messages.
-        message_names = [msg.__name__ for msg in _MESSAGES]
+        messages = [(msg, msg.__name__) for msg in _MESSAGES]
 
         # Cache messages with a matching name.
         matches = list()
-        for message_name in message_names:
-            if message_name == names:
-                matches.append(message_name)
+        for message in messages:
+            if message[1] == names:
+                matches.append(message)
 
         # Message does not exist.
         if len(matches) == 0:
@@ -319,13 +319,12 @@ def get_message_objects(names):
         # Multiple messages with the same name exist.
         elif len(matches) > 1:
             msg = "Multiple messages named '%s' found including:\n" % names
-            for m in matches:
-                msg += '    %s.%s\n' % (m.__module__, m.__name__)
+            for message in matches:
+                msg += '    %s.%s\n' % (message[0].__module__, message[1])
             raise NameError(msg)
 
         # Return unique message.
-        index = message_names.index(names)
-        return _MESSAGES[index]
+        return matches[0][0]
 
     # Input is a list or tuple.
     elif isinstance(names, (list, tuple)):
