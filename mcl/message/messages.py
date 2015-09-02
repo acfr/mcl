@@ -250,13 +250,16 @@ def list_messages(names=False):
     Args:
         name (boolean, **optional**): By default (``False``) a list of message
             objects derived from :py:class:`.Message` is returned. If set to
-            ``True``, a list of tuples containing message objects derived from
-            :py:class:`.Message` and their name as a string is returned.
+            ``True``, a tuple containing a list of message objects derived from
+            :py:class:`.Message` and list of their names as a string is
+            returned.
 
     Returns:
-        list: a list of message objects derived from :py:class:`.Message` is
-            returned. a list of tuples containing message objects derived from
-            :py:class:`.Message` and their name as a string is returned.
+        list or tuple: a list of message objects derived from
+            :py:class:`.Message` is returned. If ``name`` is set to ``True``, a
+            tuple containing a list of message objects derived from
+            :py:class:`.Message` and list of their names as a string is
+            returned.
 
     """
 
@@ -270,10 +273,11 @@ def list_messages(names=False):
         for message in messages:
             message_names.append(message.__name__)
 
-        messages = zip(messages, message_names)
+        return messages, message_names
 
     # Return message objects.
-    return messages
+    else:
+        return messages
 
 
 def get_message_objects(names):
