@@ -67,10 +67,12 @@ class _RegisterMeta(type):
 
 
 class Message(dict):
-    """Base class based on dict that is used for message passing.
-    Has a set of mandatory fields that must be present.
-    Additional fields will be serialised if present, but are not
-    required."""
+    """Base class that is used for message passing.
+
+    Has a set of mandatory fields that must be present. Additional fields will
+    be serialised if present, but are not required.
+
+    """
 
     __metaclass__ = _RegisterMeta
 
@@ -91,9 +93,8 @@ class Message(dict):
         self.__check_requirements(self)
 
     def __check_requirements(self, dct):
-        """Ensure Message contains every entry in the 'mandatory_items'
-        list.
-        """
+        """Ensure Message contains all items in the 'mandatory_items' list."""
+
         if not Set(dct.keys()).issuperset(Set(self.__mandatory_items)):
             msg = "'%s' must have the following items: [" % self['name']
             msg += ', '.join(self.__mandatory_items)
@@ -101,12 +102,13 @@ class Message(dict):
             raise TypeError(msg)
 
     def __set_time(self):
-        """Update the cpu timestamp in milliseconds from UTC epoch.
+        """Update the CPU time-stamp in milliseconds from UTC epoch.
 
         Note: This method should be platform independent and provide more
         precision than the time.time() method. See:
 
         https://docs.python.org/2/library/datetime.html#datetime.datetime.now
+
         """
         time_now = datetime.datetime.now()
         time_origin = datetime.datetime.utcfromtimestamp(0)
@@ -115,10 +117,12 @@ class Message(dict):
 
     def mandatory_items(self):
         """Return all mandatory items for this message type."""
+
         return self.__mandatory_items
 
     def encode(self):
         """Return the compressed form of the message."""
+
         return msgpack.dumps(self)
 
     def to_json(self):
@@ -162,7 +166,10 @@ class Message(dict):
 
     def __setitem__(self, key, value):
         """Set an item to a new value.
-        Will not update message name or timestamp."""
+
+        Note: this will not update message name or timestamp.
+
+        """
 
         # Prevent write access to Message name and timestamp.
         if key == 'name' and key in self:
@@ -174,11 +181,10 @@ class Message(dict):
             super(Message, self).__setitem__(key, value)
 
     def update(self, *args, **kwargs):
-        """Update message with dictionary of new values.
-        Automatically updates the timestamp."""
-        # Set the default timestamp to None.
-        # If it is updated by the passed in arguments, we won't update
-        # it automatically.
+        """Update message with dictionary of new values."""
+
+        # Set the default timestamp to None. If it is updated by the passed in
+        # arguments, we won't update it automatically.
         self['timestamp'] = None
 
         if len(args) > 1:
