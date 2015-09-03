@@ -9,21 +9,67 @@ from mcl.network.abstract import RawListener as AbstractRawListener
 #exclude test files from pylint
 #pylint: skip-file
 
-class Connection(AbstractConnection):
-    """Validate inheritance mechanism in abstract.Connection()"""
 
-    def __str__(self):
+# -----------------------------------------------------------------------------
+#                                 Connection()
+# -----------------------------------------------------------------------------
 
-        # Format string.
-        print_string = 'AbstractConneciton; url=<%s>; topics=<%s>'
-        print_string = print_string % (self.url, self.topics)
+class TestConnection(unittest.TestCase):
 
-        return print_string
+    def test_abstract(self):
+        """Test abstract.Connection() initialisation of abstract object."""
 
-    @classmethod
-    def from_string(cls, string):
-        return super(Connection, cls).from_string(string)
+        # Ensure instantiation of abstract object fails.
+        with self.assertRaises(TypeError):
+            AbstractConnection()
 
+    def test_init(self):
+        """Test abstract.Connection() initialisation."""
+
+        # A sub-class which has redefined all the abstract methods can be
+        # instantiated.
+        class TestConnection(AbstractConnection):
+
+            def __init__(self, *args, **kwargs):
+                mandatory = ('A',)
+                optional = {'B': 1, 'C': 2, 'D': None}
+                super(TestConnection, self).__init__(mandatory, optional,
+                                                     *args, **kwargs)
+
+        # Initialise object.
+        connection = TestConnection(0, D=3)
+
+        # Ensure all attributes exist.
+        for attribute in ['A', 'B', 'C', 'D']:
+            self.assertTrue(hasattr(connection, attribute))
+
+        # Ensure attributes can be set at instantiation.
+        for attribute, value in [('A', 0), ('B', 1), ('C', 2), ('D', 3)]:
+            self.assertEqual(getattr(connection, attribute), value)
+
+        # Ensure attributes can be converted into a string.
+        string  = 'TestConnection() parameters:\n'
+        string += '    A:                          0\n'
+        string += '    C (optional, default=2):    2\n'
+        string += '    B (optional, default=1):    1\n'
+        string += '    D (optional, default=None): 3'
+        self.assertEqual(string, str(connection))
+
+    def test_bad_init(self):
+        """Test abstract.Connection() can catch bad initialisations."""
+
+        class TestConnection(AbstractConnection):
+
+            def __init__(self, *args, **kwargs):
+                mandatory = ('A',)
+                optional = {'B': 1, 'C': 2, 'D': None}
+                super(TestConnection, self).__init__(mandatory, optional,
+                                                     *args, **kwargs)
+
+
+-----------------------------------------------------------------------------
+                              RawBroadcaster()
+-----------------------------------------------------------------------------
 
 class RawBroadcaster(AbstractRawBroadcaster):
     """Validate inheritance mechanism in abstract.RawBroadcaster()"""
@@ -88,106 +134,6 @@ class RawListener(AbstractRawListener):
     def from_connection(cls, connection):
         return super(RawListener, cls).from_connection(RawListener(),
                                                        connection)
-
-
-class TestConnection(unittest.TestCase):
-
-    def test_init(self):
-        """Test abstract.Connection() initialisation of abstract object."""
-
-        # Ensure instantiation of abstract object fails.
-        with self.assertRaises(TypeError):
-            AbstractConnection()
-
-    def test_inherit(self):
-        """Test abstract.Connection() inheritance model."""
-
-        # A child class which has redefined all the abstract methods can be
-        # instantiated.
-        instance = Connection('address')
-
-        # Force users to over-ride base implementation of 'from_string' by
-        # throwing a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.from_string('string')
-
-    def test_url(self):
-        """Test abstract.Connection() 'url' get/set."""
-
-        # Instantiate connection.
-        url = 'address'
-        instance = Connection(url)
-        self.assertEqual(instance.url, url)
-
-        # Ensure strings are accepted.
-        url = 'url'
-        instance.url = url
-        self.assertEqual(instance.url, url)
-
-        # Ensure empty url throws an exception.
-        with self.assertRaises(TypeError):
-            instance.url = ''
-        with self.assertRaises(TypeError):
-            instance.url = None
-
-        # Ensure non-string inputs throw an exception.
-        with self.assertRaises(TypeError):
-            instance.url = 5
-
-    def test_topics(self):
-        """Test abstract.Connection() 'topic' get/set."""
-
-        # Instantiate connection.
-        instance = Connection('address')
-
-        # Test empty strings are accepted.
-        topic = ''
-        instance.topics = topic
-        self.assertEqual(instance.topics, None)
-
-        # Ensure strings are accepted.
-        topic = 'test'
-        instance.topics = topic
-        self.assertEqual(instance.topics, topic)
-
-        # Ensure list of strings are accepted.
-        topics = ['testA', 'testB', 'testC']
-        instance.topics = topics
-        self.assertEqual(instance.topics, topics)
-
-        # Ensure non-string/list inputs throw an exception.
-        with self.assertRaises(TypeError):
-            instance.topics = 5
-
-        # Ensure topics with a delimiter in them throw an exception.
-        with self.assertRaises(ValueError):
-            instance.topics = 'Cat' + HEADER_DELIMITER + 'Dog'
-
-    def test_message(self):
-        """Test abstract.Connection() 'message' get/set."""
-
-        message_name = 'ImuMessage'
-        message_object = get_message_object(message_name)
-
-        # Instantiate connection.
-        instance = Connection('address')
-
-        # Ensure messages specified as 'None' are accepted.
-        instance.message = 'None'
-        self.assertEqual(instance.message, None)
-
-        # Ensure messages specified as a string are accepted.
-        instance.message = message_name
-        self.assertEqual(instance.message, message_object)
-
-        # Ensure messages specified as an object are accepted.
-        instance.message = message_object
-        self.assertEqual(instance.message, message_object)
-
-        # Ensure non-Message/RawMessage inputs throw an exception.
-        with self.assertRaises(TypeError):
-            instance.message = 5
-
 
 class CommonTests(object):
 

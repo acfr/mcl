@@ -27,202 +27,116 @@ interface into pyITS see :py:mod:`.network.udp`.
 
 """
 import abc
-import traceback
-from mcl import Publisher
-from mcl.message.messages import Message
-from mcl.message import get_message_object
-
 from abc import abstractmethod
 from abc import abstractproperty
 
-HEADER_DELIMITER = ','
-HEADER_FORMAT = HEADER_DELIMITER.join(['%i', '%s', '%i', '%i'])
-HEADER_FORMAT += HEADER_DELIMITER
-
-
-def _abstract_error(cls):
-    """Function for throwing a NotImplementedError in virtual methods.
-
-    The message assigned to the :exc:`NotImplementedError` is:
-
-        The method '<fcn>' in '<cls>' is abstract. Derived classes must
-        override this method.
-
-    where:
-
-        - <fcn> is the name of the abstract method
-        - <cls> is the name of the abstract class
-
-    """
-
-    cls = cls.__class__.__name__
-    fcn = traceback.extract_stack(None, 2)[0][2]
-    message = "The method '%s' in '%s' is abstract. " % (fcn, cls)
-    message += "Derived classes must override this method."
-
-    return NotImplementedError(message)
+from mcl import Publisher
+# from mcl.message.messages import Message
+# from mcl.message import get_message_object
 
 
 class Connection(object):
     """Object for encapsulating connection parameters of network interfaces.
 
     The :py:class:`.Connection` object is an abstract specification designed to
-    provide separation between pyITS network interfaces and the parameters used
+    provide separation between MCL network interfaces and the parameters used
     to create them. The interface provided by :py:class:`.Connection` ensures
-    child objects will be compatible with pyITS. :py:class:`.Connection` also
-    provides some boiler-plate checking form the attributes ``url``, ``topics``
-    and ``message`` to ensure they are set correctly.
+    child objects will be compatible with MCL.
 
     Args:
-        url (str): Uniform resource locator used to identify the network
-                   interface.
-        topics (str): Topics associated with the network interface.
-        message (:py:class:`.Message`): pyITS message object associated with
-                                        the network interface.
+        mandatory (list): List of mandatory connection parameter names.
+        optional (dict): List of optional connection parameters and default
+            settings.
+        *args (list): mandatory connection parameters.
+        **kwargs (dict): optional connection parameters.
 
-    Attributes:
-        url (str): Uniform resource locator used to identify the network
-                   interface. The `url` attribute must be a non-empty string.
-        topics (str): Topics associated with the network interface. The
-                      `topics` attribute can be :data:`None`, a single string
-                      or a list of strings.
-        message (:py:class:`.Message`): pyITS message object associated with
-                                        the network interface.
+    Raises:
+        TypeError: If any of the input argument are invalid.
 
     """
 
-    # Ensure abstract methods are redefined in child classes.
+    # Ensure abstract methods are redefined in sub-classes.
     __metaclass__ = abc.ABCMeta
 
-    # Character used to delimit topics in a string of topics for example:
-    #
-    #     topics = 'cat, dog, rat'
-    #
-    TOPIC_DELIMITER = ','
-
-    def __init__(self, url, topics=None, message=None):
+    @abstractmethod
+    def __init__(self, mandatory, optional, *args, **kwargs):
         """Document the __init__ method at the class level."""
 
-        self.__url = url
-        self.__topics = topics
-        self.__message = message
+        # Get class name.
+        name = self.__class__.__name__
 
-    @property
-    def url(self):
-        return self.__url
-
-    @url.setter
-    def url(self, url):
-
-        # Uniform resource identifier cannot be empty.
-        if not url:
-            raise TypeError('URL cannot be empty. Nominate a unique string.')
-
-        # Throw error if object is not a string.
-        elif not isinstance(url, basestring):
-            raise TypeError('URL must be a string.')
-
-        self.__url = url
-
-    @property
-    def topics(self):
-        return self.__topics
-
-    @topics.setter
-    def topics(self, topics):
-
-        # Permit empty string or None.
-        if topics is '' or topics is None:
-            self.__topics = None
-            return None
-
-        # If topics is a string, insert the string into a list to be validated
-        # by the next logic block.
-        if isinstance(topics, basestring):
-            topics = [topics, ]
-
-        # Validate list.
-        if hasattr(topics, '__iter__'):
-            for topic in topics:
-
-                # Elements in list must be non-empty strings.
-                if not isinstance(topic, basestring):
-                    raise TypeError('Topic must be a string.')
-
-                # Strings in the list must not contain the delimiter character.
-                elif self.TOPIC_DELIMITER in topic:
-                    msg = "The input topic '%s' cannot contain the '%s' "
-                    msg += "character."
-                    raise ValueError(msg % (topic, self.TOPIC_DELIMITER))
-
-            # Single topics can be stored as a string.
-            if len(topics) == 1:
-                self.__topics = topics[0]
-
-            # List of valid strings are stored as a list.
-            else:
-                self.__topics = topics
-
-        # Input is the incorrect type.
-        else:
-            msg = 'Topics must be None, a string or list of strings.'
+        # Ensure 'mandatory' is a list or tuple.
+        if not isinstance(mandatory, (list, tuple)):
+            msg = "'mandatory' must be a list or tuple."
             raise TypeError(msg)
 
-    @property
-    def message(self):
-        return self.__message
+        # Ensure 'optional' is a list or tuple.
+        if not isinstance(optional, (dict,)):
+            msg = "'optional' must be a dictionary."
+            raise TypeError(msg)
 
-    @message.setter
-    def message(self, message):
+        # Ensure all mandatory arguments are present.
+        if len(mandatory) != len(args):
+            msg = '%s() expected %i arguments, got %i.' % \
+                  (name, len(mandatory), len(args))
+            raise TypeError(msg)
 
-        # Parse messages.
-        if message:
+        # There are elements in the input optional parameters that are not in
+        # the recognised optional parameters.
+        invalid = set(kwargs.keys()) - set(optional.keys())
+        if invalid:
+            msg = '%s() got unexpected keyword arguments: %s.' % \
+                  (name, ', '.join(invalid))
+            raise TypeError(msg)
 
-            # Message has been specified as a string.
-            if isinstance(message, basestring):
-                try:
-                    message = get_message_object(message)
-                except:
-                    msg = "'%s' is not a valid pyITS message type."
-                    raise TypeError(msg % message)
+        # Store mandatory and optional fields.
+        self.__mandatory = mandatory
+        self.__optional = optional
 
-            # Message has been specified as a non-string object.
-            else:
-                msg = 'Expected %r, received %r' % (Message, message)
-                try:
-                    if not issubclass(message, Message):
-                        raise TypeError(msg)
-                except:
-                    raise TypeError(msg)
+        # Add mandatory parameters.
+        for i, name in enumerate(mandatory):
+            setattr(self, name, args[i])
 
-            self.__message = message
+        # Add default optional parameters.
+        for name, default in optional.iteritems():
+            setattr(self, name, default)
 
-        # Allow empty/null message objects.
-        else:
-            self.__message = None
+        # Set optional parameters.
+        for name, value in kwargs.iteritems():
+            setattr(self, name, value)
 
-    @abstractmethod
     def __str__(self):
-        raise _abstract_error(self)
-
-    @classmethod
-    @abstractmethod
-    def from_string(cls, string):
-        """Create and configure a connection object from a string.
-
-        Child objects must override this classmethod and implement a parsing
-        function to convert a string into a connection object. This will allow
-        :py:class:`.RawBroadcaster` and :py:class:`.RawListener` objects to be
-        created from a configuration file.
-
-        Args:
-            string (str): string specifying the connection configuration.
+        """Pretty print the mandatory and optional parameters.
 
         Returns:
-            :py:class:`.Connection`: Configured :py:class:`.Connection` object.
+            str: A human readable string of the object mandatory and optional
+                parameters.
 
         """
-        raise _abstract_error(cls)
+
+        # Get name of mandatory items.
+        mandatory = list()
+        for name in self.__mandatory:
+            string = '%s:' % name
+            mandatory.append((string, name))
+
+        # Get name of optional items and their defaults.
+        optional = list()
+        for name, default in self.__optional.iteritems():
+            string = '%s (optional, default=%s):' % (name, str(default))
+            optional.append((string, name))
+
+        # Get length of longest line.
+        parameters = mandatory + optional
+        length = max([len(s) for s, n in parameters])
+
+        # Create parameter display.
+        lines = ['%s() parameters:' % self.__class__.__name__, ]
+        for string, name in parameters:
+            value = str(getattr(self, name))
+            lines.append('    ' + string.ljust(length) + ' ' + value)
+
+        return '\n'.join(lines)
 
 
 class RawBroadcaster(object):
@@ -247,19 +161,19 @@ class RawBroadcaster(object):
 
     @abstractproperty
     def url(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def topic(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def is_open(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def counter(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def _open(self):
@@ -276,7 +190,7 @@ class RawBroadcaster(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def publish(self, data, topic=''):
@@ -294,7 +208,7 @@ class RawBroadcaster(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def close(self):
@@ -311,7 +225,7 @@ class RawBroadcaster(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def from_connection(cls, connection):
@@ -340,19 +254,19 @@ class RawListener(Publisher):
 
     @abstractproperty
     def url(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def topics(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def is_open(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractproperty
     def counter(self):
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def _open(self):
@@ -363,7 +277,7 @@ class RawListener(Publisher):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def close(self):
@@ -374,8 +288,8 @@ class RawListener(Publisher):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     @abstractmethod
     def from_connection(cls, connection):
-        raise _abstract_error(cls)
+        pass
