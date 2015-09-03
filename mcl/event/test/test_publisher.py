@@ -1,9 +1,9 @@
 import time
 import unittest
 import threading
-from mcl.publisher import CallbackHandler as CallbackHandler
-from mcl.publisher import CallbackSynchronous as CallbackSynchronous
-from mcl.publisher import CallbackAsynchronous as CallbackAsynchronous
+from mcl.event.event import CallbackHandler as CallbackHandler
+from mcl.event.event import CallbackSynchronous as CallbackSynchronous
+from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
 from mcl import BasePublisher
 from mcl import Publisher
 
