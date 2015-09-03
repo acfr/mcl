@@ -73,7 +73,6 @@ class Message(dict):
     be serialised if present, but are not required.
 
     """
-
     __metaclass__ = _RegisterMeta
 
     def __init__(self, mandatory_items, *args, **kwargs):

@@ -13,5 +13,3 @@ multiple packages within the MCL namespace.
 
 import os
 import msgpack
-from event.event import BasePublisher
-from event.event import Publisher

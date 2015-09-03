@@ -1,16 +1,16 @@
-"""Module specifying interface for publishing and receiving data in pyITS.
+"""Module specifying interface for publishing and receiving data in MCL.
 
 This module defines an interface for publishing and receiving data to network
-interfaces in pyITS. This is done by providing abstract objects for
+interfaces in MCL. This is done by providing abstract objects for
 broadcasting and listening for data. The following abstract objects are defined
-and ensure network interfaces can be integrated into pyITS:
+and ensure network interfaces can be integrated into MCL:
 
     - :py:class:`.Connection`
     - :py:class:`.RawBroadcaster`
     - :py:class:`.RawListener`
 
 For examples of how to use :py:mod:`.abstract` to integrate a new network
-interface into pyITS see :py:mod:`.network.udp`.
+interface into MLC see :py:mod:`.network.udp`.
 
 .. note::
 
@@ -29,37 +29,33 @@ interface into pyITS see :py:mod:`.network.udp`.
 import abc
 from abc import abstractmethod
 from abc import abstractproperty
+from mcl.event.event import Publisher
 
-from mcl import Publisher
 
-
-class Connection(type):
+class _ConnectionMeta(type):
     """Meta-class for manufacturing network interface connection objects.
 
-    The :py:class:`.Connection` object is a meta-class designed to manufacture
-    MCL network interface connection objects. The meta-class works by
-    dynamically adding mandatory and optional parameters to a class definition
-    at run time. This is done by searching for the '__mandatory__' and
-    '__optional__' attributes where:
+    The :py:class:`.ConnectionMeta` object is a meta-class designed to
+    manufacture MCL network interface connection objects. The meta-class works
+    by dynamically adding mandatory and optional parameters to a class
+    definition at run time if and ONLY if the class inherits from
+    :py:class:`.Connection`.
 
-        - mandatory is a list of mandatory connection parameter names.
-        - optional is a dictionary of optional connection parameters and their
-          defaults.
+    Classes that inherit from :py:class:`.Connection` must implement the
+    ``mandatory`` attribute which is a list of strings specifying the name of
+    mandatory attributes. Classes that inherit from :py:class:`.Connection` can
+    optionally implement the ``optional`` attribute which is a dictionary of
+    optional connection parameters and their defaults. These attributes are
+    used to manufacture an object to contain the definition. See
+    :py:class:`.Connection` for implementation detail.
 
-    Example usage:
-
-        # Define new connection object.
-        class ExampleConnection(object):
-            __metaclass__ = ConnectionMeta
-            __mandatory__ = ('A', 'B')
-            __optional__  = {'C': 1, 'D': 2}
-
-        # Instantiate object.
-        example = ExampleConnection('A', 'B', D=5)
-        print example
+    Note that classes that do not inherit from :py:class:`.Connection` will be
+    left unmodified. These are the :py:class:`.Connection` object and objects
+    which sub-class a sub-class of :py:class:`.Connection`.
 
     Raises:
-        TypeError: If any of the input argument are invalid.
+        TypeError: If the parent class is a :py:class:`.Connection` object and
+            either ``mandatory`` or ``optional`` are ill-specified.
 
     """
 
@@ -77,19 +73,28 @@ class Connection(type):
 
         """
 
-        # Access mandatory and optional parameters.
-        MANDATORY = dct.get('__mandatory__', None)
-        OPTIONAL = dct.get('__optional__', None)
+        # Do not look for manditory/optional fields in the Connection class.
+        if (name == 'Connection') and (bases == (object,)):
+            return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-        # Ensure 'mandatory' is a list or tuple.
+        # Do not look for manditory/optional fields in the Connection class.
+        elif bases != (Connection,):
+            return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
+
+        # Objects inheriting from Connection will be required to have a
+        # 'mandatory' attribute.
+        MANDATORY = dct.get('mandatory', {})
+        OPTIONAL = dct.get('optional', {})
+
+        # Ensure 'mandatory' is a list or tuple of strings.
         if ((not isinstance(MANDATORY, (list, tuple))) or
             (not all(isinstance(item, basestring) for item in MANDATORY))):
-            msg = "'__mandatory__' must be a list or tuple or strings."
+            msg = "'mandatory' must be a list or tuple or strings."
             raise TypeError(msg)
 
-        # Ensure 'optional' is a dictionary or None.
-        if not isinstance(OPTIONAL, (dict, None)):
-            msg = "'__optional__' must be a dictionary."
+        # Ensure 'optional' is a list or tuple.
+        if not isinstance(OPTIONAL, (dict,)):
+            msg = "'optional' must be a dictionary."
             raise TypeError(msg)
 
         # Initialisation method defined using closure.
@@ -172,27 +177,51 @@ class Connection(type):
 
             return '\n'.join(lines)
 
-        # Remove mandatory and optional fields from the class definition. They
-        # are already embedded in the class definition via the __init__()
-        # function.
-        del dct['__mandatory__']
-        del dct['__optional__']
-
-        # Return class with factory methods.
-        dct['__init__'] = __init__
-        dct['__str__'] = __str__
-
         # Return factory class.
-        return type.__new__(cls, name, bases, dct)
+        dct = {'__init__': __init__, '__str__': __str__}
+        return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
+
+
+class Connection(object):
+    """Base class for MCL network interface connection objects.
+
+    The :py:class:`.Connection` object provides a base class for defining MCL
+    network interface connection objects. Objects inheriting from
+    :py:class:`.Connection` must implement the attribute ``mandatory`` where
+    ``mandatory`` is a list of strings defining the names of mandatory
+    connection parameters. Objects inheriting from :py:class:`.Connection` can
+    optionally implement the attribute ``optional`` where ``optional`` is a
+    dictionary of optional connection parameters and their defaults. These
+    attributes form the definition of the network interface connection and
+    allow :py:class:`.Connection` to manufacture a connection object with these
+    attributes.
+
+    Example usage::
+
+        # Define new connection object.
+        class ExampleConnection(Connection):
+            mandatory = ('A',)
+            optional  = {'B': 1, 'C': 2, 'D': 3}
+
+        # Instantiate object.
+        example = ExampleConnection('A', D=5)
+        print example.A
+        print example
+
+    Raises:
+        TypeError: If any of the input argument are invalid.
+
+    """
+    __metaclass__ = _ConnectionMeta
 
 
 class RawBroadcaster(object):
     """Abstract object for sending data over a network interface.
 
     The :py:class:`.RawBroadcaster` is an abstract object designed to provide a
-    template for objects in the pyITS ecosystem which broadcast data over a
+    template for objects in the MCL ecosystem which broadcast data over a
     network interface. Broadcasters inheriting from this template are likely to
-    integrate safely with the pyITS system.
+    integrate safely with the MCL system.
 
     Attributes:
         url (str): URL of the network interface.
@@ -274,18 +303,14 @@ class RawBroadcaster(object):
         """
         pass
 
-    @abstractmethod
-    def from_connection(cls, connection):
-        raise _abstract_error(cls)
-
 
 class RawListener(Publisher):
     """Abstract object for receiving data over a network interface.
 
     The :py:class:`.RawListener` is an abstract object designed to provide a
-    template for objects in the pyITS ecosystem which listen for data over a
+    template for objects in the MCL ecosystem which listen for data over a
     network interface. Listeners inheriting from this template are likely to
-    integrate safely with the pyITS system.
+    integrate safely with the MCL system.
 
     Attributes:
         url (str): URL of the network interface.
@@ -335,8 +360,4 @@ class RawListener(Publisher):
                                  subclasses.
 
         """
-        pass
-
-    @abstractmethod
-    def from_connection(cls, connection):
         pass
