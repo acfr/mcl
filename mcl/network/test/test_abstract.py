@@ -1,7 +1,5 @@
 import unittest
 
-from mcl.message import get_message_object
-from mcl.network.abstract import HEADER_DELIMITER
 from mcl.network.abstract import Connection as AbstractConnection
 from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
@@ -16,35 +14,54 @@ from mcl.network.abstract import RawListener as AbstractRawListener
 
 class TestConnection(unittest.TestCase):
 
-    def test_abstract(self):
-        """Test abstract.Connection() initialisation of abstract object."""
+    def test_mandatory_missing(self):
+        """Test abstract.Connection() requires the __mandatory__ attribute."""
 
-        # Ensure instantiation of abstract object fails.
+        # A sub-class which has not defined the '__mandatory__' attribute
+        # cannot be created.
         with self.assertRaises(TypeError):
-            AbstractConnection()
+            class TestConnection(object):
+                __metaclass__ = AbstractConnection
+
+        # A sub-class which has not defined the '__mandatory__' attribute
+        # CORRECTLY cannot be created.
+        with self.assertRaises(TypeError):
+            class TestConnection(object):
+                __metaclass__ = AbstractConnection
+                __mandatory__ = 5
+
+        # A sub-class which has not defined the '__mandatory__' attribute
+        # CORRECTLY cannot be created.
+        with self.assertRaises(TypeError):
+            class TestConnection(object):
+                __metaclass__ = AbstractConnection
+                __mandatory__ = 'attribute'
+
+        # A sub-class which has not defined the '__mandatory__' attribute
+        # CORRECTLY cannot be created.
+        with self.assertRaises(TypeError):
+            class TestConnection(object):
+                __metaclass__ = AbstractConnection
+                __mandatory__ = ('attribute', 0)
 
     def test_init(self):
-        """Test abstract.Connection() initialisation."""
+        """Test abstract.Connection() can manufacture functional objects."""
 
-        # A sub-class which has redefined all the abstract methods can be
-        # instantiated.
-        class TestConnection(AbstractConnection):
-
-            def __init__(self, *args, **kwargs):
-                mandatory = ('A',)
-                optional = {'B': 1, 'C': 2, 'D': None}
-                super(TestConnection, self).__init__(mandatory, optional,
-                                                     *args, **kwargs)
+        # Define connection for testing object.
+        class TestConnection(object):
+            __metaclass__ = AbstractConnection
+            __mandatory__ = ('A',)
+            __optional__  = {'B': 1, 'C': 2, 'D': None}
 
         # Initialise object.
-        connection = TestConnection(0, D=3)
+        connection = TestConnection(0, D=5)
 
         # Ensure all attributes exist.
         for attribute in ['A', 'B', 'C', 'D']:
             self.assertTrue(hasattr(connection, attribute))
 
         # Ensure attributes can be set at instantiation.
-        for attribute, value in [('A', 0), ('B', 1), ('C', 2), ('D', 3)]:
+        for attribute, value in [('A', 0), ('B', 1), ('C', 2), ('D', 5)]:
             self.assertEqual(getattr(connection, attribute), value)
 
         # Ensure attributes can be converted into a string.
@@ -52,24 +69,33 @@ class TestConnection(unittest.TestCase):
         string += '    A:                          0\n'
         string += '    C (optional, default=2):    2\n'
         string += '    B (optional, default=1):    1\n'
-        string += '    D (optional, default=None): 3'
+        string += '    D (optional, default=None): 5'
         self.assertEqual(string, str(connection))
 
     def test_bad_init(self):
         """Test abstract.Connection() can catch bad initialisations."""
 
-        class TestConnection(AbstractConnection):
+        # Define connection for testing object.
+        class TestConnection(object):
+            __metaclass__ = AbstractConnection
+            __mandatory__ = ('A', 'B')
+            __optional__  = {'C': 2, 'D': None}
 
-            def __init__(self, *args, **kwargs):
-                mandatory = ('A',)
-                optional = {'B': 1, 'C': 2, 'D': None}
-                super(TestConnection, self).__init__(mandatory, optional,
-                                                     *args, **kwargs)
+        # Too few input parameters.
+        with self.assertRaises(TypeError):
+            TestConnection('A')
 
+        # Too many input parameters.
+        with self.assertRaises(TypeError):
+            TestConnection('A', 'B', 'C')
 
------------------------------------------------------------------------------
-                              RawBroadcaster()
------------------------------------------------------------------------------
+        # Unrecognised keyword argument.
+        with self.assertRaises(TypeError):
+            TestConnection('A', 'B', Z=0)
+
+# -----------------------------------------------------------------------------
+#                               RawBroadcaster()
+# -----------------------------------------------------------------------------
 
 class RawBroadcaster(AbstractRawBroadcaster):
     """Validate inheritance mechanism in abstract.RawBroadcaster()"""

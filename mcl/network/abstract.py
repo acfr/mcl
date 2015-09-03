@@ -31,112 +31,159 @@ from abc import abstractmethod
 from abc import abstractproperty
 
 from mcl import Publisher
-# from mcl.message.messages import Message
-# from mcl.message import get_message_object
 
 
-class Connection(object):
-    """Object for encapsulating connection parameters of network interfaces.
+class Connection(type):
+    """Meta-class for manufacturing network interface connection objects.
 
-    The :py:class:`.Connection` object is an abstract specification designed to
-    provide separation between MCL network interfaces and the parameters used
-    to create them. The interface provided by :py:class:`.Connection` ensures
-    child objects will be compatible with MCL.
+    The :py:class:`.Connection` object is a meta-class designed to manufacture
+    MCL network interface connection objects. The meta-class works by
+    dynamically adding mandatory and optional parameters to a class definition
+    at run time. This is done by searching for the '__mandatory__' and
+    '__optional__' attributes where:
 
-    Args:
-        mandatory (list): List of mandatory connection parameter names.
-        optional (dict): List of optional connection parameters and default
-            settings.
-        *args (list): mandatory connection parameters.
-        **kwargs (dict): optional connection parameters.
+        - mandatory is a list of mandatory connection parameter names.
+        - optional is a dictionary of optional connection parameters and their
+          defaults.
+
+    Example usage:
+
+        # Define new connection object.
+        class ExampleConnection(object):
+            __metaclass__ = ConnectionMeta
+            __mandatory__ = ('A', 'B')
+            __optional__  = {'C': 1, 'D': 2}
+
+        # Instantiate object.
+        example = ExampleConnection('A', 'B', D=5)
+        print example
 
     Raises:
         TypeError: If any of the input argument are invalid.
 
     """
 
-    # Ensure abstract methods are redefined in sub-classes.
-    __metaclass__ = abc.ABCMeta
+    def __new__(cls, name, bases, dct):
+        """Manufacture network interface.
 
-    @abstractmethod
-    def __init__(self, mandatory, optional, *args, **kwargs):
-        """Document the __init__ method at the class level."""
+        Args:
+          cls (class): is the class being instantiated.
+          name (string): is the name of the new class.
+          bases (tuple): base classes of the new class.
+          dct (dict): dictionary mapping the class attribute names to objects.
 
-        # Get class name.
-        name = self.__class__.__name__
-
-        # Ensure 'mandatory' is a list or tuple.
-        if not isinstance(mandatory, (list, tuple)):
-            msg = "'mandatory' must be a list or tuple."
-            raise TypeError(msg)
-
-        # Ensure 'optional' is a list or tuple.
-        if not isinstance(optional, (dict,)):
-            msg = "'optional' must be a dictionary."
-            raise TypeError(msg)
-
-        # Ensure all mandatory arguments are present.
-        if len(mandatory) != len(args):
-            msg = '%s() expected %i arguments, got %i.' % \
-                  (name, len(mandatory), len(args))
-            raise TypeError(msg)
-
-        # There are elements in the input optional parameters that are not in
-        # the recognised optional parameters.
-        invalid = set(kwargs.keys()) - set(optional.keys())
-        if invalid:
-            msg = '%s() got unexpected keyword arguments: %s.' % \
-                  (name, ', '.join(invalid))
-            raise TypeError(msg)
-
-        # Store mandatory and optional fields.
-        self.__mandatory = mandatory
-        self.__optional = optional
-
-        # Add mandatory parameters.
-        for i, name in enumerate(mandatory):
-            setattr(self, name, args[i])
-
-        # Add default optional parameters.
-        for name, default in optional.iteritems():
-            setattr(self, name, default)
-
-        # Set optional parameters.
-        for name, value in kwargs.iteritems():
-            setattr(self, name, value)
-
-    def __str__(self):
-        """Pretty print the mandatory and optional parameters.
-
-        Returns:
-            str: A human readable string of the object mandatory and optional
-                parameters.
+        Raises:
+            TypeError: If any of the input argument are invalid.
 
         """
 
-        # Get name of mandatory items.
-        mandatory = list()
-        for name in self.__mandatory:
-            string = '%s:' % name
-            mandatory.append((string, name))
+        # Access mandatory and optional parameters.
+        MANDATORY = dct.get('__mandatory__', None)
+        OPTIONAL = dct.get('__optional__', None)
 
-        # Get name of optional items and their defaults.
-        optional = list()
-        for name, default in self.__optional.iteritems():
-            string = '%s (optional, default=%s):' % (name, str(default))
-            optional.append((string, name))
+        # Ensure 'mandatory' is a list or tuple.
+        if ((not isinstance(MANDATORY, (list, tuple))) or
+            (not all(isinstance(item, basestring) for item in MANDATORY))):
+            msg = "'__mandatory__' must be a list or tuple or strings."
+            raise TypeError(msg)
 
-        # Get length of longest line.
-        parameters = mandatory + optional
-        length = max([len(s) for s, n in parameters])
+        # Ensure 'optional' is a dictionary or None.
+        if not isinstance(OPTIONAL, (dict, None)):
+            msg = "'__optional__' must be a dictionary."
+            raise TypeError(msg)
 
-        # Create parameter display.
-        lines = ['%s() parameters:' % self.__class__.__name__, ]
-        for string, name in parameters:
-            value = str(getattr(self, name))
-            lines.append('    ' + string.ljust(length) + ' ' + value)
+        # Initialisation method defined using closure.
+        def __init__(self, *args, **kwargs):
+            """Initialise factory interface connection object.
 
-        return '\n'.join(lines)
+            Args:
+                *args (list): mandatory connection parameters.
+                **kwargs (dict): optional connection parameters.
+
+            Raises:
+                TypeError: If any of the input argument are invalid.
+
+            """
+
+            # Get class name.
+            name = self.__class__.__name__
+
+            # Ensure all mandatory arguments are present.
+            if len(MANDATORY) != len(args):
+                msg = '%s() expected %i arguments, got %i.' % \
+                      (name, len(MANDATORY), len(args))
+                raise TypeError(msg)
+
+            # There are elements in the input optional parameters that are not
+            # in the recognised optional parameters.
+            invalid = set(kwargs.keys()) - set(OPTIONAL.keys())
+            if invalid:
+                msg = '%s() got unexpected keyword arguments: %s.' % \
+                      (name, ', '.join(invalid))
+                raise TypeError(msg)
+
+            # Store mandatory and optional fields.
+            self.__mandatory = MANDATORY
+            self.__optional = OPTIONAL
+
+            # Add mandatory parameters.
+            for i, name in enumerate(self.__mandatory):
+                setattr(self, name, args[i])
+
+            # Add default optional parameters.
+            for name, default in self.__optional.iteritems():
+                setattr(self, name, default)
+
+            # Set optional parameters.
+            for name, value in kwargs.iteritems():
+                setattr(self, name, value)
+
+        # Printing method defined using closure.
+        def __str__(self):
+            """Pretty print the mandatory and optional parameters.
+
+            Returns:
+                str: A human readable string of the object mandatory and
+                    optional parameters.
+
+            """
+
+            # Get name of mandatory items.
+            mandatory = list()
+            for name in self.__mandatory:
+                string = '%s:' % name
+                mandatory.append((string, name))
+
+            # Get name of optional items and their defaults.
+            optional = list()
+            for name, default in self.__optional.iteritems():
+                string = '%s (optional, default=%s):' % (name, str(default))
+                optional.append((string, name))
+
+            # Get length of longest line.
+            parameters = mandatory + optional
+            length = max([len(s) for s, n in parameters])
+
+            # Create parameter display.
+            lines = ['%s() parameters:' % self.__class__.__name__, ]
+            for string, name in parameters:
+                value = str(getattr(self, name))
+                lines.append('    ' + string.ljust(length) + ' ' + value)
+
+            return '\n'.join(lines)
+
+        # Remove mandatory and optional fields from the class definition. They
+        # are already embedded in the class definition via the __init__()
+        # function.
+        del dct['__mandatory__']
+        del dct['__optional__']
+
+        # Return class with factory methods.
+        dct['__init__'] = __init__
+        dct['__str__'] = __str__
+
+        # Return factory class.
+        return type.__new__(cls, name, bases, dct)
 
 
 class RawBroadcaster(object):
