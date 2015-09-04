@@ -4,34 +4,23 @@
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
 
 """
-
+import abc
 import copy
 import Queue
 import inspect
 import threading
-import traceback
+from abc import abstractmethod
 
 QUEUE_TIMEOUT = 0.5
-
-
-def _abstract_error(cls):
-    """Function for throwing a NotImplementedError in virtual methods."""
-
-    cls = cls.__class__.__name__
-    fcn = traceback.extract_stack(None, 2)[0][2]
-    message = "The method '%s' in '%s' is abstract. " % (fcn, cls)
-    message += "Derived classes must override this method."
-
-    return NotImplementedError(message)
 
 
 class CallbackHandler(object):
     """Abstract class to represent callback objects."""
 
-    def __init__(self):
-        """Document the __init__ method at the class level."""
-        pass
+    # Ensure abstract methods are redefined in sub-classes.
+    __metaclass__ = abc.ABCMeta
 
+    @abstractmethod
     def enqueue(self, data):
         """Virtual: Enqueue data to be processed by callback.
 
@@ -43,8 +32,9 @@ class CallbackHandler(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
+    @abstractmethod
     def start(self):
         """Virtual: Start the callbacks' activity.
 
@@ -53,8 +43,9 @@ class CallbackHandler(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
+    @abstractmethod
     def request_stop(self):
         """Virtual: Non-blocking signal to stop callback activity.
 
@@ -63,7 +54,7 @@ class CallbackHandler(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
     def stop(self):
         """Virtual: Blocking signal to stop thread on next iteration.
@@ -73,7 +64,7 @@ class CallbackHandler(object):
                                  subclasses.
 
         """
-        raise _abstract_error(self)
+        pass
 
 
 class CallbackSynchronous(CallbackHandler):

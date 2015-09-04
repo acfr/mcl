@@ -310,7 +310,7 @@ class RawListener(Publisher):
 
     """
 
-    # Ensure abstract methods are redefined in child classes.
+    # Ensure abstract methods are redefined in sub-classes.
     __metaclass__ = abc.ABCMeta
 
     @abstractproperty

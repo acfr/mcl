@@ -30,19 +30,8 @@ class TestCallbackHandler(unittest.TestCase):
 
         # This class is not intended to be used. Ensure directly accessing its
         # methods throws an exception.
-        abstract_callback = CallbackHandler()
-
-        with self.assertRaises(NotImplementedError):
-            abstract_callback.enqueue('throw error')
-
-        with self.assertRaises(NotImplementedError):
-            abstract_callback.start()
-
-        with self.assertRaises(NotImplementedError):
-            abstract_callback.request_stop()
-
-        with self.assertRaises(NotImplementedError):
-            abstract_callback.stop()
+        with self.assertRaises(TypeError):
+            CallbackHandler()
 
 
 # -----------------------------------------------------------------------------
