@@ -1,11 +1,11 @@
 import time
 import unittest
 import threading
+from mcl.event.event import Publisher
+from mcl.event.event import BasePublisher
 from mcl.event.event import CallbackHandler as CallbackHandler
 from mcl.event.event import CallbackSynchronous as CallbackSynchronous
 from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
-from mcl import BasePublisher
-from mcl import Publisher
 
 #exclude test files from pylint
 #pylint: skip-file
@@ -22,6 +22,10 @@ class Introspector(object):
         self.message = data
         self.counter += 1
 
+
+# -----------------------------------------------------------------------------
+#                              CallbackHandler()
+# -----------------------------------------------------------------------------
 
 class TestCallbackHandler(unittest.TestCase):
 
@@ -44,6 +48,10 @@ class TestCallbackHandler(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             abstract_publisher.stop()
 
+
+# -----------------------------------------------------------------------------
+#                           CallbackSynchronous()
+# -----------------------------------------------------------------------------
 
 class TestCallbackSynchronous(unittest.TestCase):
 
@@ -96,6 +104,10 @@ class TestCallbackSynchronous(unittest.TestCase):
         sync_callback.enqueue(test_data)
         self.assertEqual(intro.message, test_data)
 
+
+# -----------------------------------------------------------------------------
+#                           CallbackAsynchronous()
+# -----------------------------------------------------------------------------
 
 class TestCallbackAsynchronous(unittest.TestCase):
 
@@ -152,6 +164,10 @@ class TestCallbackAsynchronous(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
+
+# -----------------------------------------------------------------------------
+                                # BasePublisher()
+# -----------------------------------------------------------------------------
 
 class TestBasePublisher(unittest.TestCase):
     """Validate BasePublisher() object."""
@@ -287,6 +303,10 @@ class TestBasePublisher(unittest.TestCase):
         self.assertFalse(thread.is_alive())
         self.assertTrue(pub.is_subscribed(dummy))
 
+
+# -----------------------------------------------------------------------------
+#                                  Publisher()
+# -----------------------------------------------------------------------------
 
 class TestPublisher(unittest.TestCase):
     """Validate Publisher() object."""
