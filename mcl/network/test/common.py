@@ -5,9 +5,6 @@ import unittest
 from abc import abstractmethod
 from mcl.message.messages import Message
 
-#exclude test files from pylint
-#pylint: skip-file
-
 URL = 'test URL'
 TOPIC = 'test topic'
 TOPICS = ['topic A', 'topic B']

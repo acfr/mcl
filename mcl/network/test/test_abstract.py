@@ -1,11 +1,7 @@
 import unittest
-
 from mcl.network.abstract import Connection as AbstractConnection
 from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
-
-#exclude test files from pylint
-#pylint: skip-file
 
 
 # -----------------------------------------------------------------------------

@@ -7,10 +7,6 @@ from mcl.logging.network_dump_replay import BufferData
 from mcl.logging.network_dump_replay import ScheduleBroadcasts
 from mcl.logging.network_dump_replay import NetworkReplay
 
-#exclude test files from pylint
-#pylint: skip-file
-
-
 TIMEOUT = 5
 _ROOT = os.path.dirname(__file__)
 _PATH = os.path.join(_ROOT, 'logs', 'dir')

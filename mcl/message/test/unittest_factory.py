@@ -1,9 +1,6 @@
 import msgpack
 import unittest
 
-#exclude test files from pylint
-#pylint: skip-file
-
 
 def unittest_factory(obj, items):
     """Build a unit-test class for a message object.

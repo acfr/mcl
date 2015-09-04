@@ -10,9 +10,6 @@ from mcl.message.messages import ImuMessage
 from mcl.message.messages import GnssMessage
 from mcl.message.messages import SpeedMessage
 
-#exclude test files from pylint
-#pylint: skip-file
-
 _DIRNAME = os.path.dirname(__file__)
 
 

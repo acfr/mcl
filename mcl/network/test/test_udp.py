@@ -10,9 +10,6 @@ from mcl.network.udp import HEADER_DELIMITER
 from mcl.network.test.common import Introspector
 from mcl.network.test.common import publish_message
 
-#exclude test files from pylint
-#pylint: skip-file
-
 # Disable pylint errors:
 #     W0221 - Arguments number differ from overridden method
 #     C0301 - Line too long

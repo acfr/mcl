@@ -6,9 +6,6 @@ from mcl.event.event import CallbackHandler as CallbackHandler
 from mcl.event.event import CallbackSynchronous as CallbackSynchronous
 from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
 
-#exclude test files from pylint
-#pylint: skip-file
-
 
 class Introspector(object):
     """Simple object used to validate functionality of Event object."""

@@ -7,10 +7,6 @@ from mcl.logging.network_dump_io import ReadDirectory
 from mcl.message.messages import ImuMessage
 from mcl.message.messages import GnssMessage
 
-#exclude test files from pylint
-#pylint: skip-file
-
-
 _DIRNAME = os.path.dirname(__file__)
 
 

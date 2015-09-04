@@ -12,9 +12,6 @@ from mcl.network.test.common import publish_message
 from mcl.network.factory import NetworkConfiguration
 from mcl.logging.network_dump import QueuedBroadcastListener
 
-#exclude test files from pylint
-#pylint: skip-file
-
 TIMEOUT = 5.0
 
 
