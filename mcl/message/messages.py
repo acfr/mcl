@@ -16,37 +16,63 @@ from sets import Set
 _MESSAGES = list()
 
 
-class _RegisterMeta(type):
-    """Meta-class for globally registering Message() objects.
+class _MessageMeta(type):
+    """Meta-class for manufacturing and globally registering Message() objects.
 
-    :py:class:`._RegisterMeta` is a simple meta-class that maintains a global
-    register of :py:class:`.Message` sub-classes. :py:class:`.Message`
-    subclasses are added to the register when they are defined. During this
-    process :py:class:`._RegisterMeta` also checks to see if a
-    :py:class:`.Message` object with the same name has already been defined.
+    The :py:class:`._MessageMeta` object is a meta-class designed to
+    manufacture MCL :py:class:`.Message` classes. The meta-class works by
+    dynamically adding mandatory attributes to a class definition at run time
+    if and ONLY if the class inherits from :py:class:`.Connection`.
+
+    Classes that inherit from :py:class:`.Message` must implement the
+    ``mandatory`` attribute which is a list of strings specifying the name of
+    mandatory attributes. These attributes are used to manufacture an object to
+    contain the definition. See :py:class:`.Message` for implementation detail.
+
+    The meta-class also maintains a global register of :py:class:`.Message`
+    sub-classes. :py:class:`.Message` subclasses are added to the register when
+    they are defined. During this process :py:class:`._MessageMeta` checks to
+    see if a :py:class:`.Message` class with the same name has already been
+    defined.
 
     Note that the list of :py:class:`.Message` sub-classes can be acquired by
     calling::
 
         messages = Message.__subclasses__()
 
-    The reason the :py:class:`._RegisterMeta` is preferred is that it can
-    provide error checking at the time of definition. Note that subclasses
+    The reason the :py:class:`._MessageMeta` is preferred is that it can
+    provide error checking at the time of definition. Note that sub-classes
     cannot easily be removed from the list returned by
     ``Message.__subclasses__()``. By using this meta-class,
     :py:class:`.Message` objects can be removed from the global register via
     other methods (see :py:func:`.remove_message_object`).
 
-    Args:
-      cls (class): is the class being instantiated.
-      name (string): is the name of the new class.
-      bases (tuple): base classes of the new class.
-      dct (dict): dictionary mapping the class attribute names to objects.
+    Raises:
+        TypeError: If a :py:class:`.Message` object with the same name already
+            exists.
+        TypeError: If the parent class is a :py:class:`.Message` object and
+            ``mandatory`` is ill-specified.
 
     """
 
     def __init__(cls, name, bases, dct):
+        """Check pre-existing Message() classes for name clashes.
 
+        If a sub-class of :py:class:`.Message` with the same name already
+        exists, an exception is raised. This ensures that all classes have a
+        unique name. Classes with unique names are permitted and recored in the
+        global ``_MESSAGES``.
+
+        Args:
+          cls (class): is the class being instantiated.
+          name (string): is the name of the new class.
+          bases (tuple): base classes of the new class.
+          dct (dict): dictionary mapping the class attribute names to objects.
+
+        Raises:
+            Exception: If a Message() class of the same name already exists.
+
+        """
         # Do not allow Message() objects with the name Message() to be added.
         if name == 'Message' and len(_MESSAGES) > 0:
             msg = 'Cannot redefine the base Message() object.'
@@ -63,42 +89,132 @@ class _RegisterMeta(type):
             # Store message definition.
             _MESSAGES.append(cls)
 
-        super(_RegisterMeta, cls).__init__(name, bases, dct)
+        super(_MessageMeta, cls).__init__(name, bases, dct)
+
+    def __new__(cls, name, bases, dct):
+        """Manufacture a message class.
+
+        Manufacture a Message class for objects inheriting from
+        :py:class:`.Message`. This is done by searching the input dictionary
+        ``dct`` for the key ``mandatory`` where:
+
+            - ``mandatory`` is a list of strings defining the names of
+              mandatory message attributes that must be present when instances
+              of the new :py:class:`.Message` objects are created. During
+              instantiation the input list *args is mapped to the attributes
+              defined by ``mandatory``. If ``mandatory`` is not present, a
+              TypeError will be raised.
+
+        A new message class is manufactured using the definition specified by
+        the attribute ``mandatory``. The property 'mandatory_items' is attached
+        to the returned class.
+
+        Args:
+          cls (class): is the class being instantiated.
+          name (string): is the name of the new class.
+          bases (tuple): base classes of the new class.
+          dct (dict): dictionary mapping the class attribute names to objects.
+
+        Returns:
+            :py:class:`.Message`: sub-class of :py:class:`.Message` with
+                mandatory attributes defined by the original ``mandatory``
+                attribute.
+
+        Raises:
+            TypeError: If the ``mandatory`` attribute is ill-specified.
+
+        """
+
+        # Do not look the 'manditory' attribute in the Message() base class.
+        if (name == 'Message') and (bases == (dict,)):
+            return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+
+        # Do not look the 'manditory' attribute in sub-classes of the
+        # Message() base class.
+        elif bases != (Message,):
+            return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+
+        # Objects inheriting from Message() are required to have a 'mandatory'
+        # attribute.
+        MANDATORY = dct.get('mandatory', {})
+
+        # Ensure 'mandatory' is a list or tuple of strings.
+        if ((not isinstance(MANDATORY, (list, tuple))) or
+            (not all(isinstance(item, basestring) for item in MANDATORY))):
+            msg = "'mandatory' must be a list or tuple or strings."
+            raise TypeError(msg)
+
+        # Embed the mandatory items in a class property.
+        del dct['mandatory']
+        dct['mandatory_items'] = property(lambda self: MANDATORY)
+        return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
 
 
 class Message(dict):
-    """Base class that is used for message passing.
+    """Base class for MCL message objects.
 
-    Has a set of mandatory fields that must be present. Additional fields will
-    be serialised if present, but are not required.
+    The :py:class:`.Message` object provides a base class for defining MCL
+    message objects. Objects inheriting from :py:class:`.Message` must
+    implement the attribute ``mandatory`` where:
+
+        - ``mandatory`` is a list of strings defining the names of mandatory
+          connection parameters that must be present when instances of the new
+          :py:class:`.Connection` object are created. If ``mandatory`` is not
+          present, a TypeError will be raised.
+
+    These attributes define a message format and allow :py:class:`.Message` to
+    manufacture a message class adhering to the specified definition.
+
+    Example usage::
+
+        # Define new connection object.
+        class ExampleMessage(Message):
+            mandatory = ('A', 'B')
+
+        # Instantiate empty object.
+        example = ExampleMessage()
+        print example
+
+    Raises:
+        TypeError: If any of the input argument are invalid.
 
     """
-    __metaclass__ = _RegisterMeta
+    __metaclass__ = _MessageMeta
 
-    def __init__(self, mandatory_items, *args, **kwargs):
-
-        self.__mandatory_items = mandatory_items
+    def __init__(self, *args, **kwargs):
 
         # If no inputs were passed into the constructor, initialise the object
         # with empty fields.
         if not args and not kwargs:
-            empty = [None] * len(self.__mandatory_items)
-            kwargs = dict(zip(self.__mandatory_items, empty))
+            empty = [None] * len(self.mandatory_items)
+            kwargs = dict(zip(self.mandatory_items, empty))
 
         # Initialise message object with items.
-        super(Message, self).__init__(**kwargs)
-        super(Message, self).__setitem__('name', self.__class__.__name__)
+        super(Message, self).__init__()
         self.update(*args, **kwargs)
-        self.__check_requirements(self)
 
-    def __check_requirements(self, dct):
-        """Ensure Message contains all items in the 'mandatory_items' list."""
-
-        if not Set(dct.keys()).issuperset(Set(self.__mandatory_items)):
+        # Ensure the message adheres to specification.
+        if not Set(self.keys()).issuperset(Set(self.mandatory_items)):
             msg = "'%s' must have the following items: [" % self['name']
-            msg += ', '.join(self.__mandatory_items)
+            msg += ', '.join(self.mandatory_items)
             msg += '].'
             raise TypeError(msg)
+
+    def __setitem__(self, key, value):
+        """Set an item to a new value.
+
+        Prevent write access to the keys 'name'.
+
+        """
+
+        # Prevent write access to Message name.
+        if key == 'name' and key in self:
+            msg = "The key value '%s' in '%s' is read-only."
+            raise ValueError(msg % (key, self.__class__.__name__))
+
+        # All other items can be accessed normally.
+        else:
+            super(Message, self).__setitem__(key, value)
 
     def __set_time(self):
         """Update the CPU time-stamp in milliseconds from UTC epoch.
@@ -114,108 +230,150 @@ class Message(dict):
         timestamp = (time_now - time_origin).total_seconds()
         super(Message, self).__setitem__('timestamp', timestamp)
 
-    def mandatory_items(self):
-        """Return all mandatory items for this message type."""
-
-        return self.__mandatory_items
-
-    def encode(self):
-        """Return the compressed form of the message."""
-
-        return msgpack.dumps(self)
-
     def to_json(self):
-        """Convert into JSON format."""
+        """Return the contents of the message as a JSON string.
+
+        Returns:
+            str: JSON formatted representation of the message contents.
+
+        """
         return json.dumps(self)
 
-    def __decode(self, packed_dictionary):
-        """Unpack serialised data."""
-        msg = None
+    def encode(self):
+        """Return the contents of the message as serialised binary msgpack data.
+
+        Returns:
+            str: serialised binary msgpack representation of the message
+                contents.
+
+        """
+        return msgpack.dumps(self)
+
+    def __decode(self, data):
+        """Unpack msgpack serialised binary data.
+
+        Args:
+            data (str): msgpack serialised message data.
+
+        Returns:
+            dict: unpacked message contents.
+
+        Raises:
+            TypeError: If the input binary data could not be unpacked.
+
+        """
+
         try:
-            dct = msgpack.loads(packed_dictionary)
-            missing = Set(self.__mandatory_items) - Set(dct.keys())
+            dct = msgpack.loads(data)
+
+            # The transmitted object is a dictionary.
+            if type(dct) is dict:
+
+                # Check if mandatory attributes are missing.
+                missing = Set(self.mandatory_items) - Set(dct.keys())
+
+                # Decode was successful.
+                if not missing:
+                    return dct
+
+                # Transmitted object is missing mandatory fields.
+                else:
+                    msg = 'The transmitted object was missing the following '
+                    msg += 'mandatory items: [' + ', '.join(missing) + '].'
 
             # Transmitted object was decoded but is not a dictionary.
-            if type(dct) is not dict:
-                msg = 'Serialised object is not a dictionary.'
-
-            # Transmitted object is missing mandatory fields.
-            elif len(missing) > 0:
-                msg = 'The transmitted object was missing the following '
-                msg += 'mandatory items: [' + ', '.join(missing) + '].'
-
-            # Decode was successful.
             else:
-                return dct
+                msg = "Serialised object is of type '%s' and not a dictionary."
+                msg = msg % str(type(dct))
 
         # Decoding was unsuccessful.
-        # pylint: disable=W0702
         except Exception as e:
-            msg = "Could not unpack message."
-            print (e)
+            msg = "Could not unpack message. Error encountered:\n\n%s" % str(e)
 
         # Raise error encountered during unpacking.
         raise TypeError(msg)
 
-    def __from_binary(self, packed_dictionary):
-        """Expand a packed dictionary."""
+    def update(self, *args, **kwargs):
+        """Update message contents with new values.
 
-        dct = self.__decode(packed_dictionary)
-        super(Message, self).update(dct)
+        Update message contents from an optional positional argument and/or a
+        set of keyword arguments.
 
-    def __setitem__(self, key, value):
-        """Set an item to a new value.
+        If a positional argument is given and it is a serialised binary msgpack
+        representation of the message contents, it is unpacked and used to
+        update the contents of the message.
 
-        Note: this will not update message name or timestamp.
+        If a positional argument is given and it is a mapping object, the
+        message is updated with the same key-value pairs as the mapping object.
+
+        If the positional argument is an iterable object. Each item in the
+        iterable must itself be an iterable with exactly two objects. The first
+        object of each item becomes a key in the new dictionary, and the second
+        object the corresponding value. If a key occurs more than once, the
+        last value for that key becomes the corresponding value in the message.
+
+        If keyword arguments are given, the keyword arguments and their values
+        are used to update the contents of the message
+
+        To illustrate, the following examples all update the message in the
+        same manner:
+
+        If the key 'timestamp' is present in the input, the timestamp of the
+        message is set to the input value. If no 'timestamp' value is
+        specified, the CPU time-stamp, in milliseconds from UTC epoch, at the
+        end of the update is recorded.
+
+        Args:
+            *args (list): positional arguments
+            *jags (dict): keyword arguments.
+
+        Returns:
+            dict: unpacked message contents.
+
+        Raises:
+            TypeError: If the message contents could not be updated.
 
         """
-
-        # Prevent write access to Message name and timestamp.
-        if key == 'name' and key in self:
-            msg = "The key value '%s' in '%s' is read-only."
-            raise ValueError(msg % (key, self['name']))
-
-        # All other items can be accessed normally.
-        else:
-            super(Message, self).__setitem__(key, value)
-
-    def update(self, *args, **kwargs):
-        """Update message with dictionary of new values."""
 
         # Set the default timestamp to None. If it is updated by the passed in
         # arguments, we won't update it automatically.
         self['timestamp'] = None
 
         if len(args) > 1:
-            msg = 'Input argument must be a msgpack serialised dictionary '
-            msg += 'OR a python dictionary.'
+            msg = 'Input argument must be a msgpack serialised dictionary, '
+            msg += 'a mapping object or iterable object.'
             raise TypeError(msg)
 
-        # Update with keyword arguments.
-        if not args and kwargs:
-            super(Message, self).update(**kwargs)
-
-        # Update message with a serialised dictionary.
-        elif (len(args) == 1) and (type(args[0]) is str):
-            self.__from_binary(args[0])
+        # Update message with a serialised dictionary:
+        #
+        #     msg.update(binary)
+        #
+        if (len(args) == 1) and (type(args[0]) is str):
+            super(Message, self).update(self.__decode(args[0]))
             return
 
-        # Update message with a dictionary (and keyword arguments).
-        elif (len(args) == 1) and (type(args[0]) is dict):
-
-            # Update message with a dictionary and keyword arguments.
-            if kwargs:
-                super(Message, self).update(*args, **kwargs)
-
-            # Only use dictionary.
-            else:
-                super(Message, self).update(*args)
-
-        # Invalid input type.
+        # Update message with a dictionary (and keyword arguments):
+        #
+        #     msg.update(one=1, two=2, three=3)
+        #     msg.update(zip(['one', 'two', 'three'], [1, 2, 3]))
+        #     msg.update([('two', 2), ('one', 1), ('three', 3)])
+        #     msg.update({'three': 3, 'one': 1, 'two': 2})
+        #
         else:
-            msg = 'Input argument must be a msgpack serialised dictionary '
-            msg += 'OR a python dictionary.'
-            raise TypeError(msg)
+            try:
+                super(Message, self).update(*args, **kwargs)
+            except Exception as e:
+                msg = "Could not update message. Error encountered:\n\n%s"
+                raise TypeError(msg % str(e))
+
+        # Populate the name key with the message name.
+        if 'name' not in self:
+            super(Message, self).__setitem__('name', self.__class__.__name__)
+
+        # The name parameter was modified.
+        elif self['name'] != self.__class__.__name__:
+            msg = "The key value '%s' in '%s' is read-only."
+            raise ValueError(msg % ('name', self.__class__.__name__))
 
         # Record the time of update.
         if not self['timestamp']:

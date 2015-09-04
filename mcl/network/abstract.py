@@ -24,10 +24,10 @@ from mcl.event.event import Publisher
 class _ConnectionMeta(type):
     """Meta-class for manufacturing network interface connection objects.
 
-    The :py:class:`.ConnectionMeta` object is a meta-class designed to
-    manufacture MCL network interface connection objects. The meta-class works
-    by dynamically adding mandatory and optional parameters to a class
-    definition at run time if and ONLY if the class inherits from
+    The :py:class:`._ConnectionMeta` object is a meta-class designed to
+    manufacture MCL network interface :py:class:`.Connection` classes. The
+    meta-class works by dynamically adding mandatory and optional attributes to
+    a class definition at run time if and ONLY if the class inherits from
     :py:class:`.Connection`.
 
     Classes that inherit from :py:class:`.Connection` must implement the
@@ -49,9 +49,9 @@ class _ConnectionMeta(type):
     """
 
     def __new__(cls, name, bases, dct):
-        """Manufacture a network interface.
+        """Manufacture a network interface connection class.
 
-        Manufacture a network interface object for objects inheriting from
+        Manufacture a network interface class for objects inheriting from
         :py:class:`.Connection`. This is done by searching the input dictionary
         ``dct`` for the keys ``mandatory`` and ``optional`` where:
 
@@ -69,8 +69,10 @@ class _ConnectionMeta(type):
               **kwargs is mapped to the attributes defined by
               ``optional``. ``optional`` is not required.
 
-        A new connection object is manufactured using the definition specified
-        by the attribute ``mandatory`` and ``optional``.
+        A new connection class is manufactured using the definition specified
+        by the attribute ``mandatory`` and ``optional``. The methods __init__
+        and __str__ are defined using the connection definition and attached to
+        the returned class.
 
         Args:
           cls (class): is the class being instantiated.
@@ -84,22 +86,22 @@ class _ConnectionMeta(type):
                 ``optional`` attributes.
 
         Raises:
-            TypeError: If the ``mandatory`` or ``optional`` fields are
+            TypeError: If the ``mandatory`` or ``optional`` attributes are
                 ill-specified.
 
         """
 
-        # Do not look for manditory/optional fields in the Connection() base
-        # class.
+        # Do not look for 'manditory'/'optional' attributes in the Connection()
+        # base class.
         if (name == 'Connection') and (bases == (object,)):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-        # Do not look for manditory/optional fields in sub-classes of the
-        # Connection() base class.
+        #  Do not look for 'manditory'/'optional' attributes in sub-classes of
+        # the Connection() base class.
         elif bases != (Connection,):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-        # Objects inheriting from Connection will be required to have a
+        # Objects inheriting from Connection() are required to have a
         # 'mandatory' attribute.
         MANDATORY = dct.get('mandatory', {})
         OPTIONAL = dct.get('optional', {})
@@ -219,8 +221,12 @@ class Connection(object):
           required.
 
     These attributes form the definition of the network interface connection
-    and allow :py:class:`.Connection` to manufacture a connection object with
+    and allow :py:class:`.Connection` to manufacture a connection class with
     these attributes.
+
+    These attributes define a network interface connection and allow
+    :py:class:`.Connection` to manufacture a connection class adhering to the
+    specified definition.
 
     Example usage::
 

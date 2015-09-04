@@ -6,14 +6,11 @@ from mcl.message.messages import get_message_objects
 from mcl.message.test.unittest_factory import unittest_factory
 
 
-def message_factory(name, attributes):
+def message_factory(name, attrs):
     """Factory method for producing Message() objects."""
 
-    def __init__(cls, *args, **kwargs):
-        super(type(cls), cls).__init__(attributes, *args, **kwargs)
-
     # Manufacture class definition.
-    return type(name, (mcl.message.messages.Message,), {'__init__': __init__})
+    return type(name, (mcl.message.messages.Message,), {'mandatory': attrs})
 
 
 class ManufactureMessages(unittest.TestCase):
@@ -22,10 +19,10 @@ class ManufactureMessages(unittest.TestCase):
     def setUp(self):
         """Create some messages for testing."""
 
-        self.TestMessageA = message_factory('TestMessageA', ('A'))
-        self.TestMessageB = message_factory('TestMessageB', ('B'))
-        self.TestMessageC = message_factory('TestMessageC', ('C'))
-        self.TestMessageD = message_factory('TestMessageD', ('D'))
+        self.TestMessageA = message_factory('TestMessageA', ('A',))
+        self.TestMessageB = message_factory('TestMessageB', ('B',))
+        self.TestMessageC = message_factory('TestMessageC', ('C',))
+        self.TestMessageD = message_factory('TestMessageD', ('D',))
 
     def tearDown(self):
         """Erase all known messages."""
@@ -155,7 +152,7 @@ class GetMessageObjects(ManufactureMessages):
         """Test get_message_objects() can detect duplicate messages."""
 
         # Create a new message legitimately.
-        TestMessageE = message_factory('TestMessageE', ('E'))
+        TestMessageE = message_factory('TestMessageE', ('E',))
 
         # Bypass the name checking mechanism in _RegisterMeta().
         TestMessageE.__name__ = 'TestMessageA'
