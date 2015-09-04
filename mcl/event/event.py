@@ -407,8 +407,8 @@ class Event(object):
         with self.__callback_lock:
             return len(self.__callbacks)
 
-    def publish(self, data):
-        """Issue an event and communicate data to the callback functions.
+    def trigger(self, data):
+        """Trigger an event and issue data to the callback functions.
 
         Args:
             data (any): Data to send to the registered callbacks.

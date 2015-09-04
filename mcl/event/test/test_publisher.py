@@ -222,27 +222,27 @@ class TestEvent(unittest.TestCase):
         return_value = event.unsubscribe(intro.callback)
         self.assertFalse(return_value)
 
-    def test_synchronous_publish(self):
-        """Test Event() can publish synchronous messages."""
+    def test_synchronous_trigger(self):
+        """Test Event() can trigger synchronous callbacks."""
 
         test_data = 'test message'
 
         intro = Introspector()
         event = Event(callbackhandler=CallbackSynchronous)
         event.subscribe(intro.callback)
-        event.publish(test_data)
+        event.trigger(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
-    def test_asynchronous_publish(self):
-        """Test Event() can publish asynchronous messages."""
+    def test_asynchronous_trigger(self):
+        """Test Event() can trigger asynchronous callbacks."""
 
         test_data = 'test message'
 
         intro = Introspector()
         event = Event(callbackhandler=CallbackAsynchronous)
         event.subscribe(intro.callback)
-        event.publish(test_data)
+        event.trigger(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
@@ -256,7 +256,7 @@ class TestEvent(unittest.TestCase):
         event.subscribe(intro_1.callback)
         event.subscribe(intro_2.callback)
 
-        event.publish('ignored string')
+        event.trigger('ignored string')
         time.sleep(0.1)
         self.assertEqual(intro_1.counter, 1)
         self.assertEqual(intro_2.counter, 11)
@@ -273,7 +273,7 @@ class TestEvent(unittest.TestCase):
         event.subscribe(unsubscriber)
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=event.publish, args=("foo",))
+        thread = threading.Thread(target=event.trigger, args=("foo",))
         thread.daemon = True
         thread.start()
         thread.join(0.1)
@@ -295,7 +295,7 @@ class TestEvent(unittest.TestCase):
         event.subscribe(subscriber)
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=event.publish, args=("foo",))
+        thread = threading.Thread(target=event.trigger, args=("foo",))
         thread.daemon = True
         thread.start()
         thread.join(0.1)
