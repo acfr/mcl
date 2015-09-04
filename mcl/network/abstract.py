@@ -12,17 +12,6 @@ and ensure network interfaces can be integrated into MCL:
 For examples of how to use :py:mod:`.abstract` to integrate a new network
 interface into MLC see :py:mod:`.network.udp`.
 
-.. note::
-
-    The :py:mod:`.abstract` module provides a framework for adding new
-    communication protocols. Originally RabbitMQ was supported. Due to lack of
-    use, the RabbitMQ module was removed. As a result the only communication
-    protocol supported is :py:mod:`.network.udp`. This makes the generic
-    :py:mod:`.abstract` interface somewhat redundant. It has been left in the
-    code-base for historic and future proofing purposes. Please refer to git
-    hashes up to 41a051f6229be6b496842e3070abcd96311371a0 for code implementing
-    RabbitMQ.
-
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
