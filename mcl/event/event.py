@@ -131,7 +131,7 @@ class CallbackSynchronous(CallbackHandler):
 
         """
 
-        if self.__is_alive:
+        if self.is_alive:
             self.__is_alive = False
             return True
         else:
