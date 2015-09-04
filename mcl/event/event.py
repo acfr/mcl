@@ -271,25 +271,25 @@ class CallbackAsynchronous(CallbackHandler):
         return was_stopped
 
 
-class Publisher(object):
+class Event(object):
     """Class for issuing events and triggering callback functions.
 
-    The :py:class:`.Publisher` object provides a means for implementing
+    The :py:class:`.Event` object provides a means for implementing
     event-driven programming.
 
-    The :py:class:`.Publisher` object allows data to be communicated to
-    callback methods via the :py:meth:`.publish` method. Callback methods can
-    un/subscribe to the :py:class:`.Publisher` object via the
+    The :py:class:`.Event` object allows data to be communicated to callback
+    methods via the :py:meth:`.publish` method. Callback methods can
+    un/subscribe to the :py:class:`.Event` object via the
     :py:meth:`.unsubscribe` and :py:meth:`.subscribe` methods. Callback
     functions must accept only one input argument - the data which is issued by
-    :py:class:`.Publisher`.
+    :py:class:`.Event`.
 
     Example usage::
 
         import os
-        from mcl import Publisher
+        from mcl import Event
 
-        pub = Publisher()
+        pub = Event()
         pub.subscribe(lambda data: os.sys.stdout.write(str(data) + '\\n'))
         pub.publish('Hello world')
 
@@ -408,7 +408,7 @@ class Publisher(object):
             return len(self.__callbacks)
 
     def publish(self, data):
-        """Issue an event and communicat data to the callback functions.
+        """Issue an event and communicate data to the callback functions.
 
         Args:
             data (any): Data to send to the registered callbacks.

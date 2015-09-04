@@ -1,7 +1,7 @@
 import time
 import unittest
 import threading
-from mcl.event.event import Publisher
+from mcl.event.event import Event
 from mcl.event.event import CallbackHandler as CallbackHandler
 from mcl.event.event import CallbackSynchronous as CallbackSynchronous
 from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
@@ -11,7 +11,7 @@ from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
 
 
 class Introspector(object):
-    """Simple object used to validate functionality of Publisher object."""
+    """Simple object used to validate functionality of Event object."""
 
     def __init__(self):
         self.message = None
@@ -33,19 +33,19 @@ class TestCallbackHandler(unittest.TestCase):
 
         # This class is not intended to be used. Ensure directly accessing its
         # methods throws an exception.
-        abstract_publisher = CallbackHandler()
+        abstract_callback = CallbackHandler()
 
         with self.assertRaises(NotImplementedError):
-            abstract_publisher.enqueue('throw error')
+            abstract_callback.enqueue('throw error')
 
         with self.assertRaises(NotImplementedError):
-            abstract_publisher.start()
+            abstract_callback.start()
 
         with self.assertRaises(NotImplementedError):
-            abstract_publisher.request_stop()
+            abstract_callback.request_stop()
 
         with self.assertRaises(NotImplementedError):
-            abstract_publisher.stop()
+            abstract_callback.stop()
 
 
 # -----------------------------------------------------------------------------
@@ -165,98 +165,98 @@ class TestCallbackAsynchronous(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-                                # Publisher()
+#                                    Event()
 # -----------------------------------------------------------------------------
 
-class TestPublisher(unittest.TestCase):
-    """Validate Publisher() object."""
+class TestEvent(unittest.TestCase):
+    """Validate Event() object."""
 
     def test_subscribe(self):
-        """Test Publisher() can subscribe listeners."""
+        """Test Event() can subscribe listeners."""
 
         # Test initialisation catches invalid callback handler objects.
         bad_handler = lambda data: False
         with self.assertRaises(TypeError):
-            Publisher(callbackhandler=bad_handler)
+            Event(callbackhandler=bad_handler)
 
         bad_handler = type('', (), {})()
         with self.assertRaises(TypeError):
-            Publisher(callbackhandler=bad_handler)
+            Event(callbackhandler=bad_handler)
 
-        # Create publisher with default arguments.
-        pub = Publisher()
+        # Create Event() with default arguments.
+        event = Event()
         intro = Introspector()
 
-        # Validate publisher can detect when callbacks have NOT been
+        # Validate Event() can detect when callbacks have NOT been
         # subscribed.
-        self.assertFalse(pub.is_subscribed(intro.callback))
+        self.assertFalse(event.is_subscribed(intro.callback))
 
-        # Validate publisher can detect when callbacks HAVE been subscribed.
-        return_value = pub.subscribe(intro.callback)
-        self.assertTrue(pub.is_subscribed(intro.callback))
+        # Validate Event() can detect when callbacks HAVE been subscribed.
+        return_value = event.subscribe(intro.callback)
+        self.assertTrue(event.is_subscribed(intro.callback))
         self.assertTrue(return_value)
 
         # Test subscribe catches callback which do not contain a__call__
         # method.
         with self.assertRaises(TypeError):
-            pub.subscribe(int())
+            event.subscribe(int())
 
-        # Validate publisher will not re-subscribe callbacks.
-        return_value = pub.subscribe(intro.callback)
+        # Validate Event() will not re-subscribe callbacks.
+        return_value = event.subscribe(intro.callback)
         self.assertFalse(return_value)
 
     def test_unsubscribe(self):
-        """Test Publisher() can unsubscribe listeners."""
+        """Test Event() can unsubscribe listeners."""
 
-        pub = Publisher()
+        event = Event()
         intro = Introspector()
-        pub.subscribe(intro.callback)
+        event.subscribe(intro.callback)
 
-        # Validate publisher can detect when callbacks have been UNsubscribed.
-        return_value = pub.unsubscribe(intro.callback)
-        self.assertFalse(pub.is_subscribed(intro.callback))
+        # Validate Event() can detect when callbacks have been UNsubscribed.
+        return_value = event.unsubscribe(intro.callback)
+        self.assertFalse(event.is_subscribed(intro.callback))
         self.assertTrue(return_value)
 
-        # Validate publisher will not unsubscribe a callback which does not
+        # Validate Event() will not unsubscribe a callback which does not
         # exist.
-        return_value = pub.unsubscribe(intro.callback)
+        return_value = event.unsubscribe(intro.callback)
         self.assertFalse(return_value)
 
     def test_synchronous_publish(self):
-        """Test Publisher() can publish synchronous messages."""
+        """Test Event() can publish synchronous messages."""
 
         test_data = 'test message'
 
         intro = Introspector()
-        pub = Publisher(callbackhandler=CallbackSynchronous)
-        pub.subscribe(intro.callback)
-        pub.publish(test_data)
+        event = Event(callbackhandler=CallbackSynchronous)
+        event.subscribe(intro.callback)
+        event.publish(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
     def test_asynchronous_publish(self):
-        """Test Publisher() can publish asynchronous messages."""
+        """Test Event() can publish asynchronous messages."""
 
         test_data = 'test message'
 
         intro = Introspector()
-        pub = Publisher(callbackhandler=CallbackAsynchronous)
-        pub.subscribe(intro.callback)
-        pub.publish(test_data)
+        event = Event(callbackhandler=CallbackAsynchronous)
+        event.subscribe(intro.callback)
+        event.publish(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
     def test_multiple_subscribers(self):
-        """Test Publisher() can subscribe multiple listeners."""
+        """Test Event() can subscribe multiple listeners."""
 
-        pub = Publisher()
+        event = Event()
         intro_1 = Introspector()
         intro_2 = Introspector()
         intro_2.counter = 10
-        pub.subscribe(intro_1.callback)
-        pub.subscribe(intro_2.callback)
+        event.subscribe(intro_1.callback)
+        event.subscribe(intro_2.callback)
 
-        pub.publish('ignored string')
+        event.publish('ignored string')
         time.sleep(0.1)
         self.assertEqual(intro_1.counter, 1)
         self.assertEqual(intro_2.counter, 11)
@@ -265,42 +265,42 @@ class TestPublisher(unittest.TestCase):
         """A callback should be able to unsubscribe itself without blocking.
         Test will timeout and fail if blocking."""
 
-        pub = Publisher()
+        event = Event()
 
         def unsubscriber(data):
-            pub.unsubscribe(unsubscriber)
+            event.unsubscribe(unsubscriber)
 
-        pub.subscribe(unsubscriber)
+        event.subscribe(unsubscriber)
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=pub.publish, args=("foo",))
+        thread = threading.Thread(target=event.publish, args=("foo",))
         thread.daemon = True
         thread.start()
         thread.join(0.1)
         self.assertFalse(thread.is_alive())
-        self.assertFalse(pub.is_subscribed(unsubscriber))
+        self.assertFalse(event.is_subscribed(unsubscriber))
 
     def test_subscribe_from_callback(self):
         """A callback should be able to subscribe another callback without blocking.
         Test will timeout and fail if blocking."""
 
-        pub = Publisher()
+        event = Event()
 
         def dummy(data):
             pass
 
         def subscriber(data):
-            pub.subscribe(dummy)
+            event.subscribe(dummy)
 
-        pub.subscribe(subscriber)
+        event.subscribe(subscriber)
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=pub.publish, args=("foo",))
+        thread = threading.Thread(target=event.publish, args=("foo",))
         thread.daemon = True
         thread.start()
         thread.join(0.1)
         self.assertFalse(thread.is_alive())
-        self.assertTrue(pub.is_subscribed(dummy))
+        self.assertTrue(event.is_subscribed(dummy))
 
 if __name__ == '__main__':
     unittest.main()
