@@ -1,4 +1,4 @@
-"""Base class for implementing publish-subscribe design pattern.
+"""Base class for implementing the event-driven programming paradigm.
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
@@ -271,24 +271,25 @@ class CallbackAsynchronous(CallbackHandler):
         return was_stopped
 
 
-class BasePublisher(object):
-    """Base-level class for publishing data to subscribers.
+class Publisher(object):
+    """Class for issuing events and triggering callback functions.
 
-    The :py:class:`.BasePublisher` object implements the publish-subscribe
-    design pattern.
+    The :py:class:`.Publisher` object provides a means for implementing
+    event-driven programming.
 
-    The :py:class:`.BasePublisher` object allows data to be published to
+    The :py:class:`.Publisher` object allows data to be communicated to
     callback methods via the :py:meth:`.publish` method. Callback methods can
-    un/subscribe to the :py:class:`.BasePublisher` object via the
+    un/subscribe to the :py:class:`.Publisher` object via the
     :py:meth:`.unsubscribe` and :py:meth:`.subscribe` methods. Callback
-    functions must have only one input argument - the data which is published.
+    functions must accept only one input argument - the data which is issued by
+    :py:class:`.Publisher`.
 
     Example usage::
 
         import os
-        from mcl import BasePublisher
+        from mcl import Publisher
 
-        pub = BasePublisher()
+        pub = Publisher()
         pub.subscribe(lambda data: os.sys.stdout.write(str(data) + '\\n'))
         pub.publish('Hello world')
 
@@ -333,10 +334,10 @@ class BasePublisher(object):
             return callback in self.__callbacks
 
     def subscribe(self, callback):
-        """Subscribe to publish events.
+        """Subscribe to events.
 
         Args:
-            callback (function): The callback to execute on a publish event.
+            callback (function): The callback to execute on a event.
 
         Returns:
             bool: Returns ``True`` if the callback was successfully
@@ -372,10 +373,10 @@ class BasePublisher(object):
             return False
 
     def unsubscribe(self, callback):
-        """Unsubscribe to publish events.
+        """Unsubscribe to events.
 
         Args:
-            callback (function): The callback to be removed from publish
+            callback (function): The callback to be removed from event
                                  notifications.
 
         Returns:
@@ -407,7 +408,7 @@ class BasePublisher(object):
             return len(self.__callbacks)
 
     def publish(self, data):
-        """Publish data the callback functions.
+        """Issue an event and communicat data to the callback functions.
 
         Args:
             data (any): Data to send to the registered callbacks.
@@ -419,50 +420,3 @@ class BasePublisher(object):
 
         for callback in callbacks:
             callbacks[callback].enqueue(data)
-
-
-class Publisher(BasePublisher):
-    """:py:class:`.BasePublisher` class designed for inheritance.
-
-    This class inherits functionality from :py:class:`.Publisher`. It differs
-    from :py:class:`.BasePublisher` in that the public method
-    :py:meth:`.BasePublisher.publish` has been made 'private'. This is done
-    by obfuscating this public function from the user. Publish events are
-    triggered via the 'private' function `__publish__`.
-
-    The intention is to allow subclasses to publish data through the 'private'
-    :py:meth:`.__publish__` method. At the same time, moving the public
-    :py:meth:`.BasePublisher.publish` to a 'private' implementation discourages
-    users from calling the :py:meth:`.__publish__` method from outside of
-    future subclasses.
-
-    """
-
-    def __init__(self, **kwargs):
-        """Document the __init__ method at the class level."""
-
-        super(Publisher, self).__init__(**kwargs)
-
-    def __getattribute__(self, attribute):
-        """Obfuscate the public 'publish' method from users."""
-
-        # Prevent the public 'publish' method in the super class ('Publisher')
-        # from being accessed.
-        if attribute == 'publish':
-            msg = "'Publisher' object has no attribute 'publish'"
-            raise AttributeError(msg)
-        else:
-            return object.__getattribute__(self, attribute)
-
-    def __publish__(self, data):
-        """Private interface for publishing data to the callback functions.
-
-        Args:
-            data (any): Data to send to the registered callbacks.
-
-        """
-
-        # Publish the state using the 'publish' method from the super
-        # class.
-        publish_func = object.__getattribute__(self, 'publish')
-        publish_func(data)

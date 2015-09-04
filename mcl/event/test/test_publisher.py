@@ -2,7 +2,6 @@ import time
 import unittest
 import threading
 from mcl.event.event import Publisher
-from mcl.event.event import BasePublisher
 from mcl.event.event import CallbackHandler as CallbackHandler
 from mcl.event.event import CallbackSynchronous as CallbackSynchronous
 from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
@@ -166,26 +165,26 @@ class TestCallbackAsynchronous(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-                                # BasePublisher()
+                                # Publisher()
 # -----------------------------------------------------------------------------
 
-class TestBasePublisher(unittest.TestCase):
-    """Validate BasePublisher() object."""
+class TestPublisher(unittest.TestCase):
+    """Validate Publisher() object."""
 
     def test_subscribe(self):
-        """Test BasePublisher() can subscribe listeners."""
+        """Test Publisher() can subscribe listeners."""
 
         # Test initialisation catches invalid callback handler objects.
         bad_handler = lambda data: False
         with self.assertRaises(TypeError):
-            BasePublisher(callbackhandler=bad_handler)
+            Publisher(callbackhandler=bad_handler)
 
         bad_handler = type('', (), {})()
         with self.assertRaises(TypeError):
-            BasePublisher(callbackhandler=bad_handler)
+            Publisher(callbackhandler=bad_handler)
 
         # Create publisher with default arguments.
-        pub = BasePublisher()
+        pub = Publisher()
         intro = Introspector()
 
         # Validate publisher can detect when callbacks have NOT been
@@ -207,9 +206,9 @@ class TestBasePublisher(unittest.TestCase):
         self.assertFalse(return_value)
 
     def test_unsubscribe(self):
-        """Test BasePublisher() can unsubscribe listeners."""
+        """Test Publisher() can unsubscribe listeners."""
 
-        pub = BasePublisher()
+        pub = Publisher()
         intro = Introspector()
         pub.subscribe(intro.callback)
 
@@ -224,33 +223,33 @@ class TestBasePublisher(unittest.TestCase):
         self.assertFalse(return_value)
 
     def test_synchronous_publish(self):
-        """Test BasePublisher() can publish synchronous messages."""
+        """Test Publisher() can publish synchronous messages."""
 
         test_data = 'test message'
 
         intro = Introspector()
-        pub = BasePublisher(callbackhandler=CallbackSynchronous)
+        pub = Publisher(callbackhandler=CallbackSynchronous)
         pub.subscribe(intro.callback)
         pub.publish(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
     def test_asynchronous_publish(self):
-        """Test BasePublisher() can publish asynchronous messages."""
+        """Test Publisher() can publish asynchronous messages."""
 
         test_data = 'test message'
 
         intro = Introspector()
-        pub = BasePublisher(callbackhandler=CallbackAsynchronous)
+        pub = Publisher(callbackhandler=CallbackAsynchronous)
         pub.subscribe(intro.callback)
         pub.publish(test_data)
         time.sleep(0.1)
         self.assertEqual(intro.message, test_data)
 
     def test_multiple_subscribers(self):
-        """Test BasePublisher() can subscribe multiple listeners."""
+        """Test Publisher() can subscribe multiple listeners."""
 
-        pub = BasePublisher()
+        pub = Publisher()
         intro_1 = Introspector()
         intro_2 = Introspector()
         intro_2.counter = 10
@@ -266,7 +265,7 @@ class TestBasePublisher(unittest.TestCase):
         """A callback should be able to unsubscribe itself without blocking.
         Test will timeout and fail if blocking."""
 
-        pub = BasePublisher()
+        pub = Publisher()
 
         def unsubscriber(data):
             pub.unsubscribe(unsubscriber)
@@ -285,7 +284,7 @@ class TestBasePublisher(unittest.TestCase):
         """A callback should be able to subscribe another callback without blocking.
         Test will timeout and fail if blocking."""
 
-        pub = BasePublisher()
+        pub = Publisher()
 
         def dummy(data):
             pass
@@ -302,35 +301,6 @@ class TestBasePublisher(unittest.TestCase):
         thread.join(0.1)
         self.assertFalse(thread.is_alive())
         self.assertTrue(pub.is_subscribed(dummy))
-
-
-# -----------------------------------------------------------------------------
-#                                  Publisher()
-# -----------------------------------------------------------------------------
-
-class TestPublisher(unittest.TestCase):
-    """Validate Publisher() object."""
-
-    def test_no_inherited_publish(self):
-        """Test Publisher() cannot call Publisher.publish()."""
-
-        # Ensure the publish method has been made private.
-        pub = Publisher()
-        with self.assertRaises(AttributeError):
-            pub.publish()
-
-    def test_publish(self):
-        """Test Publisher() can publish messages with the private method."""
-
-        test_data = 'test message'
-
-        intro = Introspector()
-        pub = Publisher()
-        pub.subscribe(intro.callback)
-        pub.__publish__(test_data)
-        time.sleep(0.1)
-        self.assertEqual(intro.message, test_data)
-
 
 if __name__ == '__main__':
     unittest.main()
