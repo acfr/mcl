@@ -49,7 +49,28 @@ class _ConnectionMeta(type):
     """
 
     def __new__(cls, name, bases, dct):
-        """Manufacture network interface.
+        """Manufacture a network interface.
+
+        Manufacture a network interface object for objects inheriting from
+        :py:class:`.Connection`. This is done by searching the input dictionary
+        ``dct`` for the keys ``mandatory`` and ``optional`` where:
+
+            - ``mandatory`` is a list of strings defining the names of
+              mandatory connection parameters that must be present when
+              instances of the new :py:class:`.Connection` objects are
+              created. During instantiation the input list *args is mapped to
+              the attributes defined by ``mandatory``. If ``mandatory`` is not
+              present, a TypeError will be raised.
+
+            - ``optional`` is a dictionary of optional connection parameters
+              and their defaults. Keywords represent attribute names and the
+              corresponding value represents the default value. During
+              instantiation of the new Connection object, the input dictionary
+              **kwargs is mapped to the attributes defined by
+              ``optional``. ``optional`` is not required.
+
+        A new connection object is manufactured using the definition specified
+        by the attribute ``mandatory`` and ``optional``.
 
         Args:
           cls (class): is the class being instantiated.
@@ -57,16 +78,24 @@ class _ConnectionMeta(type):
           bases (tuple): base classes of the new class.
           dct (dict): dictionary mapping the class attribute names to objects.
 
+        Returns:
+            :py:class:`.Connection`: sub-class of :py:class:`.Connection` with
+                attributes defined by the original ``mandatory`` and
+                ``optional`` attributes.
+
         Raises:
-            TypeError: If any of the input argument are invalid.
+            TypeError: If the ``mandatory`` or ``optional`` fields are
+                ill-specified.
 
         """
 
-        # Do not look for manditory/optional fields in the Connection class.
+        # Do not look for manditory/optional fields in the Connection() base
+        # class.
         if (name == 'Connection') and (bases == (object,)):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-        # Do not look for manditory/optional fields in the Connection class.
+        # Do not look for manditory/optional fields in sub-classes of the
+        # Connection() base class.
         elif bases != (Connection,):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
@@ -176,14 +205,22 @@ class Connection(object):
 
     The :py:class:`.Connection` object provides a base class for defining MCL
     network interface connection objects. Objects inheriting from
-    :py:class:`.Connection` must implement the attribute ``mandatory`` where
-    ``mandatory`` is a list of strings defining the names of mandatory
-    connection parameters. Objects inheriting from :py:class:`.Connection` can
-    optionally implement the attribute ``optional`` where ``optional`` is a
-    dictionary of optional connection parameters and their defaults. These
-    attributes form the definition of the network interface connection and
-    allow :py:class:`.Connection` to manufacture a connection object with these
-    attributes.
+    :py:class:`.Connection` must implement the attribute ``mandatory`` and can
+    optionally implement the attribute ``optional`` where:
+
+        - ``mandatory`` is a list of strings defining the names of mandatory
+          connection parameters that must be present when instances of the new
+          :py:class:`.Connection` object are created. If ``mandatory`` is not
+          present, a TypeError will be raised.
+
+        - ``optional`` is a dictionary of optional connection parameters and
+          their defaults. Keywords represent attribute names and the
+          corresponding value represents the default value. ``optional`` is not
+          required.
+
+    These attributes form the definition of the network interface connection
+    and allow :py:class:`.Connection` to manufacture a connection object with
+    these attributes.
 
     Example usage::
 
