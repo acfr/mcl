@@ -18,7 +18,7 @@ interface into MLC see :py:mod:`.network.udp`.
 import abc
 from abc import abstractmethod
 from abc import abstractproperty
-from mcl.event.event import Publisher
+from mcl.event.event import Event
 
 
 class _ConnectionMeta(type):
@@ -255,25 +255,47 @@ class RawBroadcaster(object):
     network interface. Broadcasters inheriting from this template are likely to
     integrate safely with the MCL system.
 
+    Args:
+        connection (:py:class:`._ConnectionMeta`): Connection object.
+        topic (str): Topic associated with the network interface.
+
     Attributes:
-        url (str): URL of the network interface.
+        connection (:py:class:`._ConnectionMeta`): Connection object.
         topic (str): Topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts issued.
+
+    Raises:
+        TypeError: If any of the inputs are ill-specified.
 
     """
 
     # Ensure abstract methods are redefined in child classes.
     __metaclass__ = abc.ABCMeta
 
-    @abstractproperty
-    def url(self):
-        pass
+    def __init__(self, connection, topic=None):
+        """Document the __init__ method at the class level."""
 
-    @abstractproperty
+        # Ensure the connection object is properly specified.
+        if not issubclass(connection, Connection):
+            msg = "The argument 'connection' must be a Connection() subclass."
+            raise TypeError(msg)
+
+        # Broadcasters can only store ONE default topic. Enforce this behaviour
+        # by only accepting a string.
+        if topic and not isinstance(topic, basestring):
+            raise TypeError("The argument 'topic' must be None or a string.")
+
+        # Save connection parameters.
+        self.__connection
+        self.__topic = topic
+
+    def connection(self):
+        return self.__connection
+
     def topic(self):
-        pass
+        return self.__topic
 
     @abstractproperty
     def is_open(self):
@@ -336,7 +358,7 @@ class RawBroadcaster(object):
         pass
 
 
-class RawListener(Publisher):
+class RawListener(Event):
     """Abstract object for receiving data over a network interface.
 
     The :py:class:`.RawListener` is an abstract object designed to provide a
@@ -344,25 +366,50 @@ class RawListener(Publisher):
     network interface. Listeners inheriting from this template are likely to
     integrate safely with the MCL system.
 
+    Args:
+        connection (:py:class:`._ConnectionMeta`): Connection object.
+        topics (str): Topics associated with the network interface.
+
     Attributes:
-        url (str): URL of the network interface.
+        connection (:py:class:`._ConnectionMeta`): Connection object.
         topics (str): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts received.
+
+    Raises:
+        TypeError: If any of the inputs are ill-specified.
 
     """
 
     # Ensure abstract methods are redefined in sub-classes.
     __metaclass__ = abc.ABCMeta
 
-    @abstractproperty
-    def url(self):
-        pass
+    def __init__(self, connection, topics=None):
+        """Document the __init__ method at the class level."""
 
-    @abstractproperty
+        # Ensure the connection object is properly specified.
+        if not issubclass(connection, Connection):
+            msg = "The argument 'connection' must be a Connection() subclass."
+            raise TypeError(msg)
+
+        # Broadcasters can only store ONE default topic. Enforce this behaviour
+        # by only accepting a string.
+        if topics and not isinstance(topics, basestring) and not \
+           all(isinstance(item, basestring) for item in topics):
+            msg = "The argument 'topics' must be None, a string or a list of "
+            msg += "string."
+            raise TypeError(msg)
+
+        # Save connection parameters.
+        self.__connection
+        self.__topics = topics
+
+    def connection(self):
+        return self.__connection
+
     def topics(self):
-        pass
+        return self.__topic
 
     @abstractproperty
     def is_open(self):
