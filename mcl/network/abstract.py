@@ -278,8 +278,9 @@ class RawBroadcaster(object):
         """Document the __init__ method at the class level."""
 
         # Ensure the connection object is properly specified.
-        if not issubclass(connection, Connection):
-            msg = "The argument 'connection' must be a Connection() subclass."
+        if not isinstance(connection, Connection):
+            msg = "The argument 'connection' must be an instance of a "
+            msg += "Connection() subclass."
             raise TypeError(msg)
 
         # Broadcasters can only store ONE default topic. Enforce this behaviour
@@ -288,12 +289,14 @@ class RawBroadcaster(object):
             raise TypeError("The argument 'topic' must be None or a string.")
 
         # Save connection parameters.
-        self.__connection
+        self.__connection = connection
         self.__topic = topic
 
+    @property
     def connection(self):
         return self.__connection
 
+    @property
     def topic(self):
         return self.__topic
 
@@ -389,7 +392,7 @@ class RawListener(Event):
         """Document the __init__ method at the class level."""
 
         # Ensure the connection object is properly specified.
-        if not issubclass(connection, Connection):
+        if not isinstance(connection, Connection):
             msg = "The argument 'connection' must be a Connection() subclass."
             raise TypeError(msg)
 
@@ -402,14 +405,16 @@ class RawListener(Event):
             raise TypeError(msg)
 
         # Save connection parameters.
-        self.__connection
+        self.__connection = connection
         self.__topics = topics
 
+    @property
     def connection(self):
         return self.__connection
 
+    @property
     def topics(self):
-        return self.__topic
+        return self.__topics
 
     @abstractproperty
     def is_open(self):

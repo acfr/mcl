@@ -106,154 +106,161 @@ class TestConnection(unittest.TestCase):
         self.assertTrue(isinstance(TestConnectionA('A'), AbstractConnection))
         self.assertTrue(isinstance(TestConnectionB('B'), AbstractConnection))
 
+
 # -----------------------------------------------------------------------------
 #                               RawBroadcaster()
 # -----------------------------------------------------------------------------
 
-class RawBroadcaster(AbstractRawBroadcaster):
+class TestRawBroadcaster(AbstractRawBroadcaster):
     """Validate inheritance mechanism in abstract.RawBroadcaster()"""
 
     @property
-    def url(self):
-        return super(RawBroadcaster, self).url
-
-    @property
-    def topic(self):
-        return super(RawBroadcaster, self).topic
-
-    @property
     def is_open(self):
-        return super(RawBroadcaster, self).is_open
+        pass
 
     @property
     def counter(self):
-        return super(RawBroadcaster, self).counter
+        pass
 
     def _open(self):
-        return super(RawBroadcaster, self)._open()
+        pass
 
     def publish(self, data, topic=''):
-        return super(RawBroadcaster, self).publish(data, topic=topic)
+        pass
 
     def close(self):
-        return super(RawBroadcaster, self).close()
-
-    @classmethod
-    def from_connection(cls, connection):
-        return super(RawBroadcaster, cls).from_connection(RawBroadcaster(),
-                                                          connection)
+        pass
 
 
-class RawListener(AbstractRawListener):
+class RawBroadcasterTests(unittest.TestCase):
+
+    def setUp(self):
+        """Create some messages for testing."""
+
+        # Define connection for testing object.
+        class TestConnection(AbstractConnection):
+            mandatory = ('A', 'B')
+            optional  = {'C': 2, 'D': None}
+
+        self.Connection = TestConnection
+
+    def test_abstract(self):
+        """Test abstract.RawBroadcaster() initialisation of abstract object."""
+
+        with self.assertRaises(TypeError):
+            AbstractRawBroadcaster()
+
+        # Incomplete RawBroadcaster() definition.
+        class TestRawBroadcaster(AbstractRawBroadcaster):
+            def publish(self, data, topic=''): pass
+
+        with self.assertRaises(TypeError):
+            TestRawBroadcaster()
+
+    def test_init(self):
+        """Test abstract.RawBroadcaster() initialisation."""
+
+        # Test RawBroadcaster() with default inputs.
+        broadcaster = TestRawBroadcaster(self.Connection('A', 'B'))
+        self.assertEqual(broadcaster.connection.A, 'A')
+        self.assertEqual(broadcaster.topic, None)
+
+        # Test RawBroadcaster() with optional inputs.
+        broadcaster = TestRawBroadcaster(self.Connection('A', 'B'),
+                                         topic='topic')
+        self.assertEqual(broadcaster.connection.A, 'A')
+        self.assertEqual(broadcaster.topic, 'topic')
+
+    def test_bad_init(self):
+        """Test abstract.RawBroadcaster() with bad initialisation."""
+
+        # Input must be an instance not a class.
+        with self.assertRaises(TypeError):
+            TestRawBroadcaster(self.Connection)
+
+        # Topic must be a string.
+        with self.assertRaises(TypeError):
+            TestRawBroadcaster(self.Connection('A', 'B'), topic=1)
+
+# -----------------------------------------------------------------------------
+#                                 RawListener()
+# -----------------------------------------------------------------------------
+
+class TestRawListener(AbstractRawListener):
     """Validate inheritance mechanism in abstract.RawListener()"""
 
     @property
-    def url(self):
-        return super(RawListener, self).url
-
-    @property
-    def topics(self):
-        return super(RawListener, self).topics
-
-    @property
     def is_open(self):
-        return super(RawListener, self).is_open
+        pass
 
     @property
     def counter(self):
-        return super(RawListener, self).counter
+        pass
 
     def _open(self):
-        return super(RawListener, self)._open()
+        pass
+
+    def publish(self, data, topic=''):
+        pass
 
     def close(self):
-        return super(RawListener, self).close()
-
-    @classmethod
-    def from_connection(cls, connection):
-        return super(RawListener, cls).from_connection(RawListener(),
-                                                       connection)
-
-class CommonTests(object):
-
-    def test_init(self, Interface):
-        """Test initialisation of abstract object."""
-
-        # Ensure instantiation of abstract object fails.
-        with self.assertRaises(TypeError):
-            Interface()
-
-    def test_inherit(self, Interface):
-        """Test abstract object inheritance model."""
-
-        # A child class which has redefined all the abstract methods can be
-        # instantiated.
-        instance = Interface()
-
-        # Force users to over-ride base implementation of 'URL' by throwing
-        # a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.url
-
-        # Force users to over-ride base implementation of 'is_open' by throwing
-        # a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.is_open
-
-        # Force users to over-ride base implementation of '_open' by throwing a
-        # NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance._open()
-
-        # Force users to over-ride base implementation of 'close' by throwing a
-        # NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.close()
-
-        # Force users to over-ride base implementation of 'from_connection' by
-        # throwing a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.from_connection(Connection('url'))
+        pass
 
 
-class RawBroadcasterTests(CommonTests, unittest.TestCase):
+class RawListenerTests(unittest.TestCase):
 
-    def test_init(self):
-        """Test abstract.RawBroadcaster() initialisation of abstract object."""
+    def setUp(self):
+        """Create some messages for testing."""
 
-        super(RawBroadcasterTests, self).test_init(AbstractRawBroadcaster)
+        # Define connection for testing object.
+        class TestConnection(AbstractConnection):
+            mandatory = ('A', 'B')
+            optional  = {'C': 2, 'D': None}
 
-    def test_inherit(self):
-        """Test abstract.RawBroadcaster() inheritance model."""
+        self.Connection = TestConnection
 
-        super(RawBroadcasterTests, self).test_inherit(RawBroadcaster)
-        instance = RawBroadcaster()
-
-        # Force users to over-ride base implementation of 'topic' by throwing a
-        # NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.topic
-
-        # Force users to over-ride base implementation of 'publish' by throwing
-        # a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.publish('message')
-
-
-class RawListenerTests(CommonTests, unittest.TestCase):
-
-    def test_init(self):
+    def test_abstract(self):
         """Test abstract.RawListener() initialisation of abstract object."""
 
-        super(RawListenerTests, self).test_init(AbstractRawListener)
+        with self.assertRaises(TypeError):
+            AbstractRawListener()
 
-    def test_inherit(self):
-        """Test abstract.RawListener() inheritance model."""
+        # Incomplete RawListener() definition.
+        class TestRawListener(AbstractRawListener):
+            def publish(self, data, topic=''): pass
 
-        super(RawListenerTests, self).test_inherit(RawListener)
-        instance = RawListener()
+        with self.assertRaises(TypeError):
+            TestRawListener()
 
-        # Force users to over-ride base implementation of 'topics' by throwing
-        # a NotImplementedError.
-        with self.assertRaises(NotImplementedError):
-            instance.topics
+    def test_init(self):
+        """Test abstract.RawListener() initialisation."""
+
+        # Test RawListener() with default inputs.
+        listener = TestRawListener(self.Connection('A', 'B'))
+        self.assertEqual(listener.connection.A, 'A')
+        self.assertEqual(listener.topics, None)
+
+        # Test RawListener() with optional inputs - single topic.
+        listener = TestRawListener(self.Connection('A', 'B'), topics='topic')
+        self.assertEqual(listener.connection.A, 'A')
+        self.assertEqual(listener.topics, 'topic')
+
+        # Test RawListener() with optional inputs - multiple topics.
+        listener = TestRawListener(self.Connection('A', 'B'), topics=['A', 'B'])
+        self.assertEqual(listener.connection.A, 'A')
+        self.assertEqual(listener.topics, ['A', 'B'])
+
+    def test_bad_init(self):
+        """Test abstract.RawListener() with bad initialisation."""
+
+        # Input must be an instance not a class.
+        with self.assertRaises(TypeError):
+            TestRawListener(self.Connection)
+
+        # Topic must be a string or list of strings.
+        with self.assertRaises(TypeError):
+            TestRawListener(self.Connection('A', 'B'), topics=1)
+
+        # Topics must be a string or list of strings.
+        with self.assertRaises(TypeError):
+            TestRawListener(self.Connection('A', 'B'), topics=['A', 1])
