@@ -51,7 +51,7 @@ class TestConnection(unittest.TestCase):
 
         # Too many input parameters.
         with self.assertRaises(TypeError):
-            TestConnection('A', 'B', 'C')
+            TestConnection('A', 'B', 'C', 'D', 'E')
 
         # Unrecognised keyword argument.
         with self.assertRaises(TypeError):
@@ -77,12 +77,12 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(getattr(connection, attribute), value)
 
         # Ensure attributes can be converted into a string.
-        string  = 'TestConnection() parameters:\n'
-        string += '    A:                          0\n'
-        string += '    C (optional, default=2):    2\n'
-        string += '    B (optional, default=1):    1\n'
-        string += '    D (optional, default=None): 5'
+        string = 'TestConnection(A=0, C=2, B=1, D=5)'
         self.assertEqual(string, str(connection))
+
+        # Ensure attributes are read-only once created.
+        with self.assertRaises(AttributeError):
+            connection.A = 5
 
     def test_inheritance(self):
         """Test abstract.Connection() sub-classes can be recognised."""

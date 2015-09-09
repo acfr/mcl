@@ -20,6 +20,11 @@ from abc import abstractmethod
 from abc import abstractproperty
 from mcl.event.event import Event
 
+import sys as _sys
+import textwrap
+from keyword import iskeyword as _iskeyword
+from operator import itemgetter as _itemgetter
+
 
 class _ConnectionMeta(type):
     """Meta-class for manufacturing network interface connection objects.
@@ -88,121 +93,189 @@ class _ConnectionMeta(type):
         Raises:
             TypeError: If the ``mandatory`` or ``optional`` attributes are
                 ill-specified.
+            ValueError: If any of the mandatory or optional attribute names are
+                ill-specified.
 
         """
 
-        # Do not look for 'manditory'/'optional' attributes in the Connection()
+        # NOTE: This code essentially manufactures a 'namedtuple' object using
+        #       code adapted from the python library:
+        #
+        #           https://docs.python.org/2/library/collections.html#collections.namedtuple
+        #
+        #       This allows the attributes in the object to be immutable
+        #       (read-only) one created. Note that all of the objects that are
+        #       manufactured also inherit from the Connection() class.
+
+        # Do not look for 'mandatory'/'optional' attributes in the Connection()
         # base class.
-        if (name == 'Connection') and (bases == (object,)):
+        if (name == 'Connection') and (bases == (tuple,)):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-        #  Do not look for 'manditory'/'optional' attributes in sub-classes of
+        #  Do not look for 'mandatory'/'optional' attributes in sub-classes of
         # the Connection() base class.
         elif bases != (Connection,):
             return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
         # Objects inheriting from Connection() are required to have a
-        # 'mandatory' attribute.
-        MANDATORY = dct.get('mandatory', {})
-        OPTIONAL = dct.get('optional', {})
+        # 'mandatory' attribute. The 'optional' and 'docstring' are optional.
+        mandatory = dct.get('mandatory', {})
+        optional = dct.get('optional', {})
 
         # Ensure 'mandatory' is a list or tuple of strings.
-        if ((not isinstance(MANDATORY, (list, tuple))) or
-            (not all(isinstance(item, basestring) for item in MANDATORY))):
-            msg = "'mandatory' must be a list or tuple or strings."
+        if (((not isinstance(mandatory, (list, tuple))) or
+             (not all(isinstance(item, basestring) for item in mandatory)))):
+            msg = "'mandatory' must be a string or a list/tuple or strings."
             raise TypeError(msg)
 
         # Ensure 'optional' is a list or tuple.
-        if not isinstance(OPTIONAL, (dict,)):
+        if not isinstance(optional, (dict,)):
             msg = "'optional' must be a dictionary."
             raise TypeError(msg)
 
-        # Initialisation method defined using closure.
-        def __init__(self, *args, **kwargs):
-            """Initialise factory interface connection object.
+        # Ensure all keys in 'optional' are a string.
+        if not all(isinstance(key, basestring) for key in optional.keys()):
+            msg = "All keys in 'optional' must be strings."
+            raise TypeError(msg)
 
-            Args:
-                *args (list): mandatory connection parameters.
-                **kwargs (dict): optional connection parameters.
+        # Names separated by whitespace and/or commas.
+        if isinstance(mandatory, basestring):
+            mandatory = mandatory.replace(',', ' ').split()
 
-            Raises:
-                TypeError: If any of the input argument are invalid.
+        # Add optional fields.
+        field_names = tuple(list(mandatory) + list(optional.keys()))
 
-            """
+        # Parse and validate the field names. Validation serves two purposes,
+        # generating informative error messages and preventing template
+        # injection attacks.
+        for attr in (name,) + field_names:
+            if not all(c.isalnum() or c == '_' for c in attr):
+                msg = 'Type names and field names can only contain '
+                msg += 'alphanumeric characters and underscores: %r'
+                raise ValueError(msg % name)
 
-            # Get class name.
-            name = self.__class__.__name__
+            if _iskeyword(attr):
+                msg = 'Type names and field names cannot be a keyword: %r'
+                raise ValueError(msg % attr)
 
-            # Ensure all mandatory arguments are present.
-            if len(MANDATORY) != len(args):
-                msg = '%s() expected %i arguments, got %i.' % \
-                      (name, len(MANDATORY), len(args))
+            if attr[0].isdigit():
+                msg = 'Type names and field names cannot start with a number: '
+                msg += '%r'
+                raise ValueError(msg % attr)
+
+        # Detect duplicate attribute names.
+        seen_attr = set()
+        for attr in field_names:
+            if name.startswith('_'):
+                msg = 'Field names cannot start with an underscore: %r' % attr
+                raise ValueError(msg)
+            if attr in seen_attr:
+                raise ValueError('Encountered duplicate field name: %r' % attr)
+            seen_attr.add(attr)
+
+        # Create 'prototype' for defining a new object.
+        numfields = len(field_names)
+        inputtxt = ', '.join(mandatory)
+        if optional:
+            for key, value in optional.iteritems():
+                inputtxt += ", %s=%r" % (key, value)
+
+        # Create strings for arguments and printing.
+        argtxt = repr(field_names).replace("'", "")[1:-1]
+        reprtxt = ', '.join('%s=%%r' % name for name in field_names)
+
+        # Create mapping object (key-value pairs).
+        dicttxt = ['%r: t[%d]' % (n, p) for p, n in enumerate(field_names)]
+        dicttxt = ', '.join(dicttxt)
+
+        def execute_template(template, key, namespace={}, verbose=False):
+
+            template = textwrap.dedent(template)
+            try:
+                exec template in namespace
+            except SyntaxError, e:
+                raise SyntaxError(e.message + ':\n' + template)
+
+            if verbose:
+                print template
+
+            return namespace[key]
+
+        __new__ = execute_template("""
+        def __new__(cls, %s):
+            return tuple.__new__(cls, (%s))
+        """ % (inputtxt, argtxt), '__new__')
+
+        _make = execute_template("""
+        @classmethod
+        def _make(cls, iterable, new=tuple.__new__, len=len):
+            'Make a new %s object from a sequence or iterable'
+
+            result = new(cls, iterable)
+            if len(result) != %d:
+                msg = 'Expected %d arguments, got %%d' %% len(result)
                 raise TypeError(msg)
+            return result
+        """ % (name, numfields, numfields), '_make')
 
-            # There are elements in the input optional parameters that are not
-            # in the recognised optional parameters.
-            invalid = set(kwargs.keys()) - set(OPTIONAL.keys())
-            if invalid:
-                msg = '%s() got unexpected keyword arguments: %s.' % \
-                      (name, ', '.join(invalid))
-                raise TypeError(msg)
+        __repr__ = execute_template("""
+        def __repr__(self):
+            return '%s(%s)' %% self
+        """ % (name, reprtxt), '__repr__')
 
-            # Store mandatory and optional fields.
-            self.__mandatory = MANDATORY
-            self.__optional = OPTIONAL
+        _asdict = execute_template("""
+        def _asdict(t):
+            'Return a new dict which maps field names to their values'
 
-            # Add mandatory parameters.
-            for i, name in enumerate(self.__mandatory):
-                setattr(self, name, args[i])
+            return {%s}
+        """ % (dicttxt), '_asdict')
 
-            # Add default optional parameters.
-            for name, default in self.__optional.iteritems():
-                setattr(self, name, default)
+        _replace = execute_template("""
+        def _replace(self, **kwds):
+            'Return a new %s object replacing specified fields with new values'
 
-            # Set optional parameters.
-            for name, value in kwargs.iteritems():
-                setattr(self, name, value)
+            result = self._make(map(kwds.pop, %r, self))
+            if kwds:
+                msg = 'Got unexpected field names: %%r' %% kwds.keys()
+                raise ValueError(msg)
+            return result
+        """ % (name, field_names), '_replace')
 
-        # Printing method defined using closure.
-        def __str__(self):
-            """Pretty print the mandatory and optional parameters.
+        def __getnewargs__(self):
+            return tuple(self)
 
-            Returns:
-                str: A human readable string of the object mandatory and
-                    optional parameters.
+        # Remove specification.
+        if 'mandatory' in dct: del dct['mandatory']
+        if 'optional'  in dct: del dct['optional']
 
-            """
+        # Add methods to class definition.
+        dct['__slots__'] = ()
+        dct['_fields'] = field_names
+        dct['__new__'] = __new__
+        dct['_make'] = _make
+        dct['__repr__'] = __repr__
+        dct['_asdict'] = _asdict
+        dct['_replace'] = _replace
+        dct['__getnewargs__'] = __getnewargs__
 
-            # Get name of mandatory items.
-            mandatory = list()
-            for name in self.__mandatory:
-                string = '%s:' % name
-                mandatory.append((string, name))
+        # Add properties (read-only access).
+        for i, name in enumerate(field_names):
+            dct[name] = property(_itemgetter(i))
 
-            # Get name of optional items and their defaults.
-            optional = list()
-            for name, default in self.__optional.iteritems():
-                string = '%s (optional, default=%s):' % (name, str(default))
-                optional.append((string, name))
+        # Create object.
+        obj = super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
 
-            # Get length of longest line.
-            parameters = mandatory + optional
-            length = max([len(s) for s, n in parameters])
+        # For pickling to work, the __module__ variable needs to be set to the
+        # frame where the named tuple is created.  Bypass this step in
+        # enviroments where sys._getframe is not defined (Jython for example).
+        if hasattr(_sys, '_getframe'):
+            obj.__module__ = _sys._getframe(1).f_globals.get('__name__',
+                                                             '__main__')
 
-            # Create parameter display.
-            lines = ['%s() parameters:' % self.__class__.__name__, ]
-            for string, name in parameters:
-                value = str(getattr(self, name))
-                lines.append('    ' + string.ljust(length) + ' ' + value)
-
-            return '\n'.join(lines)
-
-        # Return factory class.
-        dct = {'__init__': __init__, '__str__': __str__}
-        return super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
+        return obj
 
 
-class Connection(object):
+class Connection(tuple):
     """Base class for MCL network interface connection objects.
 
     The :py:class:`.Connection` object provides a base class for defining MCL
@@ -241,7 +314,10 @@ class Connection(object):
         print example
 
     Raises:
-        TypeError: If any of the input argument are invalid.
+        TypeError: If the ``mandatory`` or ``optional`` attributes are
+            ill-specified.
+        ValueError: If any of the mandatory or optional attribute names are
+            ill-specified.
 
     """
     __metaclass__ = _ConnectionMeta
