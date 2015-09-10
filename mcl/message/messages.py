@@ -9,6 +9,7 @@ import json
 import msgpack
 import datetime
 from sets import Set
+from mcl.network.abstract import Connection as Connection
 
 
 # Globally track Message() definitions. The meta-class _RegisterMeta() inserts
@@ -25,9 +26,17 @@ class _MessageMeta(type):
     if and ONLY if the class inherits from :py:class:`.Connection`.
 
     Classes that inherit from :py:class:`.Message` must implement the
-    ``mandatory`` attribute which is a list of strings specifying the name of
-    mandatory attributes. These attributes are used to manufacture an object to
-    contain the definition. See :py:class:`.Message` for implementation detail.
+    ``mandatory`` and ``connection`` attributes where:
+
+        - ``mandatory`` is a list of strings defining the names of mandatory
+          message attributes that must be present when instances of the new
+          :py:class:`.Message` objects are created. During instantiation the
+          input list *args is mapped to the attributes defined by
+          ``mandatory``. If ``mandatory`` is not present, a TypeError will be
+          raised.
+
+        - ``connection`` is an instance of a :py:class:`.Connection` object
+          specifying where the message can be broadcast and received.
 
     The meta-class also maintains a global register of :py:class:`.Message`
     sub-classes. :py:class:`.Message` subclasses are added to the register when
@@ -60,8 +69,8 @@ class _MessageMeta(type):
 
         If a sub-class of :py:class:`.Message` with the same name already
         exists, an exception is raised. This ensures that all classes have a
-        unique name. Classes with unique names are permitted and recored in the
-        global ``_MESSAGES``.
+        unique name. Classes with unique names are permitted and recorded in
+        the global ``_MESSAGES``.
 
         Args:
           cls (class): is the class being instantiated.
@@ -96,7 +105,7 @@ class _MessageMeta(type):
 
         Manufacture a Message class for objects inheriting from
         :py:class:`.Message`. This is done by searching the input dictionary
-        ``dct`` for the key ``mandatory`` where:
+        ``dct`` for the keys ``mandatory`` and ``connection`` where:
 
             - ``mandatory`` is a list of strings defining the names of
               mandatory message attributes that must be present when instances
@@ -105,9 +114,12 @@ class _MessageMeta(type):
               defined by ``mandatory``. If ``mandatory`` is not present, a
               TypeError will be raised.
 
+            - ``connection`` is an instance of a :py:class:`.Connection` object
+              specifying where the message can be broadcast and received.
+
         A new message class is manufactured using the definition specified by
-        the attribute ``mandatory``. The property 'mandatory_items' is attached
-        to the returned class.
+        the attribute ``mandatory``. The property 'mandatory' is attached to
+        the returned class.
 
         Args:
           cls (class): is the class being instantiated.
@@ -121,7 +133,10 @@ class _MessageMeta(type):
                 attribute.
 
         Raises:
-            TypeError: If the ``mandatory`` attribute is ill-specified.
+            TypeError: If the ``mandatory`` or ``connection`` attributes are
+                ill-specified.
+            ValueError: If the ``mandatory`` attribute contains the words
+                `mandatory` or `connection`.
 
         """
 
@@ -135,18 +150,36 @@ class _MessageMeta(type):
             return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
 
         # Objects inheriting from Message() are required to have a 'mandatory'
-        # attribute.
-        MANDATORY = dct.get('mandatory', {})
+        # and 'connection' attribute.
+        mandatory = dct.get('mandatory', {})
+        connection = dct.get('connection', None)
 
         # Ensure 'mandatory' is a list or tuple of strings.
-        if ((not isinstance(MANDATORY, (list, tuple))) or
-            (not all(isinstance(item, basestring) for item in MANDATORY))):
+        if ((not isinstance(mandatory, (list, tuple))) or
+            (not all(isinstance(item, basestring) for item in mandatory))):
             msg = "'mandatory' must be a list or tuple or strings."
             raise TypeError(msg)
 
+        # Ensure the connection object is properly specified.
+        if not isinstance(connection, Connection):
+            msg = "The argument 'connection' must be an instance of a "
+            msg += "Connection() subclass."
+            raise TypeError(msg)
+
+        # Detect duplicate attribute names.
+        seen_attr = set()
+        for attr in mandatory:
+            if (attr == 'mandatory') or (attr == 'connection'):
+                msg = "Field names cannot be 'broadcaster' or 'listener'."
+                raise ValueError(msg)
+            if attr in seen_attr:
+                raise ValueError('Encountered duplicate field name: %r' % attr)
+            seen_attr.add(attr)
+
         # Embed the mandatory items in a class property.
         del dct['mandatory']
-        dct['mandatory_items'] = property(lambda self: MANDATORY)
+        dct['mandatory'] = property(lambda self: mandatory)
+        dct['connection'] = property(lambda self: connection)
         return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
 
 
@@ -186,17 +219,17 @@ class Message(dict):
         # If no inputs were passed into the constructor, initialise the object
         # with empty fields.
         if not args and not kwargs:
-            empty = [None] * len(self.mandatory_items)
-            kwargs = dict(zip(self.mandatory_items, empty))
+            empty = [None] * len(self.mandatory)
+            kwargs = dict(zip(self.mandatory, empty))
 
         # Initialise message object with items.
         super(Message, self).__init__()
         self.update(*args, **kwargs)
 
         # Ensure the message adheres to specification.
-        if not Set(self.keys()).issuperset(Set(self.mandatory_items)):
+        if not Set(self.keys()).issuperset(Set(self.mandatory)):
             msg = "'%s' must have the following items: [" % self['name']
-            msg += ', '.join(self.mandatory_items)
+            msg += ', '.join(self.mandatory)
             msg += '].'
             raise TypeError(msg)
 
@@ -270,7 +303,7 @@ class Message(dict):
             if type(dct) is dict:
 
                 # Check if mandatory attributes are missing.
-                missing = Set(self.mandatory_items) - Set(dct.keys())
+                missing = Set(self.mandatory) - Set(dct.keys())
 
                 # Decode was successful.
                 if not missing:

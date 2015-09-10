@@ -6,14 +6,27 @@ import mcl.message.messages
 from mcl.message.messages import remove_message_object
 from mcl.message.messages import list_messages
 from mcl.message.messages import get_message_objects
-# from mcl.message.test.unittest_factory import unittest_factory
+
+from mcl.network.abstract import Connection as AbstractConnection
+from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
+from mcl.network.abstract import RawListener as AbstractRawListener
+
+
+# Define Connection() for testing object.
+class TestConnection(AbstractConnection):
+    mandatory = ('A', 'B')
+    optional  = {'C': 2, 'D': None}
+    broadcaster = AbstractRawBroadcaster
+    listener = AbstractRawListener
 
 
 def message_factory(name, attrs):
     """Factory method for producing Message() objects."""
 
     # Manufacture class definition.
-    return type(name, (mcl.message.messages.Message,), {'mandatory': attrs})
+    return type(name, (mcl.message.messages.Message,),
+                {'mandatory': attrs,
+                 'connection': TestConnection(0, 1)})
 
 
 class ManufactureMessages(unittest.TestCase):
