@@ -4,14 +4,22 @@ from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
 
 
+# Define Connection() for testing object.
+class TestConnection(AbstractConnection):
+    mandatory = ('A', 'B')
+    optional  = {'C': 2, 'D': None}
+    broadcaster = AbstractRawBroadcaster
+    listener = AbstractRawListener
+
+
 # -----------------------------------------------------------------------------
 #                                 Connection()
 # -----------------------------------------------------------------------------
 
-class TestConnection(unittest.TestCase):
+class TestAbstractConnection(unittest.TestCase):
 
-    def test_mandatory_missing(self):
-        """Test abstract.Connection() requires the 'mandatory' attribute."""
+    def test_bad_attributes(self):
+        """Test abstract.Connection() bad attributes."""
 
         # A sub-class which has not defined the 'mandatory' attribute
         # cannot be created.
@@ -24,26 +32,67 @@ class TestConnection(unittest.TestCase):
         with self.assertRaises(TypeError):
             class TestConnection(AbstractConnection):
                 mandatory = 5
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
 
         # A sub-class which has not defined the 'mandatory' attribute
         # CORRECTLY cannot be created.
         with self.assertRaises(TypeError):
             class TestConnection(AbstractConnection):
                 mandatory = 'attribute'
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Test attribute names cannot be 'broadcaster'.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('broadcaster',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Test attribute names cannot be 'listener'.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('listener',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
 
         # A sub-class which has not defined the 'mandatory' attribute
         # CORRECTLY cannot be created.
         with self.assertRaises(TypeError):
             class TestConnection(AbstractConnection):
                 mandatory = ('attribute', 0)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Test for missing RawBroadcaster().
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                listener = AbstractRawListener
+
+        # Ensure broadcaster is a RawBroadcaster() object.
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                broadcaster = ('broadcaster',)
+                listener = AbstractRawListener
+
+        # Test for missing RawListener().
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                broadcaster = AbstractRawBroadcaster
+
+        # Ensure listener is a RawListener() object.
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                broadcaster = AbstractRawBroadcaster
+                listener = ('listener',)
 
     def test_bad_init(self):
         """Test abstract.Connection() can catch bad initialisations."""
-
-        # Define connection for testing object.
-        class TestConnection(AbstractConnection):
-            mandatory = ('A', 'B')
-            optional  = {'C': 2, 'D': None}
 
         # Too few input parameters.
         with self.assertRaises(TypeError):
@@ -60,24 +109,23 @@ class TestConnection(unittest.TestCase):
     def test_init(self):
         """Test abstract.Connection() can manufacture functional objects."""
 
-        # Define connection for testing object.
-        class TestConnection(AbstractConnection):
-            mandatory = ('A',)
-            optional  = {'B': 1, 'C': 2, 'D': None}
-
         # Initialise object.
-        connection = TestConnection(0, D=5)
+        connection = TestConnection(0, 1, C=4, D=5)
 
         # Ensure all attributes exist.
         for attribute in ['A', 'B', 'C', 'D']:
             self.assertTrue(hasattr(connection, attribute))
 
         # Ensure attributes can be set at instantiation.
-        for attribute, value in [('A', 0), ('B', 1), ('C', 2), ('D', 5)]:
+        for attribute, value in [('A', 0), ('B', 1), ('C', 4), ('D', 5)]:
             self.assertEqual(getattr(connection, attribute), value)
 
+        # Ensure 'broadcaster' and 'listener' are present.
+        self.assertEqual(connection.broadcaster, AbstractRawBroadcaster)
+        self.assertEqual(connection.listener, AbstractRawListener)
+
         # Ensure attributes can be converted into a string.
-        string = 'TestConnection(A=0, C=2, B=1, D=5)'
+        string = 'TestConnection(A=0, B=1, C=4, D=5)'
         self.assertEqual(string, str(connection))
 
         # Ensure attributes are read-only once created.
@@ -87,24 +135,20 @@ class TestConnection(unittest.TestCase):
     def test_inheritance(self):
         """Test abstract.Connection() sub-classes can be recognised."""
 
-        # Define connection for testing object.
-        class TestConnectionA(AbstractConnection):
-            mandatory = ('A',)
-
         # Sub-class Connection() object.
-        class TestConnectionB(TestConnectionA):
+        class SubConnection(TestConnection):
             pass
 
         # Ensure objects inheriting from the Connection() base class (and its
         # sub-classes) are recognised as sub-classes of Connection().
-        self.assertTrue(issubclass(TestConnectionA, AbstractConnection))
-        self.assertTrue(issubclass(TestConnectionB, AbstractConnection))
+        self.assertTrue(issubclass(TestConnection, AbstractConnection))
+        self.assertTrue(issubclass(SubConnection, AbstractConnection))
 
         # Ensure instances of objects inheriting from the Connection() base
         # class (and its sub-classes) are recognised as instances of
         # Connection().
-        self.assertTrue(isinstance(TestConnectionA('A'), AbstractConnection))
-        self.assertTrue(isinstance(TestConnectionB('B'), AbstractConnection))
+        self.assertTrue(isinstance(TestConnection(1, 2), AbstractConnection))
+        self.assertTrue(isinstance(SubConnection(1, 2), AbstractConnection))
 
 
 # -----------------------------------------------------------------------------
@@ -134,16 +178,6 @@ class TestRawBroadcaster(AbstractRawBroadcaster):
 
 class RawBroadcasterTests(unittest.TestCase):
 
-    def setUp(self):
-        """Create some messages for testing."""
-
-        # Define connection for testing object.
-        class TestConnection(AbstractConnection):
-            mandatory = ('A', 'B')
-            optional  = {'C': 2, 'D': None}
-
-        self.Connection = TestConnection
-
     def test_abstract(self):
         """Test abstract.RawBroadcaster() initialisation of abstract object."""
 
@@ -161,12 +195,12 @@ class RawBroadcasterTests(unittest.TestCase):
         """Test abstract.RawBroadcaster() initialisation."""
 
         # Test RawBroadcaster() with default inputs.
-        broadcaster = TestRawBroadcaster(self.Connection('A', 'B'))
+        broadcaster = TestRawBroadcaster(TestConnection('A', 'B'))
         self.assertEqual(broadcaster.connection.A, 'A')
         self.assertEqual(broadcaster.topic, None)
 
         # Test RawBroadcaster() with optional inputs.
-        broadcaster = TestRawBroadcaster(self.Connection('A', 'B'),
+        broadcaster = TestRawBroadcaster(TestConnection('A', 'B'),
                                          topic='topic')
         self.assertEqual(broadcaster.connection.A, 'A')
         self.assertEqual(broadcaster.topic, 'topic')
@@ -176,11 +210,11 @@ class RawBroadcasterTests(unittest.TestCase):
 
         # Input must be an instance not a class.
         with self.assertRaises(TypeError):
-            TestRawBroadcaster(self.Connection)
+            TestRawBroadcaster(TestConnection)
 
         # Topic must be a string.
         with self.assertRaises(TypeError):
-            TestRawBroadcaster(self.Connection('A', 'B'), topic=1)
+            TestRawBroadcaster(TestConnection('A', 'B'), topic=1)
 
 # -----------------------------------------------------------------------------
 #                                 RawListener()
@@ -209,16 +243,6 @@ class TestRawListener(AbstractRawListener):
 
 class RawListenerTests(unittest.TestCase):
 
-    def setUp(self):
-        """Create some messages for testing."""
-
-        # Define connection for testing object.
-        class TestConnection(AbstractConnection):
-            mandatory = ('A', 'B')
-            optional  = {'C': 2, 'D': None}
-
-        self.Connection = TestConnection
-
     def test_abstract(self):
         """Test abstract.RawListener() initialisation of abstract object."""
 
@@ -236,17 +260,17 @@ class RawListenerTests(unittest.TestCase):
         """Test abstract.RawListener() initialisation."""
 
         # Test RawListener() with default inputs.
-        listener = TestRawListener(self.Connection('A', 'B'))
+        listener = TestRawListener(TestConnection('A', 'B'))
         self.assertEqual(listener.connection.A, 'A')
         self.assertEqual(listener.topics, None)
 
         # Test RawListener() with optional inputs - single topic.
-        listener = TestRawListener(self.Connection('A', 'B'), topics='topic')
+        listener = TestRawListener(TestConnection('A', 'B'), topics='topic')
         self.assertEqual(listener.connection.A, 'A')
         self.assertEqual(listener.topics, 'topic')
 
         # Test RawListener() with optional inputs - multiple topics.
-        listener = TestRawListener(self.Connection('A', 'B'), topics=['A', 'B'])
+        listener = TestRawListener(TestConnection('A', 'B'), topics=['A', 'B'])
         self.assertEqual(listener.connection.A, 'A')
         self.assertEqual(listener.topics, ['A', 'B'])
 
@@ -255,12 +279,12 @@ class RawListenerTests(unittest.TestCase):
 
         # Input must be an instance not a class.
         with self.assertRaises(TypeError):
-            TestRawListener(self.Connection)
+            TestRawListener(TestConnection)
 
         # Topic must be a string or list of strings.
         with self.assertRaises(TypeError):
-            TestRawListener(self.Connection('A', 'B'), topics=1)
+            TestRawListener(TestConnection('A', 'B'), topics=1)
 
         # Topics must be a string or list of strings.
         with self.assertRaises(TypeError):
-            TestRawListener(self.Connection('A', 'B'), topics=['A', 1])
+            TestRawListener(TestConnection('A', 'B'), topics=['A', 1])

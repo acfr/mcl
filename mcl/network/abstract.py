@@ -20,8 +20,8 @@ from abc import abstractmethod
 from abc import abstractproperty
 from mcl.event.event import Event
 
-import sys as _sys
 import textwrap
+import sys as _sys
 from keyword import iskeyword as _iskeyword
 from operator import itemgetter as _itemgetter
 
@@ -120,12 +120,24 @@ class _ConnectionMeta(type):
         # Objects inheriting from Connection() are required to have a
         # 'mandatory' attribute. The 'optional' and 'docstring' are optional.
         mandatory = dct.get('mandatory', {})
+        broadcaster = dct.get('broadcaster', None)
+        listener = dct.get('listener', None)
         optional = dct.get('optional', {})
 
         # Ensure 'mandatory' is a list or tuple of strings.
         if (((not isinstance(mandatory, (list, tuple))) or
              (not all(isinstance(item, basestring) for item in mandatory)))):
             msg = "'mandatory' must be a string or a list/tuple or strings."
+            raise TypeError(msg)
+
+        # Ensure 'broadcaster' is a RawBroadcaster() object.
+        if not broadcaster or not issubclass(broadcaster, RawBroadcaster):
+            msg = "'broadcaster' must reference a RawBroadcaster() sub-class."
+            raise TypeError(msg)
+
+        # Ensure 'listener' is a RawListener() object.
+        if not listener or not issubclass(listener, RawListener):
+            msg = "'listener' must reference a RawListener() sub-class."
             raise TypeError(msg)
 
         # Ensure 'optional' is a list or tuple.
@@ -138,21 +150,17 @@ class _ConnectionMeta(type):
             msg = "All keys in 'optional' must be strings."
             raise TypeError(msg)
 
-        # Names separated by whitespace and/or commas.
-        if isinstance(mandatory, basestring):
-            mandatory = mandatory.replace(',', ' ').split()
-
         # Add optional fields.
-        field_names = tuple(list(mandatory) + list(optional.keys()))
+        attrs = tuple(list(mandatory) + list(optional.keys()))
 
         # Parse and validate the field names. Validation serves two purposes,
         # generating informative error messages and preventing template
         # injection attacks.
-        for attr in (name,) + field_names:
+        for attr in (name,) + attrs:
             if not all(c.isalnum() or c == '_' for c in attr):
                 msg = 'Type names and field names can only contain '
                 msg += 'alphanumeric characters and underscores: %r'
-                raise ValueError(msg % name)
+                raise ValueError(msg % attr)
 
             if _iskeyword(attr):
                 msg = 'Type names and field names cannot be a keyword: %r'
@@ -165,8 +173,11 @@ class _ConnectionMeta(type):
 
         # Detect duplicate attribute names.
         seen_attr = set()
-        for attr in field_names:
-            if name.startswith('_'):
+        for attr in attrs:
+            if (attr == 'broadcaster') or (attr == 'listener'):
+                msg = "Field names cannot be 'broadcaster' or 'listener'."
+                raise ValueError(msg)
+            if attr.startswith('_'):
                 msg = 'Field names cannot start with an underscore: %r' % attr
                 raise ValueError(msg)
             if attr in seen_attr:
@@ -174,18 +185,18 @@ class _ConnectionMeta(type):
             seen_attr.add(attr)
 
         # Create 'prototype' for defining a new object.
-        numfields = len(field_names)
+        numfields = len(attrs)
         inputtxt = ', '.join(mandatory)
         if optional:
             for key, value in optional.iteritems():
                 inputtxt += ", %s=%r" % (key, value)
 
         # Create strings for arguments and printing.
-        argtxt = repr(field_names).replace("'", "")[1:-1]
-        reprtxt = ', '.join('%s=%%r' % name for name in field_names)
+        argtxt = repr(attrs).replace("'", "")[1:-1]
+        reprtxt = ', '.join('%s=%%r' % attr for attr in attrs)
 
         # Create mapping object (key-value pairs).
-        dicttxt = ['%r: t[%d]' % (n, p) for p, n in enumerate(field_names)]
+        dicttxt = ['%r: t[%d]' % (n, p) for p, n in enumerate(attrs)]
         dicttxt = ', '.join(dicttxt)
 
         def execute_template(template, key, namespace={}, verbose=False):
@@ -223,12 +234,12 @@ class _ConnectionMeta(type):
             return '%s(%s)' %% self
         """ % (name, reprtxt), '__repr__')
 
-        _asdict = execute_template("""
-        def _asdict(t):
+        to_dict = execute_template("""
+        def to_dict(t):
             'Return a new dict which maps field names to their values'
 
             return {%s}
-        """ % (dicttxt), '_asdict')
+        """ % (dicttxt), 'to_dict')
 
         _replace = execute_template("""
         def _replace(self, **kwds):
@@ -239,7 +250,7 @@ class _ConnectionMeta(type):
                 msg = 'Got unexpected field names: %%r' %% kwds.keys()
                 raise ValueError(msg)
             return result
-        """ % (name, field_names), '_replace')
+        """ % (name, attrs), '_replace')
 
         def __getnewargs__(self):
             return tuple(self)
@@ -250,17 +261,21 @@ class _ConnectionMeta(type):
 
         # Add methods to class definition.
         dct['__slots__'] = ()
-        dct['_fields'] = field_names
+        dct['_fields'] = attrs
         dct['__new__'] = __new__
         dct['_make'] = _make
         dct['__repr__'] = __repr__
-        dct['_asdict'] = _asdict
+        dct['to_dict'] = to_dict
         dct['_replace'] = _replace
         dct['__getnewargs__'] = __getnewargs__
 
+        # Add broadcaster and listener.
+        dct['broadcaster'] = property(lambda self: broadcaster)
+        dct['listener'] = property(lambda self: listener)
+
         # Add properties (read-only access).
-        for i, name in enumerate(field_names):
-            dct[name] = property(_itemgetter(i))
+        for i, attr in enumerate(attrs):
+            dct[attr] = property(_itemgetter(i))
 
         # Create object.
         obj = super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
@@ -280,18 +295,26 @@ class Connection(tuple):
 
     The :py:class:`.Connection` object provides a base class for defining MCL
     network interface connection objects. Objects inheriting from
-    :py:class:`.Connection` must implement the attribute ``mandatory`` and can
-    optionally implement the attribute ``optional`` where:
+    :py:class:`.Connection` must implement the attributes ``mandatory``,
+    ``broadcaster`` and ``listener``. Objects inheriting from
+    :py:class:`.Connection` can optionally implement the attribute ``optional``
+    where:
 
         - ``mandatory`` is a list of strings defining the names of mandatory
           connection parameters that must be present when instances of the new
           :py:class:`.Connection` object are created. If ``mandatory`` is not
           present, a TypeError will be raised.
 
+        - ``broadcaster`` is a reference to the :py:class:`.RawBroadcaster`
+          object associated with the :py:class:`.Connection` object.
+
+        - ``listener`` is a reference to the :py:class:`.RawListener` object
+          associated with the :py:class:`.Connection` object.
+
         - ``optional`` is a dictionary of optional connection parameters and
-          their defaults. Keywords represent attribute names and the
-          corresponding value represents the default value. ``optional`` is not
-          required.
+          their defaults. Keywords represent attribute names (must be
+          strings) and the corresponding value represents the default
+          value. ``optional`` is not required.
 
     These attributes form the definition of the network interface connection
     and allow :py:class:`.Connection` to manufacture a connection class with
