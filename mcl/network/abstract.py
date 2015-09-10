@@ -241,6 +241,30 @@ class _ConnectionMeta(type):
             return {%s}
         """ % (dicttxt), 'to_dict')
 
+        from_dict = execute_template("""
+        @classmethod
+        def from_dict(cls, dictionary):
+            'Make a new %s object from a dictionary'
+
+            # Gather mandatory attributes.
+            args = list()
+            for attr in %r:
+               if attr not in dictionary:
+                    msg = "Expected the attribute: '%%s'." %% attr
+                    raise AttributeError(msg)
+               else:
+                   args.append(dictionary[attr])
+
+            # Gather optional attributes.
+            for attr, value in cls._optional.iteritems():
+               if attr in dictionary:
+                   args.append(dictionary[attr])
+               else:
+                   args.append(value)
+
+            return tuple.__new__(cls, tuple(args))
+        """ % (name, mandatory), 'from_dict')
+
         _replace = execute_template("""
         def _replace(self, **kwds):
             'Return a new %s object replacing specified fields with new values'
@@ -261,11 +285,13 @@ class _ConnectionMeta(type):
 
         # Add methods to class definition.
         dct['__slots__'] = ()
-        dct['_fields'] = attrs
+        dct['_mandatory'] = mandatory
+        dct['_optional'] = optional
         dct['__new__'] = __new__
         dct['_make'] = _make
         dct['__repr__'] = __repr__
         dct['to_dict'] = to_dict
+        dct['from_dict'] = from_dict
         dct['_replace'] = _replace
         dct['__getnewargs__'] = __getnewargs__
 

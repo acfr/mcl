@@ -132,6 +132,36 @@ class TestAbstractConnection(unittest.TestCase):
         with self.assertRaises(AttributeError):
             connection.A = 5
 
+    def test_dictionary(self):
+        """Test abstract.Connection() can convert to/from dictionary."""
+
+        # Instantiate object with a dictionary containing only mandatory
+        # attributes..
+        dct = {'A': 1, 'B': 2}
+        connection = TestConnection.from_dict(dct)
+
+        # Ensure attributes were set.
+        for attribute, value in [('A', 1), ('B', 2), ('C', 2), ('D', None)]:
+            self.assertEqual(getattr(connection, attribute), value)
+
+        # Instantiate object with a dictionary containing mandatory and
+        # optional attributes. Note that extra attributes are ignored.
+        dct = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5}
+        connection = TestConnection.from_dict(dct)
+
+        # Ensure attributes were set.
+        self.assertTrue(isinstance(connection, AbstractConnection))
+        for attribute, value in [('A', 1), ('B', 2), ('C', 3), ('D', 4)]:
+            self.assertEqual(getattr(connection, attribute), value)
+
+        # Ensure object can be converted to a dictionary.
+        self.assertTrue(connection.to_dict(), dct)
+
+        # Raise error if the mandatory attributes are missing.
+        dct = {'B': 2, 'C': 3, 'D': 4}
+        with self.assertRaises(AttributeError):
+            TestConnection.from_dict(dct)
+
     def test_inheritance(self):
         """Test abstract.Connection() sub-classes can be recognised."""
 
