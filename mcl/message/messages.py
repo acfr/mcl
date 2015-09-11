@@ -170,7 +170,7 @@ class _MessageMeta(type):
         seen_attr = set()
         for attr in mandatory:
             if (attr == 'mandatory') or (attr == 'connection'):
-                msg = "Field names cannot be 'broadcaster' or 'listener'."
+                msg = "Field names cannot be 'mandatory' or 'connection'."
                 raise ValueError(msg)
             if attr in seen_attr:
                 raise ValueError('Encountered duplicate field name: %r' % attr)
