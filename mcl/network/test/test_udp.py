@@ -1,14 +1,14 @@
-from mcl.network.test import common
+import unittest
 from mcl.network.udp import Connection
-from mcl.network.udp import RawBroadcaster
-from mcl.network.udp import RawListener
-from mcl.network.udp import MessageBroadcaster
-from mcl.network.udp import MessageListener
+# from mcl.network.udp import RawBroadcaster
+# from mcl.network.udp import RawListener
+# from mcl.network.udp import MessageBroadcaster
+# from mcl.network.udp import MessageListener
 from mcl.network.udp import PYITS_MTU
 from mcl.network.udp import PYITS_UDP_PORT
 from mcl.network.udp import HEADER_DELIMITER
-from mcl.network.test.common import Introspector
-from mcl.network.test.common import publish_message
+# from mcl.network.test.common import Introspector
+# from mcl.network.test.common import publish_message
 
 # Disable pylint errors:
 #     W0221 - Arguments number differ from overridden method
@@ -37,36 +37,37 @@ from mcl.network.test.common import publish_message
 # pylint: disable=R0904
 
 URL = 'ff15::c75d:ce41:ea8e:000a'
-PORT = 26062
 
 
-class ConnectionTests(common.ConnectionTests):
+
+# -----------------------------------------------------------------------------
+#                                 Connection()
+# -----------------------------------------------------------------------------
+
+class ConnectionTests(unittest.TestCase):
 
     def test_init_url(self):
         """Test udp.Connection() 'URL' parameter at initialisation."""
 
-        super(ConnectionTests, self).test_init_url(Connection)
+        # Ensure a connection object can be initialised.
+        connection = Connection(URL)
+        self.assertEqual(connection.url, URL)
 
-    def test_init_topics(self):
-        """Test udp.Connection() 'topics' parameter at initialisation."""
-
-        super(ConnectionTests, self).test_init_topics(Connection)
-
-    def test_init_message(self):
-        """Test udp.Connection() 'message' parameter at initialisation."""
-
-        super(ConnectionTests, self).test_init_message(Connection)
+        # Test instantiation fails if 'url' is not a string.
+        with self.assertRaises(TypeError):
+            Connection(101)
 
     def test_init_port(self):
         """Test udp.Connection() 'port' parameter at initialisation."""
 
-        # Test instantiation passes with a valid 'port'.
-        connection = Connection(URL, port=PORT)
-        self.assertEqual(connection.port, PORT)
-
         # Test default port.
-        connection.port = None
+        connection = Connection(URL)
         self.assertEqual(connection.port, PYITS_UDP_PORT)
+
+        # Test instantiation passes with a valid 'port'.
+        port = 26062
+        connection = Connection(URL, port=port)
+        self.assertEqual(connection.port, port)
 
         # Test instantiation fails if 'port' is not an integer.
         with self.assertRaises(TypeError):
@@ -74,80 +75,16 @@ class ConnectionTests(common.ConnectionTests):
 
         # Test minimum range of 'port'.
         with self.assertRaises(TypeError):
-            connection.port = 1023
+            Connection(URL, port=1023)
 
         # Test maximum range of 'port'.
         with self.assertRaises(TypeError):
-            connection.port = 65536
+            Connection(URL, port=65536)
 
-    def test_from_string(self):
-        """Test udp.Connection() intialisation from string."""
 
-        # Message has to be a valid pyITS message name.
-        name = 'ImuMessage'
-        name_bad = 'b@d_n4m3'
-        name_empty = 'None'
-        topic = 'test'
-        topics = ['A', 'B', 'C']
+-----------------------------------------------------------------------------
 
-        # Ensure 'address' is mandatory.
-        with self.assertRaises(TypeError):
-            Connection.from_string('%s = port=%i;' % (name, PORT))
-
-        # Ensure only pyITS messages are allowed.
-        with self.assertRaises(TypeError):
-            Connection.from_string('%s = address=%s;' % (name_bad, URL))
-
-        # Ensure 'address' parameter is parsed correctly with a valid pyITS
-        # message.
-        connection = Connection.from_string('%s = address=%s;' % (name, URL))
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
-        self.assertEqual(connection.topics, None)
-        self.assertEqual(connection.message.__name__, name)
-
-        # Ensure 'address' parameter is parsed correctly with an empty message.
-        string = '%s = address=%s;' % (name_empty, URL)
-        connection = Connection.from_string(string)
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
-        self.assertEqual(connection.topics, None)
-        self.assertEqual(connection.message, None)
-
-        # Ensure 'port' parameter is parsed correctly ('address' is mandatory).
-        string = '%s = address=%s; port=%i' % (name, URL, PORT)
-        connection = Connection.from_string(string)
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PORT)
-        self.assertEqual(connection.topics, None)
-        self.assertEqual(connection.message.__name__, name)
-
-        # Ensure 'topic' parameter is parsed correctly ('address' is
-        # mandatory).
-        string = '%s = address=%s; topic=%s' % (name, URL, topic)
-        connection = Connection.from_string(string)
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
-        self.assertEqual(connection.topics, topic)
-        self.assertEqual(connection.message.__name__, name)
-
-        # Ensure 'topics' parameter is parsed correctly ('address' is
-        # mandatory).
-        string = '%s = address=%s; topics=%s' % (name, URL, ', '.join(topics))
-        connection = Connection.from_string(string)
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
-        self.assertEqual(connection.topics, topics)
-        self.assertEqual(connection.message.__name__, name)
-
-        # Load configurations out of order.
-        string = '%s = port=%i;    topics=%s;address=    %s;'
-        string = string % (name, PORT, ', '.join(topics), URL)
-        self.assertEqual(connection.url, URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
-        self.assertEqual(connection.topics, topics)
-        self.assertEqual(connection.message.__name__, name)
-
+-----------------------------------------------------------------------------
 
 class RawBroadcasterTests(common.RawBroadcasterTests):
 

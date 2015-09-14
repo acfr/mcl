@@ -174,135 +174,40 @@ class Connection(AbstractConnection):
     Args:
         url (str): IPv6 address of connection.
         port (int): Port to use (between 1024 and 65535).
-        topics (str): Topics associated with the network interface.
-        message (:py:class:`.Message`): pyITS message object associated with
-                                        the network interface.
 
     Attributes:
         url (str): IPv6 address of connection.
         port (int): Port used in connection.
-        topics (str): Topics associated with the network interface. The
-                      `topics` attribute can be :data:`None`, a single string
-                      or a list of strings.
-        message (:py:class:`.Message`): pyITS message object associated with
-                                        the network interface.
+
+    Raises:
+        TypeError: If ``url`` is not a string or ``port`` is not an integer
+            between 1024 and 65536.
 
     """
 
-    def __init__(self, url, port=PYITS_UDP_PORT, topics=None, message=None):
-        """Document the __init__ method at the class level."""
+    mandatory = ('url',)
+    optional = {'port': PYITS_UDP_PORT}
+    broadcaster = AbstractRawBroadcaster
+    listener = AbstractRawListener
 
-        # Validate inputs.
-        self.url = url
-        self.port = port
-        self.topics = topics
-        self.message = message
+    def __init__(self, url, port=PYITS_UDP_PORT):
 
-    @property
-    def port(self):
-        return self.__port
-
-    @port.setter
-    def port(self, port):
-
-        # If no port is specified use default port.
-        if not port:
-            port = PYITS_UDP_PORT
+        # Check 'url' is a string.
+        if not isinstance(url, basestring):
+            msg = "'url' must be a string."
+            raise TypeError(msg)
 
         # Check 'port' is a positive integer between 1024 and 65535. The port
         # numbers in the range from 0 to 1023 are the well-known ports or
         # system ports and are avoided.
-        elif not isinstance(port, (int, long)):
+        if not isinstance(port, (int, long)):
             msg = 'Port must be an integer value.'
             raise TypeError(msg)
         elif (port < 1024) or (port > 65535):
             msg = 'The port must be a positive integer between 1024 and 65535.'
             raise TypeError(msg)
 
-        self.__port = port
-
-    def __str__(self):
-        """Print connection interface as a human readable string."""
-
-        if self.message:
-            msg = self.message.__name__
-        else:
-            msg = None
-
-        # Format string.
-        print_string = 'UDP; url=<%s>; port=<%i>; topics=<%s>; message=<%s>'
-        print_string = print_string % (self.url, self.port, self.topics, msg)
-
-        return print_string
-
-    @classmethod
-    def from_string(cls, string):
-        """Create and configure UDP connection object from string.
-
-        Create a :py:class:`.Connection` object from a string. Strings must
-        adhere to the following formats::
-
-            NameOfMessage = address=<string>; port=<int>; topic=<string>
-            NameOfMessage = address=<string>; port=<int>; topics=<string>
-
-        where:
-
-            - ``NameOfMessage`` is the name of the pyITS message used in the
-              connection.
-            - ``address`` is the IPv6 address of the socket to open.
-            - ``port`` is the port used in connection.
-            - ``topic`` and ``topics`` are a topic to associate with the
-              connection. These fields can be specified as a comma separated
-              list e.g. ``topics=cat, rat, mat``.
-
-        Only the ``NameOfMessage`` and ``address`` fields are
-        mandatory. ``address``, ``port`` and ``topic(s)`` may be specified in
-        any order.
-
-        Example usage:
-
-        .. testcode::
-
-            from mcl.network.udp import Connection
-            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
-            connection = Connection.from_string(string)
-
-        Args:
-            string (str): string specifying the connection configuration.
-
-        Returns:
-            :py:class:`.Connection`: Configured :py:class:`.Connection` object.
-
-        """
-
-        # Define configuration parameters.
-        url = None
-        port = None
-        topics = None
-        message = None
-
-        # Get message name and configuration options for UDP network interface.
-        message, config = tuple([opt.strip() for opt in string.split('=', 1)])
-        options = [opt.strip() for opt in config.split(';') if opt.strip()]
-
-        # Iterate through options.
-        for option in options:
-            key, value = tuple([opt.strip() for opt in option.split('=', 1)])
-
-            if key == 'address':
-                url = value
-
-            elif key == 'port':
-                port = int(value)
-
-            elif (key == 'topic') or (key == 'topics'):
-                topics = value.split(',')
-                if len(topics) == 1:
-                    topics = topics[0].strip()
-                elif len(topics) > 1:
-                    topics = [topic.strip() for topic in topics]
-
-        return cls(url, port=port, topics=topics, message=message)
+        super(Connection, self).__init__(url, port)
 
 
 class RawBroadcaster(AbstractRawBroadcaster):

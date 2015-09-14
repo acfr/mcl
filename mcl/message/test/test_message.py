@@ -16,7 +16,7 @@ from mcl.network.abstract import RawListener as AbstractRawListener
 # Define Connection() for testing object.
 class TestConnection(AbstractConnection):
     mandatory = ('number', )
-    optional  = {'letter': None}
+    optional = {'letter': None}
     broadcaster = AbstractRawBroadcaster
     listener = AbstractRawListener
 
