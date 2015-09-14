@@ -64,41 +64,9 @@ class _MessageMeta(type):
 
     """
 
-    def __init__(cls, name, bases, dct):
-        """Check pre-existing Message() classes for name clashes.
-
-        If a sub-class of :py:class:`.Message` with the same name already
-        exists, an exception is raised. This ensures that all classes have a
-        unique name. Classes with unique names are permitted and recorded in
-        the global ``_MESSAGES``.
-
-        Args:
-          cls (class): is the class being instantiated.
-          name (string): is the name of the new class.
-          bases (tuple): base classes of the new class.
-          dct (dict): dictionary mapping the class attribute names to objects.
-
-        Raises:
-            Exception: If a Message() class of the same name already exists.
-
-        """
-        # Do not allow Message() objects with the name Message() to be added.
-        if name == 'Message' and len(_MESSAGES) > 0:
-            msg = 'Cannot redefine the base Message() object.'
-            raise Exception(msg)
-
-        # Add new Message() definitions.
-        elif name != 'Message':
-
-            # Check that a message with the same name does not exist.
-            if name in [message.__name__ for message in _MESSAGES]:
-                msg = "A Message() with the name '%s' already exists."
-                raise Exception(msg % name)
-
-            # Store message definition.
-            _MESSAGES.append(cls)
-
-        super(_MessageMeta, cls).__init__(name, bases, dct)
+    @property
+    def connection(self):
+        return self._connection
 
     def __new__(cls, name, bases, dct):
         """Manufacture a message class.
@@ -133,6 +101,8 @@ class _MessageMeta(type):
                 attribute.
 
         Raises:
+            NameError: If the ``name`` is message or a :py:class:`.Message`
+                subclass with the same name already exists.
             TypeError: If the ``mandatory`` or ``connection`` attributes are
                 ill-specified.
             ValueError: If the ``mandatory`` attribute contains the words
@@ -140,14 +110,23 @@ class _MessageMeta(type):
 
         """
 
-        # Do not look the 'manditory' attribute in the Message() base class.
+        # Do not look for the mandatory attributes in the Message() base class.
         if (name == 'Message') and (bases == (dict,)):
             return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
 
-        # Do not look the 'manditory' attribute in sub-classes of the
+        # Do not look for the mandatory attributes in sub-classes of the
         # Message() base class.
         elif bases != (Message,):
             return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+
+        # Cannot call messages 'Message'.
+        if name == 'Message':
+            raise NameError("Cannot name Message() subclasses 'Message'.")
+
+        # Check that a message with the same name does not exist.
+        elif name in [message.__name__ for message in _MESSAGES]:
+            msg = "A Message() with the name '%s' already exists."
+            raise NameError(msg % name)
 
         # Objects inheriting from Message() are required to have a 'mandatory'
         # and 'connection' attribute.
@@ -166,6 +145,13 @@ class _MessageMeta(type):
             msg += "Connection() subclass."
             raise TypeError(msg)
 
+        # Check that a message with the same connection does not exist.
+        for message in _MESSAGES:
+            if connection.to_dict() == message.connection.to_dict():
+                msg = 'A Connection() with the same parameters already exists:'
+                msg += ' %s' % str(connection)
+                raise Exception(msg)
+
         # Detect duplicate attribute names.
         seen_attr = set()
         for attr in mandatory:
@@ -180,7 +166,12 @@ class _MessageMeta(type):
         del dct['mandatory']
         dct['mandatory'] = property(lambda self: mandatory)
         dct['connection'] = property(lambda self: connection)
-        return super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+        dct['_connection'] = connection
+        obj = super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+
+        # Store message definition.
+        _MESSAGES.append(obj)
+        return obj
 
 
 class Message(dict):
