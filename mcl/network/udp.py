@@ -250,11 +250,13 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
     .. testcode::
 
+        from mcl.network.udp import Connection
         from mcl.network.udp import RawBroadcaster
 
         # Create RawBroadcaster object to send data over the network using a
         # UDP connection.
-        broadcaster = RawBroadcaster('ff15::1', port=26062, topic='test')
+        connection = Connection('ff15::1', port=26062)
+        broadcaster = RawBroadcaster(connection, topic='test')
 
         # Publish data.
         broadcaster.publish('test data')
@@ -263,34 +265,34 @@ class RawBroadcaster(AbstractRawBroadcaster):
         broadcaster.close()
 
     Args:
-        address (str): Address to publish UDP broadcasts.
-        port (int): Port to publish UDP broadcasts.
+        connection (:py:class:`.Connection`): Connection object.
         topic (str): Topic to associate with UDP broadcasts.
 
     Attributes:
-        url (str): IPv6 address broadcasts are received on.
-        port (int): Port broadcasts are being received on.
+        connection (:py:class:`.Connection`): Connection object.
         topic (str): String containing the topic :py:class:`.RawBroadcaster`
                      will attach to broadcasts.
         is_open (bool): Return whether the UDP socket is open.
         counter (int): Number of broadcasts issued.
 
+    Raises:
+        TypeError: If any of the inputs are ill-specified.
+
     """
 
-    def __init__(self, address, port=PYITS_UDP_PORT, topic=None):
+    def __init__(self, connection, topic=None):
         """Document the __init__ method at the class level."""
 
-        # Broadcasters can only store ONE default topic. Enforce this behaviour
-        # by only accepting a string.
-        if topic and not isinstance(topic, basestring):
-            raise TypeError('Topic must be None or a string.')
+        # Ensure the connection object is properly specified.
+        if not isinstance(connection, Connection):
+            msg = "The argument 'connection' must be an instance of a "
+            msg += "UDP Connection()."
+            raise TypeError(msg)
 
         # Attempt to create connection object.
         else:
             try:
-                self.__connection = Connection(address,
-                                               port=port,
-                                               topics=topic)
+                super(RawBroadcaster, self).__init__(connection, topic=topic)
             except:
                 raise
 
@@ -307,20 +309,8 @@ class RawBroadcaster(AbstractRawBroadcaster):
             success = False
 
         if not success:
-            msg = "Could not connect to '%s'." % address
+            msg = "Could not connect to '%s'." % str(self.connection)
             raise IOError(msg)
-
-    @property
-    def url(self):
-        return self.__connection.url
-
-    @property
-    def port(self):
-        return self.__connection.port
-
-    @property
-    def topic(self):
-        return self.__connection.topics
 
     @property
     def is_open(self):
@@ -343,8 +333,8 @@ class RawBroadcaster(AbstractRawBroadcaster):
         if not self.is_open:
 
             # Fetch address information.
-            addrinfo = socket.getaddrinfo(self.url, None)[0]
-            self.__sockaddr = (addrinfo[4][0], self.port)
+            addrinfo = socket.getaddrinfo(self.connection.url, None)[0]
+            self.__sockaddr = (addrinfo[4][0], self.connection.port)
 
             # Number of hops to allow.
             self.__sub_socket = socket.socket(addrinfo[0], socket.SOCK_DGRAM)
@@ -451,41 +441,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
         else:
             return False
 
-    @classmethod
-    def from_connection(cls, connection):
-        """Create a :py:class:`.RawBroadcaster` from  a :py:class:`.Connection` object.
-
-        Example usage:
-
-        .. testcode::
-
-            from mcl.network.udp import Connection
-            from mcl.network.udp import RawBroadcaster
-            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
-            connection = Connection.from_string(string)
-            broadcaster = RawBroadcaster.from_connection(connection)
-
-        Args:
-            connection (:py:class:`.Connection`): :py:class:`.Connection`
-                                                  containing network interface
-                                                  configurations.
-
-        Returns:
-            :py:class:`.RawBroadcaster`: Returns configured
-                                         :py:class:`.RawBroadcaster` object.
-
-        Raises:
-            TypeError: If the input is not a :py:class:`.Connection` object.
-
-        """
-
-        if not isinstance(connection, Connection):
-            raise TypeError('Input must be a UDP connection object.')
-
-        return cls(connection.url,
-                   port=connection.port,
-                   topic=connection.topics)
-
 
 class RawListener(AbstractRawListener):
     """Receive data from the network using a UDP socket.
@@ -523,14 +478,12 @@ class RawListener(AbstractRawListener):
         listener.close()
 
     Args:
-        address (str): Address to receive UDP broadcasts.
-        port (int): Port to receive UDP broadcasts.
+        connection (:py:class:`.Connection`): Connection object.
         topics (str): List of strings containing topics
                       :py:class:`.RawListener` will receive and process.
 
     Attributes:
-        url (str): IPv6 address broadcasts are received on.
-        port (int): Port broadcasts are being received on.
+        connection (:py:class:`.Connection`): Connection object.
         topics (list): List of strings containing the topics
                        :py:class:`.RawListener` will receive and process.
         is_open (bool): Return whether the UDP socket is open.
@@ -538,19 +491,21 @@ class RawListener(AbstractRawListener):
 
     """
 
-    def __init__(self, address, port=PYITS_UDP_PORT, topics=None):
+    def __init__(self, connection, topics=None):
         """Document the __init__ method at the class level."""
 
-        # Attempt to create connection object.
-        try:
-            self.__connection = Connection(address,
-                                           port=port,
-                                           topics=topics)
-        except:
-            raise
+        # Ensure the connection object is properly specified.
+        if not isinstance(connection, Connection):
+            msg = "The argument 'connection' must be an instance of a "
+            msg += "UDP Connection()."
+            raise TypeError(msg)
 
-        # Initialise publishing functionality.
-        super(RawListener, self).__init__()
+        # Attempt to create connection object.
+        else:
+            try:
+                super(RawListener, self).__init__(connection, topics=topics)
+            except:
+                raise
 
         # Check 'timeout' on socket read operations in seconds. It is unlikely
         # a user will need to access this parameter.
@@ -574,20 +529,8 @@ class RawListener(AbstractRawListener):
             success = False
 
         if not success:
-            msg = "Could not connect to '%s'." % address
+            msg = "Could not connect to '%s'." % str(self.connection)
             raise IOError(msg)
-
-    @property
-    def url(self):
-        return self.__connection.url
-
-    @property
-    def port(self):
-        return self.__connection.port
-
-    @property
-    def topics(self):
-        return self.__connection.topics
 
     @property
     def is_open(self):
@@ -611,7 +554,7 @@ class RawListener(AbstractRawListener):
         if not self.__is_open:
             try:
                 # Fetch address information.
-                addrinfo = socket.getaddrinfo(self.url, None)[0]
+                addrinfo = socket.getaddrinfo(self.connection.url, None)[0]
 
                 # Create socket.
                 self.__sub_socket = socket.socket(addrinfo[0],
@@ -637,7 +580,8 @@ class RawListener(AbstractRawListener):
                                              group_addr)
 
                 # Bind it to the port.
-                self.__sub_socket.bind((self.url, self.port))
+                self.__sub_socket.bind((self.connection.url,
+                                        self.connection.port))
 
             # Could not create socket. Raise return failure.
             except:
@@ -817,45 +761,6 @@ class RawListener(AbstractRawListener):
             return True
         else:
             return False
-
-    @classmethod
-    def from_connection(cls, connection):
-        """Create a :py:class:`.RawListener` from  a :py:class:`.Connection` object.
-
-        Example usage:
-
-        .. testcode::
-
-            from mcl.network.udp import Connection
-            from mcl.network.udp import RawListener
-
-            # Create connection from string.
-            string = 'ImuMessage = address=ff15::1; port=26062; topic=raw'
-            connection = Connection.from_string(string)
-
-            # Create connection from Connection object.
-            listener = RawListener.from_connection(connection)
-
-        Args:
-            connection (:py:class:`.Connection`): :py:class:`.Connection`
-                                                  containing network interface
-                                                  configurations.
-
-        Returns:
-            :py:class:`.RawListener`: Returns configured
-                                      :py:class:`.RawListener` object.
-
-        Raises:
-            TypeError: If the input is not a :py:class:`.Connection` object.
-
-        """
-
-        if not isinstance(connection, Connection):
-            raise TypeError('Input must be a UDP connection object.')
-
-        return cls(connection.url,
-                   port=connection.port,
-                   topics=connection.topics)
 
 
 class MessageBroadcaster(RawBroadcaster):

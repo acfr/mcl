@@ -563,6 +563,12 @@ class RawListener(Event):
         self.__connection = connection
         self.__topics = topics
 
+        # Initialise Event() object.
+        try:
+            super(RawListener, self).__init__()
+        except:
+            raise
+
     @property
     def connection(self):
         return self.__connection

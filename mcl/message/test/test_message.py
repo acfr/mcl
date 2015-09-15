@@ -13,6 +13,10 @@ from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
 
 
+# -----------------------------------------------------------------------------
+#                            Common Testing Objects
+# -----------------------------------------------------------------------------
+
 # Define Connection() for testing object.
 class TestConnection(AbstractConnection):
     mandatory = ('number', )
@@ -64,32 +68,32 @@ class RegisterMeta(unittest.TestCase):
 
         # Attribute names must be a list of strings.
         with self.assertRaises(TypeError):
-            class TestMessage(BaseMessage):
+            class TestMessageA(BaseMessage):
                 mandatory = (1, 2, 3,)
                 connection = TestConnection(0, 1)
 
         # Attribute names must be a list of strings.
         with self.assertRaises(TypeError):
-            class TestMessage(BaseMessage):
+            class TestMessageB(BaseMessage):
                 mandatory = ('A', 'B', 2, 3,)
                 connection = TestConnection(0, 1)
 
         # Attribute names cannot be 'mandatory'.
         with self.assertRaises(ValueError):
-            class TestMessage(BaseMessage):
+            class TestMessageC(BaseMessage):
                 mandatory = ('mandatory',)
                 connection = TestConnection(0, 1)
 
         # Attribute names cannot be 'connection'.
         with self.assertRaises(ValueError):
-            class TestMessage(BaseMessage):
+            class TestMessageD(BaseMessage):
                 mandatory = ('connection',)
                 connection = TestConnection(0, 1)
 
         # Ensure the argument 'connection' is an instance of a Connection()
         # subclass.
         with self.assertRaises(TypeError):
-            class TestMessage(BaseMessage):
+            class TestMessageE(BaseMessage):
                 mandatory = ('A', 'B')
                 connection = TestConnection
 

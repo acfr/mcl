@@ -185,32 +185,13 @@ class TestAbstractConnection(unittest.TestCase):
 #                               RawBroadcaster()
 # -----------------------------------------------------------------------------
 
-class TestRawBroadcaster(AbstractRawBroadcaster):
-    """Validate inheritance mechanism in abstract.RawBroadcaster()"""
-
-    @property
-    def is_open(self):
-        pass
-
-    @property
-    def counter(self):
-        pass
-
-    def _open(self):
-        pass
-
-    def publish(self, data, topic=''):
-        pass
-
-    def close(self):
-        pass
-
-
 class RawBroadcasterTests(unittest.TestCase):
 
     def test_abstract(self):
         """Test abstract.RawBroadcaster() initialisation of abstract object."""
 
+        # Ensure the abstract object RawBroadcaster() cannot be initialised
+        # unless the abstract methods are defined.
         with self.assertRaises(TypeError):
             AbstractRawBroadcaster()
 
@@ -221,30 +202,6 @@ class RawBroadcasterTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             TestRawBroadcaster()
 
-    def test_init(self):
-        """Test abstract.RawBroadcaster() initialisation."""
-
-        # Test RawBroadcaster() with default inputs.
-        broadcaster = TestRawBroadcaster(TestConnection('A', 'B'))
-        self.assertEqual(broadcaster.connection.A, 'A')
-        self.assertEqual(broadcaster.topic, None)
-
-        # Test RawBroadcaster() with optional inputs.
-        broadcaster = TestRawBroadcaster(TestConnection('A', 'B'),
-                                         topic='topic')
-        self.assertEqual(broadcaster.connection.A, 'A')
-        self.assertEqual(broadcaster.topic, 'topic')
-
-    def test_bad_init(self):
-        """Test abstract.RawBroadcaster() with bad initialisation."""
-
-        # Input must be an instance not a class.
-        with self.assertRaises(TypeError):
-            TestRawBroadcaster(TestConnection)
-
-        # Topic must be a string.
-        with self.assertRaises(TypeError):
-            TestRawBroadcaster(TestConnection('A', 'B'), topic=1)
 
 # -----------------------------------------------------------------------------
 #                                 RawListener()

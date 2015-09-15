@@ -1,11 +1,16 @@
 import abc
 import time
+import types
 import unittest
 
 from abc import abstractmethod
 from mcl.message.messages import Message
 
-URL = 'test URL'
+from mcl.network.abstract import Connection as AbstractConnection
+from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
+from mcl.network.abstract import RawListener as AbstractRawListener
+
+
 TOPIC = 'test topic'
 TOPICS = ['topic A', 'topic B']
 
@@ -21,100 +26,110 @@ class Introspector(object):
         self.buffer.append(data)
 
 
-class TestMessage(Message):
-
-    def __init__(self, *args, **kwargs):
-        """pyITS message for unit-testing."""
-
-        attributes = ('data',)
-
-        super(TestMessage, self).__init__(attributes, *args, **kwargs)
+# -----------------------------------------------------------------------------
+#
+# -----------------------------------------------------------------------------
 
 
-class ConnectionTests(unittest.TestCase):
+class _RawBroadcasterTestsMeta(type):
+    """Manufacture a RawBroadcaster() class unit-test.
 
-    # Ensure abstract methods are redefined in child classes.
-    __metaclass__ = abc.ABCMeta
+    Manufacture a RawBroadcaster() unit-test class for objects inheriting from
+    :py:class:`.RawBroadcasterTests`. The objects must implement the attributes
+    ``broadcaster`` and ``connection``.
 
-    @abstractmethod
-    def test_init_url(self, Connection):
-        """Test Connection() 'URL' parameter at initialisation."""
+    """
 
-        # Test instantiation passes with a valid 'URL'.
-        connection = Connection(URL)
+    def __new__(cls, name, bases, dct):
+        """Manufacture a RawBroadcaster() class unit-test."""
 
-        # Test connection interface can be printed as a human readable string
-        # (no message object).
-        str(connection)
+        # Do not look for manditory fields in the RawBroadcaster() base class.
+        if (name == 'RawBroadcasterTests') and (bases == (object,)):
+            return super(_RawBroadcasterTestsMeta, cls).__new__(cls,
+                                                                name,
+                                                                bases,
+                                                                dct)
 
-        # Test 'URL' was correctly initialised.
-        self.assertEqual(connection.url, URL)
+        # Only allow unit-tests to be manufactures for the first level of
+        # inheritance.
+        elif bases != (RawBroadcasterTests,):
+            raise Exception("'Unit' only supports one level of inheritance.")
 
-        # Test instantiation fails if 'URL' is empty.
-        with self.assertRaises(TypeError):
-            Connection('')
+        # Ensure mandatory attributes are present.
+        for attr in ['broadcaster', 'connection']:
+            if attr not in dct:
+                msg = "The attributes '%s' is required." % attr
+                raise TypeError(msg)
 
-        # Test instantiation fails if 'URL' is empty.
-        with self.assertRaises(TypeError):
-            Connection(None)
+        # Ensure 'broadcaster' is a RawBroadcaster().
+        if not issubclass(dct['broadcaster'], AbstractRawBroadcaster):
+            msg = "The attribute 'broadcaster' must be a sub-class of "
+            msg += "abstract.RawBroadcaster()."
+            raise TypeError(msg)
 
-    @abstractmethod
-    def test_init_topics(self, Connection):
-        """Test Connection() 'topics' parameter at initialisation."""
+        # Ensure 'connection' is a Connection().
+        if not isinstance(dct['connection'], AbstractConnection):
+            msg = "The attribute 'connection' must be an instance of a "
+            msg += "abstract.Connection() sub-class."
+            raise TypeError(msg)
 
-        # Test instantiation passes with a valid 'topics'.
-        connection = Connection(URL, topics=TOPIC)
-        connection = Connection(URL, topics=TOPICS)
+        # Copy functions into new sub-class.
+        obj = bases[0]
+        for item in dir(obj):
 
-        # Test 'topics' was correctly initialised.
-        self.assertEqual(connection.topics, TOPICS)
+            # Skip special attributes.
+            if item.startswith('__'):
+                continue
 
-        # Test instantiation fails if 'topics' is not a string.
-        with self.assertRaises(TypeError):
-            Connection(URL, topics=100)
+            if callable(getattr(obj, item)):
+                func = getattr(obj, item)
+                print item, func
+                dct[item] = types.FunctionType(func.func_code,
+                                               func.func_globals,
+                                               item,
+                                               func.func_defaults,
+                                               func.func_closure)
 
-        # Test instantiation fails if 'topics' is a list with non-string
-        # elements.
-        with self.assertRaises(TypeError):
-            Connection(URL, topics=['topic A', 100])
+                # Rename the doc-string of test methods.
+                if item.startswith('test_'):
+                    dct[item].__doc__ = dct[item].__doc__ % dct['broadcaster'].__name__
 
-    @abstractmethod
-    def test_init_message(self, Connection):
-        """Test Connection() 'message' parameter at initialisation."""
-
-        # Test instantiation passes with a valid 'message'.
-        connection = Connection(URL, message=TestMessage)
-
-        # Test connection interface can be printed as a human readable string
-        # (no message object).
-        str(connection)
-
-        # Test 'message' was correctly initialised.
-        self.assertEqual(connection.message, TestMessage)
-
-        # Test instantiation fails if 'messages' is not a Message object.
-        with self.assertRaises(TypeError):
-            Connection(URL, message=object())
-
-    @abstractmethod
-    def test_from_string(self):
-        """Test Connection() intialisation from string."""
-
-        msg = "'test_from_string' abstract method must be implemented."
-        raise NotImplementedError(msg)
+        return super(_RawBroadcasterTestsMeta, cls).__new__(cls,
+                                                            name,
+                                                            (unittest.TestCase,),
+                                                            dct)
 
 
-class RawBroadcasterTests(unittest.TestCase):
+# -----------------------------------------------------------------------------
+#                            RawBroadcaster() Tests
+# -----------------------------------------------------------------------------
 
-    # Ensure abstract methods are redefined in child classes.
-    __metaclass__ = abc.ABCMeta
+class RawBroadcasterTests(object):
+    """Standard unit tests for sub-classes of the RawBroadcaster() class.
 
-    @abstractmethod
-    def test_init(self, RawBroadcaster, url):
-        """Test RawBroadcaster() can be initialised and closed."""
+    This method defines standard unit-tests for sub-classes of the
+    RawBroadcaster() class. Sub-classes of this unit-test must define the
+    attributes ``broadcaster`` and ``connection`` where:
 
-        # Create an instance of RawBroadcaster.
-        broadcaster = RawBroadcaster(url)
+        - ``broadcaster`` is the RawBroadcaster() sub-class to be tested
+        - ``connection`` is the Connection() object associated with the
+          broadcaster
+
+    Example usage::
+
+        class TestRawBroadcaster(RawBroadcasterTests):
+            broadcaster =
+            connection =
+
+    """
+    __metaclass__ = _RawBroadcasterTestsMeta
+
+    def test_init(self):
+        """Test %s() can be initialised and closed."""
+
+        # Create an instance of RawBroadcaster() with the default topic.
+        broadcaster = self.broadcaster(self.connection)
+        self.assertEqual(broadcaster.topic, None)
 
         # Ensure broadcaster has established a connection.
         self.assertTrue(broadcaster.is_open)
@@ -128,33 +143,27 @@ class RawBroadcasterTests(unittest.TestCase):
         result = broadcaster.close()
         self.assertFalse(result)
 
-    @abstractmethod
-    def test_from_connection(self, Connection, RawBroadcaster, URL):
-        """Test RawBroadcaster() can be initialised from Connection() object."""
+    def test_bad_init(self):
+        """Test %s() catches bad initialisation inputs."""
 
-        # Initialise a Broadcaster with a Connection() object.
-        connection = Connection(URL)
-        RawBroadcaster.from_connection(connection)
-
-        # Test instantiation fails if 'connection' is not a Connection()
-        # object.
+        # Test instantiation fails if 'connection' is not a class an not an
+        # instance.
         with self.assertRaises(TypeError):
-            RawBroadcaster.from_connection(42)
-
-    @abstractmethod
-    def test_init_topic(self, RawBroadcaster, url):
-        """Test RawBroadcaster() 'topic' parameter at initialisation."""
+            self.broadcaster(type(self.connection))
 
         # Test instantiation fails if 'topic' is not a string.
         with self.assertRaises(TypeError):
-            RawBroadcaster(url, topic=100)
+            self.broadcaster(self.connection, topic=100)
 
         # Test instantiation fails if 'topic' is an array of strings.
         with self.assertRaises(TypeError):
-            RawBroadcaster(url, topic=TOPICS)
+            self.broadcaster(self.connection, topic=TOPICS)
 
-        # Create an instance of RawBroadcaster.
-        broadcaster = RawBroadcaster(url, topic=TOPIC)
+    def test_init_topic(self):
+        """Test %s() 'topic' parameter at initialisation."""
+
+        # Create an instance of RawBroadcaster().
+        broadcaster = self.broadcaster(self.connection, topic=TOPIC)
 
         # Ensure topic was set at initialisation.
         self.assertEqual(broadcaster.topic, TOPIC)
@@ -162,12 +171,11 @@ class RawBroadcasterTests(unittest.TestCase):
         # Ensure broadcaster has established a connection.
         self.assertTrue(broadcaster.is_open)
 
-    @abstractmethod
-    def test_publish(self, RawBroadcaster, url):
-        """Test RawBroadcaster() can publish data."""
+    def test_publish(self):
+        """Test %s() can publish data."""
 
-        # Create an instance of RawBroadcaster.
-        broadcaster = RawBroadcaster(url)
+        # Create an instance of RawBroadcaster().
+        broadcaster = self.broadcaster(self.connection)
 
         # Test publish succeeds if the input is a string.
         broadcaster.publish('test')
@@ -177,17 +185,109 @@ class RawBroadcasterTests(unittest.TestCase):
             broadcaster.publish(42)
 
 
-class RawListenerTests(unittest.TestCase):
+# -----------------------------------------------------------------------------
+#
+# -----------------------------------------------------------------------------
 
-    # Ensure abstract methods are redefined in child classes.
-    __metaclass__ = abc.ABCMeta
+class _RawListenerTestsMeta(type):
+    """Manufacture a RawListener() class unit-test.
 
-    @abstractmethod
-    def test_init(self, RawListener, url):
-        """Test RawListener() can be initialised and closed."""
+    Manufacture a RawListener() unit-test class for objects inheriting from
+    :py:class:`.RawListenerTests`. The objects must implement the attributes
+    ``listener`` and ``connection``.
 
-        # Create an instance of RawListener.
-        listener = RawListener(url)
+    """
+
+    def __new__(cls, name, bases, dct):
+        """Manufacture a RawListener() class unit-test."""
+
+        # Do not look for manditory fields in the RawListener() base class.
+        if (name == 'RawListenerTests') and (bases == (object,)):
+            return super(_RawListenerTestsMeta, cls).__new__(cls,
+                                                             name,
+                                                             bases,
+                                                             dct)
+
+        # Only allow unit-tests to be manufactures for the first level of
+        # inheritance.
+        elif bases != (RawListenerTests,):
+            raise Exception("'Unit' only supports one level of inheritance.")
+
+        # Ensure mandatory attributes are present.
+        for attr in ['listener', 'connection']:
+            if attr not in dct:
+                msg = "The attributes '%s' is required." % attr
+                raise TypeError(msg)
+
+        # Ensure 'listener' is a RawListener().
+        if not issubclass(dct['listener'], AbstractRawListener):
+            msg = "The attribute 'listener' must be a sub-class of "
+            msg += "abstract.RawListener()."
+            raise TypeError(msg)
+
+        # Ensure 'connection' is a Connection().
+        if not isinstance(dct['connection'], AbstractConnection):
+            msg = "The attribute 'connection' must be an instance of a "
+            msg += "abstract.Connection() sub-class."
+            raise TypeError(msg)
+
+        # Copy functions into new sub-class.
+        obj = bases[0]
+        for item in dir(obj):
+
+            # Skip special attributes.
+            if item.startswith('__'):
+                continue
+
+            if callable(getattr(obj, item)):
+                func = getattr(obj, item)
+                print item, func
+                dct[item] = types.FunctionType(func.func_code,
+                                               func.func_globals,
+                                               item,
+                                               func.func_defaults,
+                                               func.func_closure)
+
+                # Rename the doc-string of test methods.
+                if item.startswith('test_'):
+                    dct[item].__doc__ = dct[item].__doc__ % dct['listener'].__name__
+
+        return super(_RawListenerTestsMeta, cls).__new__(cls,
+                                                         name,
+                                                         (unittest.TestCase,),
+                                                         dct)
+
+
+# -----------------------------------------------------------------------------
+#                                 RawListener()
+# -----------------------------------------------------------------------------
+
+class RawListenerTests(object):
+    """Standard unit tests for sub-classes of the RawListener() class.
+
+    This method defines standard unit-tests for sub-classes of the
+    RawListener() class. Sub-classes of this unit-test must define the
+    attributes ``listener`` and ``connection`` where:
+
+        - ``listener`` is the RawListener() sub-class to be tested
+        - ``connection`` is the Connection() object associated with the
+          listener
+
+    Example usage::
+
+        class TestRawListener(RawListenerTests):
+            listener =
+            connection =
+
+    """
+    __metaclass__ = _RawListenerTestsMeta
+
+    def test_init(self):
+        """Test %s() can be initialised and closed."""
+
+        # Create an instance of RawListener() with the default topic.
+        listener = self.listener(self.connection)
+        self.assertEqual(listener.topics, None)
 
         # Ensure listener has established a connection.
         self.assertTrue(listener.is_open)
@@ -201,48 +301,44 @@ class RawListenerTests(unittest.TestCase):
         result = listener.close()
         self.assertFalse(result)
 
-    @abstractmethod
-    def test_from_connection(self, Connection, RawBroadcaster, URL):
-        """Test RawListener() can be initialised from Connection() object."""
+    def test_bad_init(self):
+        """Test %s() catches bad initialisation inputs."""
 
-        # Initialise a Broadcaster with a Connection() object.
-        connection = Connection(URL)
-        RawBroadcaster.from_connection(connection)
-
-        # Test instantiation fails if 'connection' is not a Connection()
-        # object.
+        # Test instantiation fails if 'connection' is not a class an not an
+        # instance.
         with self.assertRaises(TypeError):
-            RawBroadcaster.from_connection(42)
+            self.listener(type(self.connection))
 
-    @abstractmethod
-    def test_init_topics(self, RawListener, url):
-        """Test RawListener() 'topics' parameter at initialisation."""
-
-        # Test instantiation fails if 'topics' is not a string.
+        # Test instantiation fails if 'topic' is not an array of strings.
         with self.assertRaises(TypeError):
-            RawListener(url, topic=100)
+            self.listener(self.connection, topics=100)
 
-        # Create an instance of RawListener with a single topic.
-        listener = RawListener(url, topics=TOPIC)
-        self.assertEqual(listener.topics, TOPIC)
-        listener.close()
+        # Test instantiation fails if 'topic' is not an array of strings.
+        with self.assertRaises(TypeError):
+            self.listener(self.connection, topics=['topic', 10])
 
-        # Create an instance of RawListener with multiple topics.
-        listener = RawListener(url, topics=TOPICS)
+    def test_init_topic(self):
+        """Test %s() 'topic' parameter at initialisation."""
+
+        # Create an instance of RawListener().
+        listener = self.listener(self.connection, topics=TOPICS)
+
+        # Ensure topic was set at initialisation.
         self.assertEqual(listener.topics, TOPICS)
-        listener.close()
 
-    @abstractmethod
-    def test_subscriptions(self, RawListener, url):
-        """Test RawListener() can subscribe and unsubscribe callbacks."""
+        # Ensure listener has established a connection.
+        self.assertTrue(listener.is_open)
+
+    def test_subscriptions(self):
+        """Test %s() can subscribe and unsubscribe callbacks."""
 
         # NOTE: This testing is theoretically redundant. Unit test code on the
-        #       parent class 'Publisher' should pick up any errors. To be
-        #       paranoid and ensure inheritance has been implemented properly,
-        #       do some basic checking here.
+        #       parent class 'vent() should pick up any errors. To be paranoid
+        #       and ensure inheritance has been implemented properly, do some
+        #       basic checking here.
 
         callback = lambda data: True
-        listener = RawListener(url)
+        listener = self.listener(self.connection)
 
         # Subscribe callback.
         self.assertTrue(listener.subscribe(callback))
@@ -254,6 +350,10 @@ class RawListenerTests(unittest.TestCase):
         self.assertFalse(listener.is_subscribed(callback))
         self.assertEqual(listener.num_subscriptions(), 0)
 
+
+# -----------------------------------------------------------------------------
+#
+# -----------------------------------------------------------------------------
 
 def publish_message(introspector, broadcaster, message, topic=None,
                     send_attempts=5, timeout=1.0):

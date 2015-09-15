@@ -1,14 +1,20 @@
 import unittest
 from mcl.network.udp import Connection
-# from mcl.network.udp import RawBroadcaster
-# from mcl.network.udp import RawListener
+from mcl.network.udp import RawBroadcaster
+from mcl.network.udp import RawListener
+
 # from mcl.network.udp import MessageBroadcaster
 # from mcl.network.udp import MessageListener
+
 from mcl.network.udp import PYITS_MTU
 from mcl.network.udp import PYITS_UDP_PORT
 from mcl.network.udp import HEADER_DELIMITER
+
 # from mcl.network.test.common import Introspector
 # from mcl.network.test.common import publish_message
+
+from mcl.network.test.common import RawBroadcasterTests
+from mcl.network.test.common import RawListenerTests
 
 # Disable pylint errors:
 #     W0221 - Arguments number differ from overridden method
@@ -37,7 +43,6 @@ from mcl.network.udp import HEADER_DELIMITER
 # pylint: disable=R0904
 
 URL = 'ff15::c75d:ce41:ea8e:000a'
-
 
 
 # -----------------------------------------------------------------------------
@@ -82,177 +87,111 @@ class ConnectionTests(unittest.TestCase):
             Connection(URL, port=65536)
 
 
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#                               RawBroadcaster()
+# -----------------------------------------------------------------------------
 
------------------------------------------------------------------------------
-
-class RawBroadcasterTests(common.RawBroadcasterTests):
-
-    def test_init(self):
-        """Test udp.RawBroadcaster() can be initialised and closed."""
-
-        super(RawBroadcasterTests, self).test_init(RawBroadcaster, URL)
-
-        # Test instantiation fails if an invalid 'url' is given.
-        with self.assertRaises(IOError):
-            RawBroadcaster('url@bad.failure')
-
-    def test_from_connection(self):
-        """Test udp.RawBroadcaster() can be initialised from Connection() object."""
-
-        super(RawBroadcasterTests, self).test_from_connection(Connection,
-                                                              RawBroadcaster,
-                                                              URL)
-
-    def test_init_topic(self):
-        """Test udp.RawBroadcaster() 'topic' parameter at initialisation."""
-
-        super(RawBroadcasterTests, self).test_init_topic(RawBroadcaster, URL)
-
-    def test_init_port(self):
-        """Test udp.RawBroadcaster() 'port' parameter at initialisation."""
-
-        # Test instantiation passes with a valid 'port'.
-        broadcaster = RawBroadcaster(URL, port=PORT)
-
-        # Test 'port' was correctly initialised.
-        self.assertEqual(broadcaster.port, PORT)
-
-        # Test instantiation fails if 'port' is not an integer.
-        with self.assertRaises(TypeError):
-            RawBroadcaster(URL, port='port')
-
-    def test_publish(self):
-        """Test udp.RawBroadcaster() can publish data."""
-
-        super(RawBroadcasterTests, self).test_publish(RawBroadcaster, URL)
-
-class RawListenerTests(common.RawListenerTests):
-
-    def test_init(self):
-        """Test udp.RawListener() can be initialised and closed."""
-
-        super(RawListenerTests, self).test_init(RawListener, URL)
-
-        # Test instantiation fails if an invalid 'url' is given.
-        with self.assertRaises(IOError):
-            RawListener('url@bad.failure')
-
-    def test_from_connection(self):
-        """Test udp.RawListener() can be initialised from Connection() object."""
-
-        super(RawListenerTests, self).test_from_connection(Connection,
-                                                           RawListener,
-                                                           URL)
-
-    def test_init_topics(self):
-        """Test udp.RawListener() 'topic' parameter at initialisation."""
-
-        super(RawListenerTests, self).test_init_topics(RawListener, URL)
-
-    def test_init_port(self):
-        """Test udp.RawListener() 'port' parameter at initialisation."""
-
-        # Test instantiation passes with a valid 'port'.
-        broadcaster = RawListener(URL, port=PORT)
-
-        # Test 'port' was correctly initialised.
-        self.assertEqual(broadcaster.port, PORT)
-
-        # Test instantiation fails if 'port' is not a string.
-        with self.assertRaises(TypeError):
-            RawListener(URL, port=5)
-
-    def test_subscriptions(self):
-        """Test udp.RawListener() can subscribe and unsubscribe callbacks."""
-
-        super(RawListenerTests, self).test_subscriptions(RawListener, URL)
+class TestRawBroadcaster(RawBroadcasterTests):
+    broadcaster = RawBroadcaster
+    connection = Connection(URL)
 
 
-class RawEcosystemTests(common.RawEcosystemTests):
+# -----------------------------------------------------------------------------
+#                               RawListener()
+# -----------------------------------------------------------------------------
 
-    def test_broadcast_listen(self):
-        """Test udp RawBroadcaster/RawListener default send/receive."""
+class TestRawListener(RawListenerTests):
+    listener = RawListener
+    connection = Connection(URL)
 
-        super(RawEcosystemTests, self).test_broadcast_listen(RawBroadcaster,
-                                                             RawListener, URL)
+# -----------------------------------------------------------------------------
+#                              Publish-Subscribe
+# -----------------------------------------------------------------------------
 
-    def test_topic_at_init(self):
-        """Test udp RawBroadcaster/RawListener broadcast topic at initialisation."""
+# class RawEcosystemTests(common.RawEcosystemTests):
 
-        super(RawEcosystemTests, self).test_topic_at_init(RawBroadcaster,
-                                                          RawListener, URL)
+#     def test_broadcast_listen(self):
+#         """Test udp RawBroadcaster/RawListener default send/receive."""
 
-    def test_topic_at_publish(self):
-        """Test udp RawBroadcaster/RawListener broadcast topic at publish."""
+#         super(RawEcosystemTests, self).test_broadcast_listen(RawBroadcaster,
+#                                                              RawListener, URL)
 
-        super(RawEcosystemTests, self).test_topic_at_publish(RawBroadcaster,
-                                                             RawListener, URL)
+#     def test_topic_at_init(self):
+#         """Test udp RawBroadcaster/RawListener broadcast topic at initialisation."""
 
-        # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(URL)
+#         super(RawEcosystemTests, self).test_topic_at_init(RawBroadcaster,
+#                                                           RawListener, URL)
 
-        # Ensure non-string topics are caught.
-        with self.assertRaises(ValueError):
-            bad_topic = HEADER_DELIMITER.join(['A', 'B'])
-            broadcaster.publish('bad topic', topic=bad_topic)
+#     def test_topic_at_publish(self):
+#         """Test udp RawBroadcaster/RawListener broadcast topic at publish."""
 
-    def test_listen_single_topic(self):
-        """Test udp RawBroadcaster/RawListener listen for a single topic from many."""
+#         super(RawEcosystemTests, self).test_topic_at_publish(RawBroadcaster,
+#                                                              RawListener, URL)
 
-        super(RawEcosystemTests, self).test_listen_single_topic(RawBroadcaster,
-                                                                RawListener,
-                                                                URL)
+#         # Create broadcaster and listener.
+#         broadcaster = RawBroadcaster(URL)
 
-    def test_listen_multiple_topics(self):
-        """Test udp RawBroadcaster/RawListener listen for multiple topics."""
+#         # Ensure non-string topics are caught.
+#         with self.assertRaises(ValueError):
+#             bad_topic = HEADER_DELIMITER.join(['A', 'B'])
+#             broadcaster.publish('bad topic', topic=bad_topic)
 
-        super(RawEcosystemTests,
-              self).test_listen_multiple_topics(RawBroadcaster,
-                                                RawListener,
-                                                URL)
+#     def test_listen_single_topic(self):
+#         """Test udp RawBroadcaster/RawListener listen for a single topic from many."""
 
-    def test_large_data(self):
-        """Test udp RawBroadcaster/RawListener with large data."""
+#         super(RawEcosystemTests, self).test_listen_single_topic(RawBroadcaster,
+#                                                                 RawListener,
+#                                                                 URL)
 
-        # Create a message which is larger then the UDP MTU.
-        packets = 13.37
-        counter = 1
-        send_string = ''
-        while True:
-            send_string += '%i, ' % counter
-            counter += 1
-            if len(send_string) >= packets * float(PYITS_MTU):
-                send_string += '%i' % counter
-                break
+#     def test_listen_multiple_topics(self):
+#         """Test udp RawBroadcaster/RawListener listen for multiple topics."""
 
-        # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(URL)
-        listener = RawListener(URL)
+#         super(RawEcosystemTests,
+#               self).test_listen_multiple_topics(RawBroadcaster,
+#                                                 RawListener,
+#                                                 URL)
 
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
+#     def test_large_data(self):
+#         """Test udp RawBroadcaster/RawListener with large data."""
 
-        # Publish message.
-        publish_message(introspector, broadcaster, send_string)
+#         # Create a message which is larger then the UDP MTU.
+#         packets = 13.37
+#         counter = 1
+#         send_string = ''
+#         while True:
+#             send_string += '%i, ' % counter
+#             counter += 1
+#             if len(send_string) >= packets * float(PYITS_MTU):
+#                 send_string += '%i' % counter
+#                 break
 
-        # Close connections.
-        broadcaster.close()
-        listener.close()
+#         # Create broadcaster and listener.
+#         broadcaster = RawBroadcaster(URL)
+#         listener = RawListener(URL)
 
-        # Ensure the correct number of messages was received.
-        self.assertEqual(len(introspector.buffer), 1)
+#         # Catch messages with introspector.
+#         introspector = Introspector()
+#         listener.subscribe(introspector.get_message)
 
-        # Only ONE message was published, ensure the data was received.
-        self.assertEqual(send_string, introspector.buffer[0][2])
+#         # Publish message.
+#         publish_message(introspector, broadcaster, send_string)
+
+#         # Close connections.
+#         broadcaster.close()
+#         listener.close()
+
+#         # Ensure the correct number of messages was received.
+#         self.assertEqual(len(introspector.buffer), 1)
+
+#         # Only ONE message was published, ensure the data was received.
+#         self.assertEqual(send_string, introspector.buffer[0][2])
 
 
-class MessageEcosystemTests(common.MessageEcosystemTests):
+# class MessageEcosystemTests(common.MessageEcosystemTests):
 
-    def test_broadcast_listen(self):
-        """Test udp MessageBroadcaster/Listener can send/receive pyITS messages."""
+#     def test_broadcast_listen(self):
+#         """Test udp MessageBroadcaster/Listener can send/receive pyITS messages."""
 
-        super(MessageEcosystemTests,
-              self).test_broadcast_listen(MessageBroadcaster,
-                                          MessageListener, URL)
+#         super(MessageEcosystemTests,
+#               self).test_broadcast_listen(MessageBroadcaster,
+#                                           MessageListener, URL)
