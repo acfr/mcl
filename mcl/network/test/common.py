@@ -1,4 +1,3 @@
-import abc
 import time
 import types
 import unittest
@@ -30,6 +29,56 @@ class Introspector(object):
 #
 # -----------------------------------------------------------------------------
 
+def attr_exists(dct, attrs):
+    """Check object contains mandatory attributes."""
+    for attr in attrs:
+        if attr not in dct:
+            msg = "The attribute '%s' is required." % str(attr)
+            raise TypeError(msg)
+
+
+def attr_issubclass(dct, key, obj, msg):
+    """Check object attribute is a sub-class of a specific object."""
+    if not issubclass(dct[key], obj):
+        raise TypeError(msg)
+
+
+def attr_isinstance(dct, key, obj, msg):
+    """Check object attribute is an instance of a specific object."""
+    if not isinstance(dct[key], obj):
+        raise TypeError(msg)
+
+
+def compile_docstring(base, name):
+    """Rename dosctring of test-methods in base object."""
+
+    # Iterate through items in the base-object.
+    dct = dict()
+    for item in dir(base):
+
+        # Skip special attributes.
+        if item.startswith('__'):
+            continue
+
+        # Inspect callable objects.
+        if callable(getattr(base, item)):
+            func = getattr(base, item)
+            dct[item] = types.FunctionType(func.func_code,
+                                           func.func_globals,
+                                           item,
+                                           func.func_defaults,
+                                           func.func_closure)
+
+            # Rename the doc-string of test methods in the base-object.
+            if item.startswith('test_'):
+                dct[item].__doc__ = dct[item].__doc__ % name
+
+    return dct
+
+
+# -----------------------------------------------------------------------------
+#                               RawBroadcaster()
+# -----------------------------------------------------------------------------
 
 class _RawBroadcasterTestsMeta(type):
     """Manufacture a RawBroadcaster() class unit-test.
@@ -43,7 +92,7 @@ class _RawBroadcasterTestsMeta(type):
     def __new__(cls, name, bases, dct):
         """Manufacture a RawBroadcaster() class unit-test."""
 
-        # Do not look for manditory fields in the RawBroadcaster() base class.
+        # Do not look for manditory fields in the base class.
         if (name == 'RawBroadcasterTests') and (bases == (object,)):
             return super(_RawBroadcasterTestsMeta, cls).__new__(cls,
                                                                 name,
@@ -56,53 +105,31 @@ class _RawBroadcasterTestsMeta(type):
             raise Exception("'Unit' only supports one level of inheritance.")
 
         # Ensure mandatory attributes are present.
-        for attr in ['broadcaster', 'connection']:
-            if attr not in dct:
-                msg = "The attributes '%s' is required." % attr
-                raise TypeError(msg)
+        attr_exists(dct, ['broadcaster', 'connection'])
 
         # Ensure 'broadcaster' is a RawBroadcaster().
-        if not issubclass(dct['broadcaster'], AbstractRawBroadcaster):
-            msg = "The attribute 'broadcaster' must be a sub-class of "
-            msg += "abstract.RawBroadcaster()."
-            raise TypeError(msg)
+        attr_issubclass(dct, 'broadcaster', AbstractRawBroadcaster,
+                        "The attribute 'broadcaster' must be a sub-class " +
+                        "of abstract.RawBroadcaster().")
 
         # Ensure 'connection' is a Connection().
-        if not isinstance(dct['connection'], AbstractConnection):
-            msg = "The attribute 'connection' must be an instance of a "
-            msg += "abstract.Connection() sub-class."
-            raise TypeError(msg)
+        attr_isinstance(dct, 'connection', AbstractConnection,
+                        "The attribute 'connection' must be an instance of " +
+                        "a abstract.Connection() sub-class.")
 
-        # Copy functions into new sub-class.
-        obj = bases[0]
-        for item in dir(obj):
+        # Create name from module origin and object name.
+        module_name = '%s.%s' % (dct['broadcaster'].__module__.split('.')[-1],
+                                 dct['broadcaster'].__name__)
 
-            # Skip special attributes.
-            if item.startswith('__'):
-                continue
-
-            if callable(getattr(obj, item)):
-                func = getattr(obj, item)
-                print item, func
-                dct[item] = types.FunctionType(func.func_code,
-                                               func.func_globals,
-                                               item,
-                                               func.func_defaults,
-                                               func.func_closure)
-
-                # Rename the doc-string of test methods.
-                if item.startswith('test_'):
-                    dct[item].__doc__ = dct[item].__doc__ % dct['broadcaster'].__name__
+        # Rename docstrings of unit-tests and copy into new sub-class.
+        method_dct = compile_docstring(bases[0], module_name)
+        dct.update(method_dct)
 
         return super(_RawBroadcasterTestsMeta, cls).__new__(cls,
                                                             name,
                                                             (unittest.TestCase,),
                                                             dct)
 
-
-# -----------------------------------------------------------------------------
-#                            RawBroadcaster() Tests
-# -----------------------------------------------------------------------------
 
 class RawBroadcasterTests(object):
     """Standard unit tests for sub-classes of the RawBroadcaster() class.
@@ -186,7 +213,7 @@ class RawBroadcasterTests(object):
 
 
 # -----------------------------------------------------------------------------
-#
+#                                 RawListener()
 # -----------------------------------------------------------------------------
 
 class _RawListenerTestsMeta(type):
@@ -201,7 +228,7 @@ class _RawListenerTestsMeta(type):
     def __new__(cls, name, bases, dct):
         """Manufacture a RawListener() class unit-test."""
 
-        # Do not look for manditory fields in the RawListener() base class.
+        # Do not look for manditory fields in the base class.
         if (name == 'RawListenerTests') and (bases == (object,)):
             return super(_RawListenerTestsMeta, cls).__new__(cls,
                                                              name,
@@ -214,53 +241,31 @@ class _RawListenerTestsMeta(type):
             raise Exception("'Unit' only supports one level of inheritance.")
 
         # Ensure mandatory attributes are present.
-        for attr in ['listener', 'connection']:
-            if attr not in dct:
-                msg = "The attributes '%s' is required." % attr
-                raise TypeError(msg)
+        attr_exists(dct, ['listener', 'connection'])
 
         # Ensure 'listener' is a RawListener().
-        if not issubclass(dct['listener'], AbstractRawListener):
-            msg = "The attribute 'listener' must be a sub-class of "
-            msg += "abstract.RawListener()."
-            raise TypeError(msg)
+        attr_issubclass(dct, 'listener', AbstractRawListener,
+                        "The attribute 'listener' must be a sub-class " +
+                        "of abstract.RawListener().")
 
         # Ensure 'connection' is a Connection().
-        if not isinstance(dct['connection'], AbstractConnection):
-            msg = "The attribute 'connection' must be an instance of a "
-            msg += "abstract.Connection() sub-class."
-            raise TypeError(msg)
+        attr_isinstance(dct, 'connection', AbstractConnection,
+                        "The attribute 'connection' must be an instance of " +
+                        "a abstract.Connection() sub-class.")
 
-        # Copy functions into new sub-class.
-        obj = bases[0]
-        for item in dir(obj):
+        # Create name from module origin and object name.
+        module_name = '%s.%s' % (dct['listener'].__module__.split('.')[-1],
+                                 dct['listener'].__name__)
 
-            # Skip special attributes.
-            if item.startswith('__'):
-                continue
-
-            if callable(getattr(obj, item)):
-                func = getattr(obj, item)
-                print item, func
-                dct[item] = types.FunctionType(func.func_code,
-                                               func.func_globals,
-                                               item,
-                                               func.func_defaults,
-                                               func.func_closure)
-
-                # Rename the doc-string of test methods.
-                if item.startswith('test_'):
-                    dct[item].__doc__ = dct[item].__doc__ % dct['listener'].__name__
+        # Rename docstrings of unit-tests and copy into new sub-class.
+        method_dct = compile_docstring(bases[0], module_name)
+        dct.update(method_dct)
 
         return super(_RawListenerTestsMeta, cls).__new__(cls,
-                                                         name,
-                                                         (unittest.TestCase,),
-                                                         dct)
+                                                            name,
+                                                            (unittest.TestCase,),
+                                                            dct)
 
-
-# -----------------------------------------------------------------------------
-#                                 RawListener()
-# -----------------------------------------------------------------------------
 
 class RawListenerTests(object):
     """Standard unit tests for sub-classes of the RawListener() class.
@@ -309,25 +314,24 @@ class RawListenerTests(object):
         with self.assertRaises(TypeError):
             self.listener(type(self.connection))
 
-        # Test instantiation fails if 'topic' is not an array of strings.
+        # Test instantiation fails if 'topics' is not an array of strings.
         with self.assertRaises(TypeError):
             self.listener(self.connection, topics=100)
 
-        # Test instantiation fails if 'topic' is not an array of strings.
+        # Test instantiation fails if 'topics' is not an array of strings.
         with self.assertRaises(TypeError):
             self.listener(self.connection, topics=['topic', 10])
 
-    def test_init_topic(self):
-        """Test %s() 'topic' parameter at initialisation."""
+    def test_init_topics(self):
+        """Test %s() 'topics' parameter at initialisation."""
 
-        # Create an instance of RawListener().
+        # Create an instance of RawListener() with a SINGLE topics.
+        listener = self.listener(self.connection, topics=TOPIC)
+        self.assertEqual(listener.topics, TOPIC)
+
+        # Create an instance of RawListener() with MULTIPLE topics.
         listener = self.listener(self.connection, topics=TOPICS)
-
-        # Ensure topic was set at initialisation.
         self.assertEqual(listener.topics, TOPICS)
-
-        # Ensure listener has established a connection.
-        self.assertTrue(listener.is_open)
 
     def test_subscriptions(self):
         """Test %s() can subscribe and unsubscribe callbacks."""
