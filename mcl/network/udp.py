@@ -94,7 +94,6 @@ import struct
 import socket
 import threading
 
-from mcl.message.messages import Message
 from mcl.network.abstract import Connection as AbstractConnection
 from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
@@ -112,30 +111,31 @@ PYITS_MTU_MAX = 65000
 #
 #     (transmission counter, topic, packet, number of packets)
 #
-# If this is packed using the 'struct' package, we need to decide how much
-# memory each variable should be assigned.
+# If the header is packed using the 'struct' package, we need to decide how
+# much memory each variable should be assigned.
 #
 # Calculations for the size of the transmission counter:
 #     2 Bytes:      65535 / (100Hz * 60)               = 10 minutes @ 100Hz
 #     4 Bytes: 4294967295 / (100Hz * 60 * 60 * 24 * 7) = 71 weeks   @ 100Hz
 #
 # Calculations for the size of the maximum number of packets:
-#     1 Bytes: (65000b / 1048576) x   255 =   15Mb
-#     2 Bytes: (65000b / 1048576) x 65535 = 4062Mb
+#     1 Bytes: (65000b / 1048576) x   255 =   15Mib
+#     2 Bytes: (65000b / 1048576) x 65535 = 4062Mib
 #
-# Using these numbers, the following header format allows 255 topics with 71
-# weeks of logging at 100Hz with a maximum data size (sent fragmented) of 4GB
-# before overflow:
+# Using a 4 byte transmission counter, a single byte to represent topics and a
+# 2 byte packet size, the following header format:
 #
 #    BINARY_FORMAT = '@IBHH'
 #    HEADER_LENGTH = struct.calcsize(BINARY_FORMAT)
 #
-# The argument for nominating integers over strings in the header is minimising
-# network traffic. If we use non-binary encoded, variable length strings in the
-# header we can use strings in the topic field. How bad is this?
+# will allow 71 weeks of logging at 100Hz with 255 topics and a maximum data
+# size (sent fragmented) of ~4GiB before overflow.
 #
-# In the likely case, where we log data @ 100Hz for 1hr, transferring 6kb
-# data packets on the default topic:
+# Alternatively, a non-binary encoded header can be used allowing for variable
+# length strings in the header. How bad/inefficient is this?
+#
+# In the case where we log data @ 100Hz for 1hr, transferring 6kb data packets
+# on the default topic:
 #
 #     100 * 60 * 60 * 1 = 360000
 #       6 * 1024 / 6500 = 1
@@ -144,23 +144,12 @@ PYITS_MTU_MAX = 65000
 #     length of string header (b):          len('360000,0,1,1,')      = 13
 #     Difference in data transferred (Mb):  360000 * 1 * 3 / 1048576  = 1.03
 #
-# In an unlikely worst case, where we log data @ 100Hz for 6hrs, transferring
-# 500kb data packets on the largest topic:
-#
-#     100 * 60 * 60 * 6 = 2160000
-#     500 * 1024 / 6500 = ~80
-#
-#     length of struct header (b): len(80:f5:20:00:ff:00:50:00:50:00) = 10
-#     length of string header (b):          len('216000,255,80,80,')  = 18
-#     Difference in data transferred (Mb): 2160000 * 80 * 8 / 1048576 = 1318
-#
-#
-# In reality the difference in header size is NEGLIGIBLE. If a string encoded
-# header is used, the header can have a variable length. Since the header is
+# The difference in header size is NEGLIGIBLE when traded-off against the
+# advantages of permitting a text encoded header. Since the header is
 # represented by characters, fixed memory does not need to be assigned to the
 # transmission counter and packet counters. The number of characters can grow
 # to suit the size of the variables being transmitted. Similarly the topic can
-# contain more complex variables - notably strings.
+# contain more complex, human-readable variables (strings).
 
 
 HEADER_DELIMITER = ','
