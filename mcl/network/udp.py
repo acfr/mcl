@@ -626,18 +626,25 @@ class RawListener(AbstractRawListener):
                 transmissions = int(transmissions)
                 packet = int(packet)
                 packets = int(packets)
+
+                if topic == '':
+                    topic = None
             except:
                 continue
 
-            # White list of topics is a string which does not match the current
-            # topic. Skip this data frame.
-            if isinstance(self.topics, basestring) and (topic != self.topics):
-                continue
+            # Topic filtering is enabled.
+            if self.topics:
 
-            # White list of topics is a list of strings which does not contain
-            # the current topic. Skip this data frame.
-            elif self.topics and (topic not in self.topics):
-                continue
+                # White list of topics is a string which does not match the
+                # current topic. Skip this data frame.
+                if (isinstance(self.topics, basestring) and
+                   (topic != self.topics)):
+                    continue
+
+                # White list of topics must be a list. The list does not
+                # contain the current topic. Skip this data frame.
+                elif topic not in self.topics:
+                    continue
 
             # Data fits into one frame. Publish data immediately.
             if packets == 1:
