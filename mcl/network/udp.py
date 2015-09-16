@@ -643,7 +643,7 @@ class RawListener(AbstractRawListener):
             if packets == 1:
                 with self.__counter_lock:
                     self.__counter += 1
-                self.__publish__((transmissions, topic, payload))
+                self.trigger((transmissions, topic, payload))
                 continue
 
             # Data fits into multiple frames. The code from this point forwards
@@ -730,7 +730,7 @@ class RawListener(AbstractRawListener):
                 payload = ''.join(receive_buffer[frame_identifier])
                 with self.__counter_lock:
                     self.__counter += 1
-                self.__publish__((transmissions, topic, payload))
+                self.trigger((transmissions, topic, payload))
 
                 # Free space in buffer.
                 del receive_buffer[frame_identifier]

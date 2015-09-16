@@ -481,7 +481,7 @@ class RawBroadcaster(object):
         pass
 
     @abstractmethod
-    def publish(self, data, topic=''):
+    def publish(self, data, topic=None):
         """Virtual: Send data over network interface.
 
         Args:

@@ -15,6 +15,7 @@ from mcl.network.udp import HEADER_DELIMITER
 
 from mcl.network.test.common import RawBroadcasterTests
 from mcl.network.test.common import RawListenerTests
+from mcl.network.test.common import RawPublishSubscribeTests
 
 # Disable pylint errors:
 #     W0221 - Arguments number differ from overridden method
@@ -104,87 +105,61 @@ class TestRawListener(RawListenerTests):
     listener = RawListener
     connection = Connection(URL)
 
+
 # -----------------------------------------------------------------------------
 #                              Publish-Subscribe
 # -----------------------------------------------------------------------------
 
-# class RawEcosystemTests(common.RawEcosystemTests):
+class TestPublishSubscribe(RawPublishSubscribeTests):
+    broadcaster = RawBroadcaster
+    listener = RawListener
+    connection = Connection(URL)
 
-#     def test_broadcast_listen(self):
-#         """Test udp RawBroadcaster/RawListener default send/receive."""
+    # def test_topic_at_publish(self):
+    #     """Test udp.RawBroadcaster/RawListener bad topic delimiter."""
 
-#         super(RawEcosystemTests, self).test_broadcast_listen(RawBroadcaster,
-#                                                              RawListener, URL)
+    #     # Create broadcaster and listener.
+    #     broadcaster = self.broadcast(self.connection)
 
-#     def test_topic_at_init(self):
-#         """Test udp RawBroadcaster/RawListener broadcast topic at initialisation."""
+    #     # Ensure non-string topics are caught.
+    #     with self.assertRaises(ValueError):
+    #         bad_topic = HEADER_DELIMITER.join(['A', 'B'])
+    #         broadcaster.publish('bad topic', topic=bad_topic)
 
-#         super(RawEcosystemTests, self).test_topic_at_init(RawBroadcaster,
-#                                                           RawListener, URL)
+    # def test_large_data(self):
+    #     """Test udp.RawBroadcaster/RawListener with large data."""
 
-#     def test_topic_at_publish(self):
-#         """Test udp RawBroadcaster/RawListener broadcast topic at publish."""
+    #     # Create a message which is larger then the UDP MTU.
+    #     packets = 13.37
+    #     counter = 1
+    #     send_string = ''
+    #     while True:
+    #         send_string += '%i, ' % counter
+    #         counter += 1
+    #         if len(send_string) >= packets * float(PYITS_MTU):
+    #             send_string += '%i' % counter
+    #             break
 
-#         super(RawEcosystemTests, self).test_topic_at_publish(RawBroadcaster,
-#                                                              RawListener, URL)
+    #     # Create broadcaster and listener.
+    #     broadcaster = self.broadcaster(self.connection)
+    #     listener = self.listener(self.connection)
 
-#         # Create broadcaster and listener.
-#         broadcaster = RawBroadcaster(URL)
+    #     # Catch messages with introspector.
+    #     introspector = Introspector()
+    #     listener.subscribe(introspector.get_message)
 
-#         # Ensure non-string topics are caught.
-#         with self.assertRaises(ValueError):
-#             bad_topic = HEADER_DELIMITER.join(['A', 'B'])
-#             broadcaster.publish('bad topic', topic=bad_topic)
+    #     # Publish message.
+    #     self.publish_message(introspector, self.broadcaster, send_string)
 
-#     def test_listen_single_topic(self):
-#         """Test udp RawBroadcaster/RawListener listen for a single topic from many."""
+    #     # Close connections.
+    #     broadcaster.close()
+    #     listener.close()
 
-#         super(RawEcosystemTests, self).test_listen_single_topic(RawBroadcaster,
-#                                                                 RawListener,
-#                                                                 URL)
+    #     # Ensure the correct number of messages was received.
+    #     self.assertEqual(len(introspector.buffer), 1)
 
-#     def test_listen_multiple_topics(self):
-#         """Test udp RawBroadcaster/RawListener listen for multiple topics."""
-
-#         super(RawEcosystemTests,
-#               self).test_listen_multiple_topics(RawBroadcaster,
-#                                                 RawListener,
-#                                                 URL)
-
-#     def test_large_data(self):
-#         """Test udp RawBroadcaster/RawListener with large data."""
-
-#         # Create a message which is larger then the UDP MTU.
-#         packets = 13.37
-#         counter = 1
-#         send_string = ''
-#         while True:
-#             send_string += '%i, ' % counter
-#             counter += 1
-#             if len(send_string) >= packets * float(PYITS_MTU):
-#                 send_string += '%i' % counter
-#                 break
-
-#         # Create broadcaster and listener.
-#         broadcaster = RawBroadcaster(URL)
-#         listener = RawListener(URL)
-
-#         # Catch messages with introspector.
-#         introspector = Introspector()
-#         listener.subscribe(introspector.get_message)
-
-#         # Publish message.
-#         publish_message(introspector, broadcaster, send_string)
-
-#         # Close connections.
-#         broadcaster.close()
-#         listener.close()
-
-#         # Ensure the correct number of messages was received.
-#         self.assertEqual(len(introspector.buffer), 1)
-
-#         # Only ONE message was published, ensure the data was received.
-#         self.assertEqual(send_string, introspector.buffer[0][2])
+    #     # Only ONE message was published, ensure the data was received.
+    #     self.assertEqual(send_string, introspector.buffer[0][2])
 
 
 # class MessageEcosystemTests(common.MessageEcosystemTests):

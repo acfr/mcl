@@ -197,7 +197,7 @@ class RawBroadcasterTests(unittest.TestCase):
 
         # Incomplete RawBroadcaster() definition.
         class TestRawBroadcaster(AbstractRawBroadcaster):
-            def publish(self, data, topic=''): pass
+            def close(self): pass
 
         with self.assertRaises(TypeError):
             TestRawBroadcaster()
@@ -207,71 +207,19 @@ class RawBroadcasterTests(unittest.TestCase):
 #                                 RawListener()
 # -----------------------------------------------------------------------------
 
-class TestRawListener(AbstractRawListener):
-    """Validate inheritance mechanism in abstract.RawListener()"""
-
-    @property
-    def is_open(self):
-        pass
-
-    @property
-    def counter(self):
-        pass
-
-    def _open(self):
-        pass
-
-    def publish(self, data, topic=''):
-        pass
-
-    def close(self):
-        pass
-
-
 class RawListenerTests(unittest.TestCase):
 
     def test_abstract(self):
         """Test abstract.RawListener() initialisation of abstract object."""
 
+        # Ensure the abstract object RawListener() cannot be initialised
+        # unless the abstract methods are defined.
         with self.assertRaises(TypeError):
             AbstractRawListener()
 
         # Incomplete RawListener() definition.
         class TestRawListener(AbstractRawListener):
-            def publish(self, data, topic=''): pass
+            def close(self): pass
 
         with self.assertRaises(TypeError):
             TestRawListener()
-
-    def test_init(self):
-        """Test abstract.RawListener() initialisation."""
-
-        # Test RawListener() with default inputs.
-        listener = TestRawListener(TestConnection('A', 'B'))
-        self.assertEqual(listener.connection.A, 'A')
-        self.assertEqual(listener.topics, None)
-
-        # Test RawListener() with optional inputs - single topic.
-        listener = TestRawListener(TestConnection('A', 'B'), topics='topic')
-        self.assertEqual(listener.connection.A, 'A')
-        self.assertEqual(listener.topics, 'topic')
-
-        # Test RawListener() with optional inputs - multiple topics.
-        listener = TestRawListener(TestConnection('A', 'B'), topics=['A', 'B'])
-        self.assertEqual(listener.connection.A, 'A')
-        self.assertEqual(listener.topics, ['A', 'B'])
-
-    def test_bad_init(self):
-        """Test abstract.RawListener() with bad initialisation."""
-
-        # Input must be an instance not a class.
-        with self.assertRaises(TypeError):
-            TestRawListener(TestConnection)
-
-        # Topic must be a string or list of strings.
-        with self.assertRaises(TypeError):
-            TestRawListener(TestConnection('A', 'B'), topics=1)
-
-        # Topics must be a string or list of strings.
-        with self.assertRaises(TypeError):
-            TestRawListener(TestConnection('A', 'B'), topics=['A', 1])

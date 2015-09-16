@@ -14,19 +14,8 @@ TOPIC = 'test topic'
 TOPICS = ['topic A', 'topic B']
 
 
-class Introspector(object):
-
-    def __init__(self):
-        self.is_empty = True
-        self.buffer = list()
-
-    def get_message(self, data):
-        self.is_empty = False
-        self.buffer.append(data)
-
-
 # -----------------------------------------------------------------------------
-#
+#                               Helper functions
 # -----------------------------------------------------------------------------
 
 def attr_exists(dct, attrs):
@@ -81,16 +70,7 @@ def compile_docstring(base, name):
 # -----------------------------------------------------------------------------
 
 class _RawBroadcasterTestsMeta(type):
-    """Manufacture a RawBroadcaster() class unit-test.
-
-    Manufacture a RawBroadcaster() unit-test class for objects inheriting from
-    :py:class:`.RawBroadcasterTests`. The objects must implement the attributes
-    ``broadcaster`` and ``connection``.
-
-    """
-
     def __new__(cls, name, bases, dct):
-        """Manufacture a RawBroadcaster() class unit-test."""
 
         # Do not look for manditory fields in the base class.
         if (name == 'RawBroadcasterTests') and (bases == (object,)):
@@ -98,11 +78,6 @@ class _RawBroadcasterTestsMeta(type):
                                                                 name,
                                                                 bases,
                                                                 dct)
-
-        # Only allow unit-tests to be manufactures for the first level of
-        # inheritance.
-        elif bases != (RawBroadcasterTests,):
-            raise Exception("'Unit' only supports one level of inheritance.")
 
         # Ensure mandatory attributes are present.
         attr_exists(dct, ['broadcaster', 'connection'])
@@ -134,7 +109,7 @@ class _RawBroadcasterTestsMeta(type):
 class RawBroadcasterTests(object):
     """Standard unit tests for sub-classes of the RawBroadcaster() class.
 
-    This method defines standard unit-tests for sub-classes of the
+    This object defines standard unit-tests for sub-classes of the
     RawBroadcaster() class. Sub-classes of this unit-test must define the
     attributes ``broadcaster`` and ``connection`` where:
 
@@ -144,9 +119,9 @@ class RawBroadcasterTests(object):
 
     Example usage::
 
-        class TestRawBroadcaster(RawBroadcasterTests):
-            broadcaster =
-            connection =
+        class ConcreteRawBroadcaster(RawBroadcasterTests):
+            broadcaster = ConcreteRawBroadcaster
+            connection = ConcreteConnection
 
     """
     __metaclass__ = _RawBroadcasterTestsMeta
@@ -211,22 +186,32 @@ class RawBroadcasterTests(object):
         with self.assertRaises(TypeError):
             broadcaster.publish(42)
 
+        # Ensure attempts to publish on a closed connection raised an
+        # exception.
+        broadcaster.close()
+        with self.assertRaises(IOError):
+            broadcaster.publish('test')
+
+    def test_publish_topic(self):
+        """Test %s() can publish data with a topic."""
+
+        # Create an instance of RawBroadcaster().
+        broadcaster = self.broadcaster(self.connection)
+
+        # Test publish succeeds if the input is a string.
+        broadcaster.publish('test', topic='topic')
+
+        # Ensure non-string topics are caught.
+        with self.assertRaises(TypeError):
+            broadcaster.publish('test', topic=5)
+
 
 # -----------------------------------------------------------------------------
 #                                 RawListener()
 # -----------------------------------------------------------------------------
 
 class _RawListenerTestsMeta(type):
-    """Manufacture a RawListener() class unit-test.
-
-    Manufacture a RawListener() unit-test class for objects inheriting from
-    :py:class:`.RawListenerTests`. The objects must implement the attributes
-    ``listener`` and ``connection``.
-
-    """
-
     def __new__(cls, name, bases, dct):
-        """Manufacture a RawListener() class unit-test."""
 
         # Do not look for manditory fields in the base class.
         if (name == 'RawListenerTests') and (bases == (object,)):
@@ -234,11 +219,6 @@ class _RawListenerTestsMeta(type):
                                                              name,
                                                              bases,
                                                              dct)
-
-        # Only allow unit-tests to be manufactures for the first level of
-        # inheritance.
-        elif bases != (RawListenerTests,):
-            raise Exception("'Unit' only supports one level of inheritance.")
 
         # Ensure mandatory attributes are present.
         attr_exists(dct, ['listener', 'connection'])
@@ -262,15 +242,15 @@ class _RawListenerTestsMeta(type):
         dct.update(method_dct)
 
         return super(_RawListenerTestsMeta, cls).__new__(cls,
-                                                            name,
-                                                            (unittest.TestCase,),
-                                                            dct)
+                                                         name,
+                                                         (unittest.TestCase,),
+                                                         dct)
 
 
 class RawListenerTests(object):
     """Standard unit tests for sub-classes of the RawListener() class.
 
-    This method defines standard unit-tests for sub-classes of the
+    This object defines standard unit-tests for sub-classes of the
     RawListener() class. Sub-classes of this unit-test must define the
     attributes ``listener`` and ``connection`` where:
 
@@ -280,9 +260,9 @@ class RawListenerTests(object):
 
     Example usage::
 
-        class TestRawListener(RawListenerTests):
-            listener =
-            connection =
+        class ConcreteRawListener(RawListenerTests):
+            listener = ConcreteRawListener
+            connection = ConcreteConnection
 
     """
     __metaclass__ = _RawListenerTestsMeta
@@ -359,237 +339,281 @@ class RawListenerTests(object):
 #
 # -----------------------------------------------------------------------------
 
-def publish_message(introspector, broadcaster, message, topic=None,
-                    send_attempts=5, timeout=1.0):
+class _RawPublishSubscribeTestsMeta(type):
+    def __new__(cls, name, bases, dct):
 
-    # Get current number of items in the Introspector buffer.
-    length = len(introspector.buffer)
+        # Do not look for manditory fields in the base class.
+        if (name == 'RawPublishSubscribeTests') and (bases == (object,)):
+            return super(_RawPublishSubscribeTestsMeta, cls).__new__(cls,
+                                                                     name,
+                                                                     bases,
+                                                                     dct)
 
-    # Attempt to publish message several times.
-    for j in range(send_attempts):
+        # Ensure mandatory attributes are present.
+        attr_exists(dct, ['broadcaster', 'listener', 'connection'])
 
-        # Introspector received message(s), do not resend.
-        if len(introspector.buffer) > length:
-            break
+        # Ensure 'broadcaster' is a RawBroadcaster().
+        attr_issubclass(dct, 'broadcaster', AbstractRawBroadcaster,
+                        "The attribute 'broadcaster' must be a sub-class " +
+                        "of abstract.RawBroadcaster().")
 
-        # Publish message.
-        start_time = time.time()
-        if topic:
-            broadcaster.publish(message, topic=topic)
-        else:
-            broadcaster.publish(message)
+        # Ensure 'listener' is a RawListener().
+        attr_issubclass(dct, 'listener', AbstractRawListener,
+                        "The attribute 'listener' must be a sub-class " +
+                        "of abstract.RawListener().")
 
-        # Block until message is received or until wait has timed out.
-        while len(introspector.buffer) <= length:
-            time.sleep(0.05)
-            if (time.time() - start_time) > timeout:
+        # Ensure 'connection' is a Connection().
+        attr_isinstance(dct, 'connection', AbstractConnection,
+                        "The attribute 'connection' must be an instance of " +
+                        "a abstract.Connection() sub-class.")
+
+        # Create name from module origin and object name.
+        module_name = '%s.%s/%s' % (dct['broadcaster'].__module__.split('.')[-1],
+                                    dct['broadcaster'].__name__,
+                                    dct['listener'].__name__)
+
+        # Rename docstrings of unit-tests and copy into new sub-class.
+        method_dct = compile_docstring(bases[0], module_name)
+        dct.update(method_dct)
+
+        return super(_RawPublishSubscribeTestsMeta, cls).__new__(cls,
+                                                                 name,
+                                                                 (unittest.TestCase,),
+                                                                 dct)
+
+
+class RawPublishSubscribeTests(object):
+    """Standard unit tests for testing publish-subscribe functionality.
+
+    This object defines standard unit-tests for testing network
+    publish-subscribe functionality where:
+
+        - ``broadcaster`` is the RawBroadcaster() sub-class to be tested
+        - ``listener`` is the RawListener() sub-class to be tested
+        - ``connection`` is the Connection() object associated with the
+          broadcaster and listener
+
+    Example usage::
+
+        class ConcretePublishSubscribeTests(PublishSubscribeTests):
+            broadcaster = ConcreteRawBroadcaster
+            listener = ConcreteRawListener
+            connection = ConcreteConnection
+
+    """
+    __metaclass__ = _RawPublishSubscribeTestsMeta
+
+    def publish_message(self, broadcaster, listener, message, topic=None,
+                        received_buffer=None, send_attempts=5, timeout=1.0):
+
+        # Store received messages in a list.
+        if received_buffer is None:
+            received_buffer = list()
+
+        # Catch received messages in a list.
+        catch_data = lambda data: received_buffer.append(data)
+        listener.subscribe(catch_data)
+
+        # Attempt to publish message several times.
+        length = len(received_buffer)
+        for j in range(send_attempts):
+
+            # Publish message.
+            start_time = time.time()
+            if topic:
+                broadcaster.publish(message, topic=topic)
+            else:
+                broadcaster.publish(message)
+
+            # Block until message is received or until wait has timed out.
+            while len(received_buffer) == length:
+                time.sleep(0.05)
+                if (time.time() - start_time) > timeout:
+                    break
+
+            # Received message(s), do not resend.
+            if len(received_buffer) > length:
                 break
 
-    return j
+        # Stop catching received messages.
+        listener.unsubscribe(catch_data)
 
+        return received_buffer
 
-class RawEcosystemTests(unittest.TestCase):
-
-    @abstractmethod
-    def test_broadcast_listen(self, RawBroadcaster, RawListener, url):
-        """Test RawBroadcaster/RawListener default send/receive."""
+    def test_broadcast_listen(self):
+        """Test %s default send/receive."""
 
         # Create unique send string based on time.
         send_string = 'send/receive test: %1.8f' % time.time()
 
         # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(url)
-        listener = RawListener(url)
+        broadcaster = self.broadcaster(self.connection)
+        listener = self.listener(self.connection)
 
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
-
-        # Publish message.
-        send_attempts = publish_message(introspector, broadcaster, send_string)
+        # Test publish-subscribe functionality.
+        received_buffer = self.publish_message(broadcaster,
+                                               listener,
+                                               send_string)
 
         # Close connections.
         broadcaster.close()
         listener.close()
 
-        # Ensure attempts to publish on a closed connection raised an
-        # exception.
-        with self.assertRaises(IOError):
-            broadcaster.publish(send_string)
-
         # Ensure sending the message was recorded.
-        self.assertEqual(broadcaster.counter, send_attempts)
+        self.assertGreaterEqual(broadcaster.counter, len(received_buffer))
 
         # Ensure the correct number of messages was received.
         self.assertEqual(listener.counter, 1)
-        self.assertEqual(len(introspector.buffer), 1)
+        self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.
-        self.assertEqual(send_string, introspector.buffer[0][2])
+        self.assertEqual(send_string, received_buffer[0][2])
 
-    @abstractmethod
-    def test_topic_at_init(self, RawBroadcaster, RawListener, url):
-        """Test RawBroadcaster/RawListener broadcast topic at initialisation."""
+    def test_topic_at_init(self):
+        """Test %s broadcast topic at initialisation."""
 
         # Send multiple topics, receive all topics.
         initial_topic = 'topic A'
-        send_topic = 'topic B'
+
+        # Create broadcaster and listener.
+        broadcaster = self.broadcaster(self.connection, topic=initial_topic)
+        listener = self.listener(self.connection)
 
         # Create unique send string based on time.
         send_string = 'send/receive test: %1.8f' % time.time()
-
-        # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(url, topic=initial_topic)
-        listener = RawListener(url)
-
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
 
         # Publish message with topic from initialisation.
-        publish_message(introspector, broadcaster, send_string)
-
-        # Publish message with topic specified in publish method.
-        publish_message(introspector, broadcaster, send_string, topic=send_topic)
+        send_string = 'send/receive test: %1.8f' % time.time()
+        received_buffer = self.publish_message(broadcaster,
+                                               listener,
+                                               send_string)
 
         # Close connections.
         broadcaster.close()
         listener.close()
 
-        # Ensure two topics were received.
-        self.assertEqual(len(introspector.buffer), 2)
+        # Ensure message was transmitted with a topic.
+        self.assertEqual(len(received_buffer), 1)
+        self.assertEqual(initial_topic, received_buffer[0][1])
+        self.assertEqual(send_string, received_buffer[0][2])
 
-        # Topic A
-        self.assertEqual(initial_topic, introspector.buffer[0][1])
-        self.assertEqual(send_string, introspector.buffer[0][2])
-
-        # Topic B
-        self.assertEqual(send_topic, introspector.buffer[1][1])
-        self.assertEqual(send_string, introspector.buffer[1][2])
-
-    @abstractmethod
-    def test_topic_at_publish(self, RawBroadcaster, RawListener, url):
-        """Test RawBroadcaster/RawListener broadcast topic at publish."""
+    def test_topic_at_publish(self):
+        """Test %s broadcast topic at publish."""
 
         # Send multiple topics, receive all topics.
-        send_topics = ['topic A', 'topic B']
-
-        # Create unique send string based on time.
-        send_string = 'send/receive test: %1.8f' % time.time()
+        send_topics = [None, 'topic A', 'topic B', 'topic C']
 
         # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(url)
-        listener = RawListener(url)
-
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
+        broadcaster = self.broadcaster(self.connection)
+        listener = self.listener(self.connection)
 
         # Publish multiple messages with individual topics.
+        send_strings = list()
+        received = list()
         for (i, topic) in enumerate(send_topics):
-            publish_message(introspector, broadcaster, send_string, topic=topic)
-
-        # Ensure non-string topics are caught.
-        with self.assertRaises(TypeError):
-            broadcaster.publish(send_string, topic=5)
+            send_strings.append('send/receive test: %1.8f' % time.time())
+            received = self.publish_message(broadcaster,
+                                            listener,
+                                            send_strings[-1],
+                                            topic=topic,
+                                            received_buffer=received)
 
         # Close connections.
         broadcaster.close()
         listener.close()
 
-        # Ensure the correct number of messages was received.
-        self.assertEqual(len(introspector.buffer), 2)
+        # Ensure messages were transmitted with the correct topics.
+        self.assertEqual(len(received), len(send_topics))
+        for (i, topic) in enumerate(send_topics):
+            self.assertEqual(topic, received[i][1])
+            self.assertEqual(send_strings[i], received[i][2])
 
-        # Topic A
-        self.assertEqual(send_topics[0], introspector.buffer[0][1])
-        self.assertEqual(send_string, introspector.buffer[0][2])
-
-        # Topic B
-        self.assertEqual(send_topics[1], introspector.buffer[1][1])
-        self.assertEqual(send_string, introspector.buffer[1][2])
-
-    @abstractmethod
-    def test_listen_single_topic(self, RawBroadcaster, RawListener, url):
-        """Test RawBroadcaster/RawListener listen for a single topic from many."""
+    def test_listen_single_topic(self):
+        """Test %s listen for a single topic from many."""
 
         # Send multiple topics, receive all topics.
         send_topics = ['topic A', 'topic B', 'topic C', 'topic D', 'topic E']
         listen_topic = 'topic C'
 
-        # Create unique send string based on time.
-        send_string = 'send/receive test: %1.8f' % time.time()
+        # Create broadcaster.
+        broadcaster = self.broadcaster(self.connection)
 
-        # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(url)
-        listener = RawListener(url, topics=listen_topic)
-        full_listener = RawListener(url)
+        # Catch messages with a specific topic.
+        topic_buffer = list()
+        listener_topic = self.listener(self.connection, topics=listen_topic)
+        listener_topic.subscribe(lambda data: topic_buffer.append(data))
 
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
-        full_introspector = Introspector()
-        full_listener.subscribe(full_introspector.get_message)
+        # Catch all messages. This ensures the unit-test does not time out
+        # waiting for messages that are filtered out by topic.
+        message_buffer = list()
+        listener_message = self.listener(self.connection)
 
-        # Publish message.
+        # Publish messages with different topics.
+        send_strings = list()
         for (i, topic) in enumerate(send_topics):
-            publish_message(full_introspector, broadcaster, send_string, topic=topic)
+            send_strings.append('send/receive test: %1.8f' % time.time())
+            message_buffer = self.publish_message(broadcaster,
+                                                  listener_message,
+                                                  send_strings[-1],
+                                                  topic=topic,
+                                                  received_buffer=message_buffer)
 
         # Close connections.
         broadcaster.close()
-        listener.close()
+        listener_topic.close()
+        listener_message.close()
 
-        # Ensure ONE topic was received.
-        self.assertEqual(len(introspector.buffer), 1)
+        # Ensure ONE specific topic was received.
+        send_string = send_strings[send_topics.index(listen_topic)]
+        self.assertEqual(len(topic_buffer), 1)
+        self.assertEqual(listen_topic, topic_buffer[0][1])
+        self.assertEqual(send_string, topic_buffer[0][2])
 
-        # Topic C
-        self.assertEqual(listen_topic, introspector.buffer[0][1])
-        self.assertEqual(send_string, introspector.buffer[0][2])
+    def test_listen_multiple_topics(self):
+        """Test %s listen for multiple topics."""
 
-    @abstractmethod
-    def test_listen_multiple_topics(self, RawBroadcaster, RawListener, url):
-        """Test RawBroadcaster/RawListener listen for multiple topics."""
-
-        # Send multiple topics, receive multiple (but not all) topics.
+        # Send multiple topics, receive all topics.
         send_topics = ['topic A', 'topic B', 'topic C', 'topic D', 'topic E']
-        receive_topics = ['topic A', 'topic C', 'topic E']
+        listen_topics = ['topic A', 'topic C', 'topic E']
 
-        # Create unique send string based on time.
-        send_string = 'send/receive test: %1.8f' % time.time()
+        # Create broadcaster.
+        broadcaster = self.broadcaster(self.connection)
 
-        # Create broadcaster and listener.
-        broadcaster = RawBroadcaster(url)
-        listener = RawListener(url, topics=receive_topics)
-        full_listener = RawListener(url)
+        # Catch messages with a specific topic.
+        topic_buffer = list()
+        listener_topic = self.listener(self.connection, topics=listen_topics)
+        listener_topic.subscribe(lambda data: topic_buffer.append(data))
 
-        # Catch messages with introspector.
-        introspector = Introspector()
-        listener.subscribe(introspector.get_message)
-        full_introspector = Introspector()
-        full_listener.subscribe(full_introspector.get_message)
+        # Catch all messages. This ensures the unit-test does not time out
+        # waiting for messages that are filtered out by topic.
+        message_buffer = list()
+        listener_message = self.listener(self.connection)
 
-        # Publish message.
+        # Publish messages with different topics.
+        send_strings = list()
         for (i, topic) in enumerate(send_topics):
-            publish_message(full_introspector, broadcaster, send_string, topic=topic)
+            send_strings.append('send/receive test: %1.8f' % time.time())
+            message_buffer = self.publish_message(broadcaster,
+                                                  listener_message,
+                                                  send_strings[-1],
+                                                  topic=topic,
+                                                  received_buffer=message_buffer)
 
         # Close connections.
         broadcaster.close()
-        listener.close()
+        listener_topic.close()
+        listener_message.close()
 
-        # Ensure THREE topics were received.
-        self.assertEqual(len(introspector.buffer), 3)
+        # Ensure all topics were received.
+        self.assertEqual(len(topic_buffer), len(listen_topics))
+        for i, topic in enumerate(listen_topics):
+            send_string = send_strings[send_topics.index(topic)]
+            self.assertEqual(topic, topic_buffer[i][1])
+            self.assertEqual(send_string, topic_buffer[i][2])
 
-        # Topic A
-        self.assertEqual(receive_topics[0], introspector.buffer[0][1])
-        self.assertEqual(send_string, introspector.buffer[0][2])
-
-        # Topic C
-        self.assertEqual(receive_topics[1], introspector.buffer[1][1])
-        self.assertEqual(send_string, introspector.buffer[1][2])
-
-        # Topic E
-        self.assertEqual(receive_topics[2], introspector.buffer[2][1])
-        self.assertEqual(send_string, introspector.buffer[2][2])
-
+# -----------------------------------------------------------------------------
+#
+# -----------------------------------------------------------------------------
 
 class MessageEcosystemTests(unittest.TestCase):
 
@@ -618,3 +642,15 @@ class MessageEcosystemTests(unittest.TestCase):
         # Remember data is returned from the send_receive function as a list of
         # buffered receive messages.
         self.assertEqual(send_msg['data'], introspector.buffer[0]['data'])
+
+
+
+        # class Introspector(object):
+
+        #     def __init__(self):
+        #         self.is_empty = True
+        #         self.buffer = list()
+
+        #     def get_message(self, data):
+        #         self.is_empty = False
+        #         self.buffer.append(data)
