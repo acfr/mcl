@@ -1,17 +1,12 @@
 import unittest
-from mcl.network.udp import Connection
-from mcl.network.udp import RawBroadcaster
-from mcl.network.udp import RawListener
-
-# from mcl.network.udp import MessageBroadcaster
-# from mcl.network.udp import MessageListener
 
 from mcl.network.udp import PYITS_MTU
 from mcl.network.udp import PYITS_UDP_PORT
 from mcl.network.udp import HEADER_DELIMITER
 
-# from mcl.network.test.common import Introspector
-# from mcl.network.test.common import publish_message
+from mcl.network.udp import Connection
+from mcl.network.udp import RawBroadcaster
+from mcl.network.udp import RawListener
 
 from mcl.network.test.common import RawBroadcasterTests
 from mcl.network.test.common import RawListenerTests
@@ -96,6 +91,17 @@ class TestRawBroadcaster(RawBroadcasterTests):
     broadcaster = RawBroadcaster
     connection = Connection(URL)
 
+    def test_topic_at_publish(self):
+        """Test udp.RawBroadcaster() bad topic delimiter."""
+
+        # Create broadcaster and listener.
+        broadcaster = self.broadcaster(self.connection)
+
+        # Ensure non-string topics are caught.
+        with self.assertRaises(ValueError):
+            bad_topic = HEADER_DELIMITER.join(['A', 'B'])
+            broadcaster.publish('bad topic', topic=bad_topic)
+
 
 # -----------------------------------------------------------------------------
 #                               RawListener()
@@ -115,51 +121,38 @@ class TestPublishSubscribe(RawPublishSubscribeTests):
     listener = RawListener
     connection = Connection(URL)
 
-    # def test_topic_at_publish(self):
-    #     """Test udp.RawBroadcaster/RawListener bad topic delimiter."""
+    def test_large_data(self):
+        """Test udp.RawBroadcaster/RawListener with large data."""
 
-    #     # Create broadcaster and listener.
-    #     broadcaster = self.broadcast(self.connection)
+        # Create a message which is larger then the UDP MTU.
+        packets = 5.555
+        counter = 1
+        send_string = ''
+        while True:
+            send_string += '%i, ' % counter
+            counter += 1
+            if len(send_string) >= packets * float(PYITS_MTU):
+                break
 
-    #     # Ensure non-string topics are caught.
-    #     with self.assertRaises(ValueError):
-    #         bad_topic = HEADER_DELIMITER.join(['A', 'B'])
-    #         broadcaster.publish('bad topic', topic=bad_topic)
+        # Create broadcaster and listener.
+        broadcaster = self.broadcaster(self.connection)
+        listener = self.listener(self.connection)
 
-    # def test_large_data(self):
-    #     """Test udp.RawBroadcaster/RawListener with large data."""
+        # Test publish-subscribe functionality on a large message.
+        received_buffer = self.publish_message(broadcaster,
+                                               listener,
+                                               send_string)
 
-    #     # Create a message which is larger then the UDP MTU.
-    #     packets = 13.37
-    #     counter = 1
-    #     send_string = ''
-    #     while True:
-    #         send_string += '%i, ' % counter
-    #         counter += 1
-    #         if len(send_string) >= packets * float(PYITS_MTU):
-    #             send_string += '%i' % counter
-    #             break
+        # Close connections.
+        broadcaster.close()
+        listener.close()
 
-    #     # Create broadcaster and listener.
-    #     broadcaster = self.broadcaster(self.connection)
-    #     listener = self.listener(self.connection)
+        # Ensure the correct number of messages was received.
+        self.assertEqual(listener.counter, 1)
+        self.assertEqual(len(received_buffer), 1)
 
-    #     # Catch messages with introspector.
-    #     introspector = Introspector()
-    #     listener.subscribe(introspector.get_message)
-
-    #     # Publish message.
-    #     self.publish_message(introspector, self.broadcaster, send_string)
-
-    #     # Close connections.
-    #     broadcaster.close()
-    #     listener.close()
-
-    #     # Ensure the correct number of messages was received.
-    #     self.assertEqual(len(introspector.buffer), 1)
-
-    #     # Only ONE message was published, ensure the data was received.
-    #     self.assertEqual(send_string, introspector.buffer[0][2])
+        # Only ONE message was published, ensure the data was received.
+        self.assertEqual(send_string, received_buffer[0][2])
 
 
 # class MessageEcosystemTests(common.MessageEcosystemTests):
