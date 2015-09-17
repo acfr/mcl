@@ -1,6 +1,11 @@
 import time
 import unittest
 import threading
+
+from mcl.test.common import attr_exists
+from mcl.test.common import attr_issubclass
+from mcl.test.common import compile_docstring
+
 from mcl.event.event import Event
 from mcl.event.event import CallbackHandler as CallbackHandler
 from mcl.event.event import CallbackSynchronous as CallbackSynchronous
@@ -35,119 +40,135 @@ class TestCallbackHandler(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                           CallbackSynchronous()
+#                       Common tests for CallbackHandlers
 # -----------------------------------------------------------------------------
 
-class TestCallbackSynchronous(unittest.TestCase):
+class _CallbackHandlerMeta(type):
+    def __new__(cls, name, bases, dct):
+
+        # Do not look for manditory fields in the base class.
+        if (name == 'CallbackHandlerTests') and (bases == (object,)):
+            return super(_CallbackHandlerMeta, cls).__new__(cls,
+                                                            name,
+                                                            bases,
+                                                            dct)
+
+        # Ensure mandatory attributes are present.
+        attr_exists(dct, ['handler', ])
+
+        # Ensure 'handler' is a CallbackHandler().
+        attr_issubclass(dct, 'handler', CallbackHandler,
+                        "The attribute 'handler' must be a sub-class " +
+                        "of CallbackHandler().")
+
+        # Create name from module origin and object name.
+        module_name = '%s' % dct['handler'].__name__
+
+        # Rename docstrings of unit-tests and copy into new sub-class.
+        method_dct = compile_docstring(bases[0], module_name)
+        dct.update(method_dct)
+
+        return super(_CallbackHandlerMeta, cls).__new__(cls,
+                                                        name,
+                                                        (unittest.TestCase,),
+                                                        dct)
+
+
+class CallbackHandlerTests(object):
+    """Standard unit tests for sub-classes of the CallbackHandler() class.
+
+    This object defines standard unit-tests for sub-classes of the
+    CallbackHandler() class. Sub-classes of this unit-test must define the
+    attributes ``handler`` where:
+
+        - ``handler`` is the CallbackHandler() sub-class to be tested
+
+    Example usage::
+
+        class ConcreteCallbackHandler(CallbackHandlerTests):
+            handler = ConcreteCallbackHandler
+
+    """
+    __metaclass__ = _CallbackHandlerMeta
 
     def test_init(self):
-        """Test CallbackSynchronous() can be initialised."""
+        """Test %s() can be initialised."""
 
-        # Create a synchronous callback object.
-        intro = Introspector()
-        sync_callback = CallbackSynchronous(intro.callback)
+        # Create a callback handler object.
+        def noop(data): pass
+        handler = self.handler(noop)
 
         # Ensure the callback is inactive.
-        self.assertFalse(sync_callback.is_alive)
-        self.assertFalse(sync_callback.is_stop_requested)
+        self.assertFalse(handler.is_alive)
+        self.assertFalse(handler.is_stop_requested)
 
     def test_start_stop(self):
-        """Test CallbackSynchronous() can be started and stopped."""
+        """Test %s() can be started and stopped."""
 
-        # Create a synchronous callback object.
-        intro = Introspector()
-        sync_callback = CallbackSynchronous(intro.callback)
+        # Create a callback handler object.
+        def noop(data): pass
+        handler = self.handler(noop)
 
         # Start callback.
-        was_started = sync_callback.start()
+        was_started = handler.start()
         self.assertTrue(was_started)
-        self.assertTrue(sync_callback.is_alive)
+        time.sleep(0.1)
+        self.assertTrue(handler.is_alive)
 
-        # Start running callback.
-        was_started = sync_callback.start()
+        # Start already running callback.
+        was_started = handler.start()
         self.assertFalse(was_started)
 
         # Stop callback.
-        was_stopped = sync_callback.stop()
+        was_stopped = handler.stop()
         self.assertTrue(was_stopped)
-        self.assertFalse(sync_callback.is_alive)
+        time.sleep(0.1)
+        self.assertFalse(handler.is_alive)
 
         # Stop inactive callback.
-        was_stopped = sync_callback.stop()
+        was_stopped = handler.stop()
         self.assertFalse(was_stopped)
 
-    def test_enque(self):
-        """Test CallbackSynchronous() can be service callbacks."""
+    def test_enqueue(self):
+        """Test %s() can enqueue data and service callbacks."""
 
-        # Create a synchronous callback object.
-        intro = Introspector()
-        sync_callback = CallbackSynchronous(intro.callback)
-        sync_callback.start()
+        # Create an callback handler object.
+        event_data = list()
+        handler = self.handler(lambda data: event_data.append(data))
+        handler.start()
 
         # Enqueue data.
         test_data = 'test'
-        sync_callback.enqueue(test_data)
-        self.assertEqual(intro.message, test_data)
+        handler.enqueue(test_data)
+        time.sleep(0.1)
+        if len(event_data) == 1:
+            self.assertEqual(event_data[0], test_data)
+        else:
+            raise ValueError('Expected one callback event.')
+
+
+# -----------------------------------------------------------------------------
+#                           CallbackSynchronous()
+# -----------------------------------------------------------------------------
+
+class TestCallbackSynchronous(CallbackHandlerTests):
+    handler = CallbackSynchronous
 
 
 # -----------------------------------------------------------------------------
 #                           CallbackAsynchronous()
 # -----------------------------------------------------------------------------
 
-class TestCallbackAsynchronous(unittest.TestCase):
+class TestCallbackAsynchronous(CallbackHandlerTests):
+    handler = CallbackAsynchronous
 
-    def test_init(self):
-        """Test CallbackAsynchronous() can be initialised."""
+    def test_queue(self):
+        """Test CallbackAsynchronous() queue is initially empty."""
 
-        # Create a synchronous callback object.
-        intro = Introspector()
-        sync_callback = CallbackAsynchronous(intro.callback)
-
-        # Ensure the callback is inactive.
-        self.assertFalse(sync_callback.is_alive)
-        self.assertFalse(sync_callback.is_stop_requested)
-        self.assertTrue(sync_callback.is_queue_empty)
-
-    def test_start_stop(self):
-        """Test CallbackAsynchronous() can be started and stopped."""
-
-        # Create a synchronous callback object.
-        intro = Introspector()
-        async_callback = CallbackAsynchronous(intro.callback)
-
-        # Start callback.
-        was_started = async_callback.start()
-        self.assertTrue(was_started)
-        time.sleep(0.1)
-        self.assertTrue(async_callback.is_alive)
-
-        # Start running callback.
-        was_started = async_callback.start()
-        self.assertFalse(was_started)
-
-        # Stop callback.
-        was_stopped = async_callback.stop()
-        self.assertTrue(was_stopped)
-        time.sleep(0.1)
-        self.assertFalse(async_callback.is_alive)
-
-        # Stop inactive callback.
-        was_stopped = async_callback.stop()
-        self.assertFalse(was_stopped)
-
-    def test_enqueue(self):
-        """Test CallbackAsynchronous() can be service callbacks."""
-
-        # Create a synchronous callback object.
-        intro = Introspector()
-        sync_callback = CallbackAsynchronous(intro.callback)
-        sync_callback.start()
-
-        # Enqueue data.
-        test_data = 'test'
-        sync_callback.enqueue(test_data)
-        time.sleep(0.1)
-        self.assertEqual(intro.message, test_data)
+        # Ensure asynchronous queue is initially empty.
+        def noop(data): pass
+        handler = self.handler(noop)
+        self.assertTrue(handler.is_queue_empty)
 
 
 # -----------------------------------------------------------------------------
@@ -287,6 +308,3 @@ class TestEvent(unittest.TestCase):
         thread.join(0.1)
         self.assertFalse(thread.is_alive())
         self.assertTrue(event.is_subscribed(dummy))
-
-if __name__ == '__main__':
-    unittest.main()

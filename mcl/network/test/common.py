@@ -1,9 +1,10 @@
 import time
-import types
 import unittest
 
-from abc import abstractmethod
-from mcl.message.messages import Message
+from mcl.test.common import attr_exists
+from mcl.test.common import attr_issubclass
+from mcl.test.common import attr_isinstance
+from mcl.test.common import compile_docstring
 
 from mcl.network.abstract import Connection as AbstractConnection
 from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
@@ -12,57 +13,6 @@ from mcl.network.abstract import RawListener as AbstractRawListener
 
 TOPIC = 'test topic'
 TOPICS = ['topic A', 'topic B']
-
-
-# -----------------------------------------------------------------------------
-#                               Helper functions
-# -----------------------------------------------------------------------------
-
-def attr_exists(dct, attrs):
-    """Check object contains mandatory attributes."""
-    for attr in attrs:
-        if attr not in dct:
-            msg = "The attribute '%s' is required." % str(attr)
-            raise TypeError(msg)
-
-
-def attr_issubclass(dct, key, obj, msg):
-    """Check object attribute is a sub-class of a specific object."""
-    if not issubclass(dct[key], obj):
-        raise TypeError(msg)
-
-
-def attr_isinstance(dct, key, obj, msg):
-    """Check object attribute is an instance of a specific object."""
-    if not isinstance(dct[key], obj):
-        raise TypeError(msg)
-
-
-def compile_docstring(base, name):
-    """Rename dosctring of test-methods in base object."""
-
-    # Iterate through items in the base-object.
-    dct = dict()
-    for item in dir(base):
-
-        # Skip special attributes.
-        if item.startswith('__'):
-            continue
-
-        # Inspect callable objects.
-        if callable(getattr(base, item)):
-            func = getattr(base, item)
-            dct[item] = types.FunctionType(func.func_code,
-                                           func.func_globals,
-                                           item,
-                                           func.func_defaults,
-                                           func.func_closure)
-
-            # Rename the doc-string of test methods in the base-object.
-            if item.startswith('test_'):
-                dct[item].__doc__ = dct[item].__doc__ % name
-
-    return dct
 
 
 # -----------------------------------------------------------------------------
