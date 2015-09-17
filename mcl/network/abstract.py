@@ -411,11 +411,11 @@ class RawBroadcaster(object):
     integrate safely with the MCL system.
 
     Args:
-        connection (:py:class:`._ConnectionMeta`): Connection object.
+        connection (:py:class:`.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
 
     Attributes:
-        connection (:py:class:`._ConnectionMeta`): Connection object.
+        connection (:py:class:`.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
@@ -472,11 +472,6 @@ class RawBroadcaster(object):
                            opened. If the network interface was already opened,
                            the request is ignored and the method returns
                            :data:`False`.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
         """
         pass
 
@@ -487,14 +482,9 @@ class RawBroadcaster(object):
         Args:
             data (str): Array of characters to publish over the network
                         interface.
-            topic (str): Broadcast message with an associated topic. This
-                        option will temporarily override the topic specified
-                        during instantiation.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
+            topic (str): Broadcast data with an associated topic. This option
+                         will temporarily override the topic specified during
+                         instantiation.
         """
         pass
 
@@ -507,11 +497,6 @@ class RawBroadcaster(object):
                            closed. If the network interface was already closed,
                            the request is ignored and the method returns
                            :data:`False`.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
         """
         pass
 
@@ -525,11 +510,11 @@ class RawListener(Event):
     integrate safely with the MCL system.
 
     Args:
-        connection (:py:class:`._ConnectionMeta`): Connection object.
+        connection (:py:class:`.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
 
     Attributes:
-        connection (:py:class:`._ConnectionMeta`): Connection object.
+        connection (:py:class:`.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
@@ -589,10 +574,11 @@ class RawListener(Event):
     def _open(self):
         """Virtual: Open connection to network interface.
 
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
+        Returns:
+            :class:`bool`: Returns :data:`True` if the network interface was
+                           opened. If the network interface was already opened,
+                           the request is ignored and the method returns
+                           :data:`False`.
         """
         pass
 
@@ -600,9 +586,10 @@ class RawListener(Event):
     def close(self):
         """Virtual: Close connection to network interface.
 
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
+        Returns:
+            :class:`bool`: Returns :data:`True` if the network interface was
+                           closed. If the network interface was already closed,
+                           the request is ignored and the method returns
+                           :data:`False`.
         """
         pass
