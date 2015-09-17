@@ -157,48 +157,6 @@ HEADER_FORMAT = HEADER_DELIMITER.join(['%i', '%s', '%i', '%i'])
 HEADER_FORMAT += HEADER_DELIMITER
 
 
-class Connection(AbstractConnection):
-    """Object for encapsulating UDP connection parameters.
-
-    Args:
-        url (str): IPv6 address of connection.
-        port (int): Port to use (between 1024 and 65535).
-
-    Attributes:
-        url (str): IPv6 address of connection.
-        port (int): Port used in connection.
-
-    Raises:
-        TypeError: If ``url`` is not a string or ``port`` is not an integer
-            between 1024 and 65536.
-
-    """
-
-    mandatory = ('url',)
-    optional = {'port': PYITS_UDP_PORT}
-    broadcaster = AbstractRawBroadcaster
-    listener = AbstractRawListener
-
-    def __init__(self, url, port=PYITS_UDP_PORT):
-
-        # Check 'url' is a string.
-        if not isinstance(url, basestring):
-            msg = "'url' must be a string."
-            raise TypeError(msg)
-
-        # Check 'port' is a positive integer between 1024 and 65535. The port
-        # numbers in the range from 0 to 1023 are the well-known ports or
-        # system ports and are avoided.
-        if not isinstance(port, (int, long)):
-            msg = 'Port must be an integer value.'
-            raise TypeError(msg)
-        elif (port < 1024) or (port > 65535):
-            msg = 'The port must be a positive integer between 1024 and 65535.'
-            raise TypeError(msg)
-
-        super(Connection, self).__init__(url, port)
-
-
 class RawBroadcaster(AbstractRawBroadcaster):
     """Send data over the network using a UDP socket.
 
@@ -278,7 +236,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
             msg += "UDP Connection()."
             raise TypeError(msg)
 
-        # Attempt to create connection object.
+        # Attempt to initialise broadcaster base-class.
         else:
             try:
                 super(RawBroadcaster, self).__init__(connection, topic=topic)
@@ -347,9 +305,9 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
         Args:
             data (str): Array of characters to broadcast over UDP.
-            topic (str): Broadcast message with an associated topic. This
-                         option will temporarily override the topic specified
-                         during instantiation.
+            topic (str): Broadcast data with an associated topic. This option
+                         will temporarily override the topic specified during
+                         instantiation.
 
         Raises:
             TypeError: If the input `topic` is not a string.
@@ -489,7 +447,7 @@ class RawListener(AbstractRawListener):
             msg += "UDP Connection()."
             raise TypeError(msg)
 
-        # Attempt to create connection object.
+        # Attempt to initialise listener base-class.
         else:
             try:
                 super(RawListener, self).__init__(connection, topics=topics)
@@ -757,3 +715,45 @@ class RawListener(AbstractRawListener):
             return True
         else:
             return False
+
+
+class Connection(AbstractConnection):
+    """Object for encapsulating UDP connection parameters.
+
+    Args:
+        url (str): IPv6 address of connection.
+        port (int): Port to use (between 1024 and 65535).
+
+    Attributes:
+        url (str): IPv6 address of connection.
+        port (int): Port used in connection.
+
+    Raises:
+        TypeError: If ``url`` is not a string or ``port`` is not an integer
+            between 1024 and 65536.
+
+    """
+
+    mandatory = ('url',)
+    optional = {'port': PYITS_UDP_PORT}
+    broadcaster = RawBroadcaster
+    listener = RawListener
+
+    def __init__(self, url, port=PYITS_UDP_PORT):
+
+        # Check 'url' is a string.
+        if not isinstance(url, basestring):
+            msg = "'url' must be a string."
+            raise TypeError(msg)
+
+        # Check 'port' is a positive integer between 1024 and 65535. The port
+        # numbers in the range from 0 to 1023 are the well-known ports or
+        # system ports and are avoided.
+        if not isinstance(port, (int, long)):
+            msg = 'Port must be an integer value.'
+            raise TypeError(msg)
+        elif (port < 1024) or (port > 65535):
+            msg = 'The port must be a positive integer between 1024 and 65535.'
+            raise TypeError(msg)
+
+        super(Connection, self).__init__(url, port)
