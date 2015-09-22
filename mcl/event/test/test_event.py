@@ -7,21 +7,15 @@ from mcl.test.common import attr_issubclass
 from mcl.test.common import compile_docstring
 
 from mcl.event.event import Event
-from mcl.event.event import CallbackHandler as CallbackHandler
-from mcl.event.event import CallbackSynchronous as CallbackSynchronous
-from mcl.event.event import CallbackAsynchronous as CallbackAsynchronous
+from mcl.event.event import Callback
+from mcl.event.event import CallbackSequential
+from mcl.event.event import CallbackConcurrent
 
+# Amount of time to wait for threads to become active.
+THREAD_DELAY = 0.1
 
-class Introspector(object):
-    """Simple object used to validate functionality of Event object."""
-
-    def __init__(self):
-        self.message = None
-        self.counter = 0
-
-    def callback(self, data):
-        self.message = data
-        self.counter += 1
+# Amount of time to wait for threads to join.
+TIME_OUT = 0.5
 
 
 # -----------------------------------------------------------------------------
@@ -36,7 +30,7 @@ class TestCallbackHandler(unittest.TestCase):
         # This class is not intended to be used. Ensure directly accessing its
         # methods throws an exception.
         with self.assertRaises(TypeError):
-            CallbackHandler()
+            Callback()
 
 
 # -----------------------------------------------------------------------------
@@ -47,7 +41,8 @@ class _CallbackHandlerMeta(type):
     def __new__(cls, name, bases, dct):
 
         # Do not look for manditory fields in the base class.
-        if (name == 'CallbackHandlerTests') and (bases == (object,)):
+        if (((name == 'CallbackTests') or (name == 'EventTests')) and
+            (bases == (object,))):
             return super(_CallbackHandlerMeta, cls).__new__(cls,
                                                             name,
                                                             bases,
@@ -56,10 +51,10 @@ class _CallbackHandlerMeta(type):
         # Ensure mandatory attributes are present.
         attr_exists(dct, ['handler', ])
 
-        # Ensure 'handler' is a CallbackHandler().
-        attr_issubclass(dct, 'handler', CallbackHandler,
+        # Ensure 'handler' is a Callback().
+        attr_issubclass(dct, 'handler', Callback,
                         "The attribute 'handler' must be a sub-class " +
-                        "of CallbackHandler().")
+                        "of Callback().")
 
         # Create name from module origin and object name.
         module_name = '%s' % dct['handler'].__name__
@@ -74,7 +69,7 @@ class _CallbackHandlerMeta(type):
                                                         dct)
 
 
-class CallbackHandlerTests(object):
+class CallbackTests(object):
     """Standard unit tests for sub-classes of the CallbackHandler() class.
 
     This object defines standard unit-tests for sub-classes of the
@@ -98,49 +93,17 @@ class CallbackHandlerTests(object):
         def noop(data): pass
         handler = self.handler(noop)
 
-        # Ensure the callback is inactive.
-        self.assertFalse(handler.is_alive)
-        self.assertFalse(handler.is_stop_requested)
-
-    def test_start_stop(self):
-        """Test %s() can be started and stopped."""
-
-        # Create a callback handler object.
-        def noop(data): pass
-        handler = self.handler(noop)
-
-        # Start callback.
-        was_started = handler.start()
-        self.assertTrue(was_started)
-        time.sleep(0.1)
-        self.assertTrue(handler.is_alive)
-
-        # Start already running callback.
-        was_started = handler.start()
-        self.assertFalse(was_started)
-
-        # Stop callback.
-        was_stopped = handler.stop()
-        self.assertTrue(was_stopped)
-        time.sleep(0.1)
-        self.assertFalse(handler.is_alive)
-
-        # Stop inactive callback.
-        was_stopped = handler.stop()
-        self.assertFalse(was_stopped)
-
-    def test_enqueue(self):
-        """Test %s() can enqueue data and service callbacks."""
+    def test_call(self):
+        """Test %s() can service callbacks."""
 
         # Create an callback handler object.
         event_data = list()
         handler = self.handler(lambda data: event_data.append(data))
-        handler.start()
 
-        # Enqueue data.
+        # Issue data to callback.
         test_data = 'test'
-        handler.enqueue(test_data)
-        time.sleep(0.1)
+        handler(test_data)
+        time.sleep(THREAD_DELAY)
         if len(event_data) == 1:
             self.assertEqual(event_data[0], test_data)
         else:
@@ -148,163 +111,229 @@ class CallbackHandlerTests(object):
 
 
 # -----------------------------------------------------------------------------
-#                           CallbackSynchronous()
+#                             CallbackSequential()
 # -----------------------------------------------------------------------------
 
-class TestCallbackSynchronous(CallbackHandlerTests):
-    handler = CallbackSynchronous
+class TestCallbackSynchronous(CallbackTests):
+    handler = CallbackSequential
 
 
 # -----------------------------------------------------------------------------
-#                           CallbackAsynchronous()
+#                             CallbackConcurrent()
 # -----------------------------------------------------------------------------
 
-class TestCallbackAsynchronous(CallbackHandlerTests):
-    handler = CallbackAsynchronous
-
-    def test_queue(self):
-        """Test CallbackAsynchronous() queue is initially empty."""
-
-        # Ensure asynchronous queue is initially empty.
-        def noop(data): pass
-        handler = self.handler(noop)
-        self.assertTrue(handler.is_queue_empty)
+class TestCallbackAsynchronous(CallbackTests):
+    handler = CallbackConcurrent
 
 
 # -----------------------------------------------------------------------------
 #                                    Event()
 # -----------------------------------------------------------------------------
 
-class TestEvent(unittest.TestCase):
-    """Validate Event() object."""
+class EventTests(object):
+    """Standard unit tests for the Event() class.
 
-    def test_subscribe(self):
-        """Test Event() can subscribe listeners."""
+    This object defines standard unit-tests for different inputs to the Event()
+    class. Sub-classes of this unit-test must define the attributes ``handler``
+    where:
+
+        - ``handler`` is the CallbackHandler() input to the Event() class
+
+    """
+    __metaclass__ = _CallbackHandlerMeta
+
+    def test_init(self):
+        """Test Event(%s) can catch bad input Callback() objects."""
 
         # Test initialisation catches invalid callback handler objects.
-        bad_handler = lambda data: False
+        def bad_handler(data): return False
         with self.assertRaises(TypeError):
-            Event(callbackhandler=bad_handler)
+            Event(callback=bad_handler)
 
-        bad_handler = type('', (), {})()
         with self.assertRaises(TypeError):
-            Event(callbackhandler=bad_handler)
+            Event(callback=None)
 
-        # Create Event() with default arguments.
-        event = Event()
-        intro = Introspector()
+    def test_subscribe(self):
+        """Test Event(%s) can subscribe callback functions."""
+
+        # Create function for capturing event data.
+        event_data = list()
+        def callback(data): event_data.append(data)
+
+        # Create Event().
+        event = Event(callback=self.handler)
 
         # Validate Event() can detect when callbacks have NOT been
         # subscribed.
-        self.assertFalse(event.is_subscribed(intro.callback))
+        self.assertFalse(event.is_subscribed(callback))
 
         # Validate Event() can detect when callbacks HAVE been subscribed.
-        return_value = event.subscribe(intro.callback)
-        self.assertTrue(event.is_subscribed(intro.callback))
-        self.assertTrue(return_value)
+        self.assertTrue(event.subscribe(callback))
+        self.assertTrue(event.is_subscribed(callback))
+        self.assertEqual(event.num_subscriptions(), 1)
 
-        # Test subscribe catches callback which do not contain a__call__
+        # Validate Event() will not re-subscribe callbacks.
+        self.assertFalse(event.subscribe(callback))
+
+        # Test subscribe catches callbacks which do not contain a__call__
         # method.
         with self.assertRaises(TypeError):
             event.subscribe(int())
 
-        # Validate Event() will not re-subscribe callbacks.
-        return_value = event.subscribe(intro.callback)
-        self.assertFalse(return_value)
-
     def test_unsubscribe(self):
-        """Test Event() can unsubscribe listeners."""
+        """Test Event(%s) can unsubscribe callback functions."""
 
-        event = Event()
-        intro = Introspector()
-        event.subscribe(intro.callback)
+        # Create function for capturing event data.
+        event_data = list()
+        def callback(data): event_data.append(data)
+
+        # Create Event().
+        event = Event(callback=self.handler)
 
         # Validate Event() can detect when callbacks have been UNsubscribed.
-        return_value = event.unsubscribe(intro.callback)
-        self.assertFalse(event.is_subscribed(intro.callback))
-        self.assertTrue(return_value)
+        event.subscribe(callback)
+        self.assertTrue(event.is_subscribed(callback))
+        self.assertTrue(event.unsubscribe(callback))
+        self.assertFalse(event.is_subscribed(callback))
+        self.assertEqual(event.num_subscriptions(), 0)
 
         # Validate Event() will not unsubscribe a callback which does not
         # exist.
-        return_value = event.unsubscribe(intro.callback)
-        self.assertFalse(return_value)
+        self.assertFalse(event.unsubscribe(callback))
 
-    def test_synchronous_trigger(self):
-        """Test Event() can trigger synchronous callbacks."""
+    def test_trigger(self):
+        """Test Event(%s) can trigger a callback function."""
 
-        test_data = 'test message'
+        # Create function for capturing event data.
+        event_data = list()
+        def callback(data): event_data.append(data)
 
-        intro = Introspector()
-        event = Event(callbackhandler=CallbackSynchronous)
-        event.subscribe(intro.callback)
+        # Trigger an event and send data to callback functions.
+        test_data = 'test data'
+        event = Event(callback=self.handler)
+        event.subscribe(callback)
         event.trigger(test_data)
-        time.sleep(0.1)
-        self.assertEqual(intro.message, test_data)
+        time.sleep(THREAD_DELAY)
 
-    def test_asynchronous_trigger(self):
-        """Test Event() can trigger asynchronous callbacks."""
+        # Ensure data was issued to callback function.
+        if len(event_data) == 1:
+            self.assertEqual(event_data[0], test_data)
+        else:
+            raise ValueError('Expected one callback event.')
 
-        test_data = 'test message'
+    def test_multiple_triggers(self):
+        """Test Event(%s) can trigger a callback function multiple times."""
 
-        intro = Introspector()
-        event = Event(callbackhandler=CallbackAsynchronous)
-        event.subscribe(intro.callback)
-        event.trigger(test_data)
-        time.sleep(0.1)
-        self.assertEqual(intro.message, test_data)
+        # Create function for capturing event data.
+        event_data = list()
+        def callback(data): event_data.append(data)
+
+        # Create Event().
+        event = Event(callback=self.handler)
+        event.subscribe(callback)
+
+        # Trigger events and send data to callback functions.
+        num_triggers = 5
+        for i in range(num_triggers):
+            event.trigger(i)
+            time.sleep(THREAD_DELAY)
+
+        # Ensure data was issued to callback function.
+        if len(event_data) == num_triggers:
+            self.assertEqual(sorted(event_data), range(num_triggers))
+        else:
+            raise ValueError('Expected one callback event.')
 
     def test_multiple_subscribers(self):
-        """Test Event() can subscribe multiple listeners."""
+        """Test Event(%s) can trigger multiple callback functions."""
 
-        event = Event()
-        intro_1 = Introspector()
-        intro_2 = Introspector()
-        intro_2.counter = 10
-        event.subscribe(intro_1.callback)
-        event.subscribe(intro_2.callback)
+        # Create function for capturing event data.
+        event_data_A = list()
+        event_data_B = list()
+        def callback_A(data): event_data_A.append(data)
+        def callback_B(data): event_data_B.append(data)
 
-        event.trigger('ignored string')
-        time.sleep(0.1)
-        self.assertEqual(intro_1.counter, 1)
-        self.assertEqual(intro_2.counter, 11)
+        # Trigger an event and send data to multiple callback functions.
+        event = Event(callback=self.handler)
+        test_data = 'test data'
+        event.subscribe(callback_A)
+        event.subscribe(callback_B)
 
-    def test_unsubscribe_own_callback(self):
-        """A callback should be able to unsubscribe itself without blocking.
-        Test will timeout and fail if blocking."""
+        # Ensure multiple callbacks have been added to event.
+        self.assertEqual(event.num_subscriptions(), 2)
 
-        event = Event()
+        # Trigger event.
+        event.trigger(test_data)
+        time.sleep(THREAD_DELAY)
 
-        def unsubscriber(data):
+        # Ensure data was issued to all callback functions.
+        if (len(event_data_A) == 1) and (len(event_data_B) == 1):
+            self.assertEqual(event_data_A[0], test_data)
+            self.assertEqual(event_data_B[0], test_data)
+        else:
+            msg = 'Expected all callback functions to receive data.'
+            raise ValueError(msg)
+
+    def test_unsubscribe_from_callback(self):
+        """Test Event(%s) callback functions can unsubscribe themselves."""
+
+        # Create Event().
+        event = Event(callback=self.handler)
+
+        # Create function which will unsubscribe itself when called.
+        def unsubscriber():
             event.unsubscribe(unsubscriber)
 
+        # Subscribe the function which will unsubscribe itself when called.
         event.subscribe(unsubscriber)
+        self.assertTrue(event.is_subscribed(unsubscriber))
 
-        # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=event.trigger, args=("foo",))
+        # Run the test in a thread so it can be terminated it if it blocks.
+        thread = threading.Thread(target=event.trigger)
         thread.daemon = True
         thread.start()
-        thread.join(0.1)
+        thread.join(TIME_OUT)
         self.assertFalse(thread.is_alive())
         self.assertFalse(event.is_subscribed(unsubscriber))
 
     def test_subscribe_from_callback(self):
-        """A callback should be able to subscribe another callback without blocking.
-        Test will timeout and fail if blocking."""
+        """Test Event(%s) callback functions can be subscribed from callbacks."""
 
-        event = Event()
+        # Create Event().
+        event = Event(callback=self.handler)
 
-        def dummy(data):
-            pass
+        # Create testing function.
+        def noop(): pass
 
-        def subscriber(data):
-            event.subscribe(dummy)
+        # Create function which will subscribe the testing function.
+        def subscriber():
+            event.subscribe(noop)
 
+        # Subscribe the function which will subscribe another function when
+        # called.
         event.subscribe(subscriber)
+        self.assertTrue(event.is_subscribed(subscriber))
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=event.trigger, args=("foo",))
+        thread = threading.Thread(target=event.trigger)
         thread.daemon = True
         thread.start()
-        thread.join(0.1)
+        thread.join(TIME_OUT)
         self.assertFalse(thread.is_alive())
-        self.assertTrue(event.is_subscribed(dummy))
+        self.assertTrue(event.is_subscribed(noop))
+
+
+# -----------------------------------------------------------------------------
+#                   Event(callbackhandler=CallbackSequential)
+# -----------------------------------------------------------------------------
+
+class TestEventSequential(EventTests):
+    handler = CallbackSequential
+
+
+# -----------------------------------------------------------------------------
+#                   Event(callbackhandler=CallbackConcurrent)
+# -----------------------------------------------------------------------------
+
+class TestEventConcurrent(EventTests):
+    handler = CallbackConcurrent

@@ -6,7 +6,6 @@
 """
 import abc
 import copy
-import Queue
 import inspect
 import threading
 from abc import abstractmethod
@@ -14,252 +13,66 @@ from abc import abstractmethod
 QUEUE_TIMEOUT = 0.5
 
 
-class CallbackHandler(object):
-    """Abstract class to represent callback objects."""
+class Callback(object):
+    """Abstract class for representing callback objects."""
 
     # Ensure abstract methods are redefined in sub-classes.
     __metaclass__ = abc.ABCMeta
 
     @abstractmethod
-    def enqueue(self, data):
-        """Virtual: Enqueue data to be processed by callback.
+    def __call__(self, *args, **kwargs):
+        """Virtual: Called when the callback is ''called'' as a function
 
         Args:
-            data (any): data to send to callback.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
-        """
-        pass
-
-    @abstractmethod
-    def start(self):
-        """Virtual: Start the callbacks' activity.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
-        """
-        pass
-
-    @abstractmethod
-    def request_stop(self):
-        """Virtual: Non-blocking signal to stop callback activity.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
-
-        """
-        pass
-
-    def stop(self):
-        """Virtual: Blocking signal to stop thread on next iteration.
-
-        Raises:
-            NotImplementedError: Virtual function must be implemented by
-                                 subclasses.
+            *args (any): mandatory arguments to send to callback function.
+            **kwargs (any): key-word arguments to send to callback function.
 
         """
         pass
 
 
-class CallbackSynchronous(CallbackHandler):
-    """Object for executing callbacks **synchronously**.
-
-    Attributes:
-        is_alive (boolean): Return whether the callback thread is alive
-        is_stop_requested (boolean): Return whether the callback thread has
-                                     been requested to stop
-
-    """
+class CallbackSequential(Callback):
+    """Object for executing callbacks **sequentially**."""
 
     def __init__(self, callback):
         """Document the __init__ method at the class level."""
 
-        super(CallbackSynchronous, self).__init__()
         self.__callback = callback
-        self.__stop_requested = False
-        self.__is_alive = False
 
-    @property
-    def is_alive(self):
-        return self.__is_alive
-
-    @property
-    def is_stop_requested(self):
-        return False
-
-    def enqueue(self, data):
-        """Enqueue data to be processed by callback.
+    def __call__(self, *args, **kwargs):
+        """Execute callback  when ''called'' as a function.
 
         Args:
-            data (any): data to send to callback.
+            *args (any): mandatory arguments to send to callback function.
+            **kwargs (any): key-word arguments to send to callback function.
 
         """
 
-        if self.is_alive:
-            self.__callback(data)
-
-    def start(self):
-        """Start the callbacks' activity.
-
-        Returns:
-            boolean: Returns ``True`` if the callback was started. If the
-                     callback is already alive, the request is ignored and the
-                     method returns ``False``.
-
-        """
-
-        if self.is_alive:
-            return False
-        else:
-            self.__is_alive = True
-            return True
-
-    def request_stop(self):
-        """Non-blocking signal to stop callback activity.
-
-        Returns:
-
-            boolean: Returns ``True`` if the request to stop was successful. If
-                     the callback is already in a stopped state, the request is
-                     ignored and the method returns ``False``.
-
-        """
-
-        if self.is_alive:
-            self.__is_alive = False
-            return True
-        else:
-            return False
-
-    def stop(self):
-        """Blocking signal to stop callback activity.
-
-        Returns:
-            boolean: Returns ``True`` if the callback was stopped. If the
-                     callback is already in a stopped state, the request is
-                     ignored and the method returns ``False``.
-
-        """
-
-        return self.request_stop()
+        self.__callback(*args, **kwargs)
 
 
-class CallbackAsynchronous(CallbackHandler):
-    """Object for executing callbacks **asynchronously** on a thread.
-
-    Attributes:
-        is_alive (boolean): Return whether the callback thread is alive
-        is_stop_requested (boolean): Return whether the callback thread has
-                                     been requested to stop
-        is_queue_empty (boolean): Return ``True`` if the callback queue is
-                                  empty, ``False`` otherwise.
-
-    """
+class CallbackConcurrent(Callback):
+    """Object for executing callbacks **concurrently** on a new thread."""
 
     def __init__(self, callback):
         """Document the __init__ method at the class level."""
 
-        super(CallbackAsynchronous, self).__init__()
         self.__callback = callback
-        self.__queue = Queue.Queue()
-        self.__stop_requested = threading.Event()
-        self.__stop_requested.clear()
 
-        self.__timeout = QUEUE_TIMEOUT
-        self.__stop_requested.clear()
-        self.__thrd = threading.Thread(target=self.__run,
-                                       args=(self.__callback,
-                                             self.__stop_requested,
-                                             self.__queue,
-                                             self.__timeout,))
-        self.__thrd.daemon = True
-
-    @property
-    def is_alive(self):
-        return self.__thrd.is_alive()
-
-    @property
-    def is_stop_requested(self):
-        return self.__stop_requested.isSet()
-
-    @property
-    def is_queue_empty(self):
-        return self.__queue.empty()
-
-    def enqueue(self, data):
-        """Enqueue data to be processed by callback.
+    def __call__(self, *args, **kwargs):
+        """Execute callback on a new thread when ''called'' as a function.
 
         Args:
-            data (any): data to send to callback.
-
-        """
-        self.__queue.put(data)
-
-    def start(self):
-        """Start the callbacks' activity.
-
-        Returns:
-            boolean: Returns ``True`` if the callback was started. If the
-                     callback is already alive, the request is ignored and the
-                     method returns ``False``.
+            *args (any): mandatory arguments to send to callback function.
+            **kwargs (any): key-word arguments to send to callback function.
 
         """
 
-        if self.is_alive:
-            return False
-        else:
-            self.__thrd.start()
-            return True
-
-    def __run(self, callback, stop_requested, queue, timeout):
-        """Method to execute whenever data is available."""
-
-        while not stop_requested.is_set():
-            try:
-                data = queue.get(True, timeout)
-                callback(data)
-            except Queue.Empty:
-                continue
-
-        stop_requested.clear()
-
-    def request_stop(self):
-        """Non-blocking signal to stop callback activity.
-
-        Returns:
-
-            boolean: Returns ``True`` if the request to stop was successful. If
-                     the callback is already in a stopped state, the request is
-                     ignored and the method returns ``False``.
-
-        """
-
-        if self.is_alive and not self.__stop_requested.is_set():
-            self.__stop_requested.set()
-            return True
-        else:
-            return False
-
-    def stop(self):
-        """Blocking signal to stop callback activity.
-
-        Returns:
-            boolean: Returns ``True`` if the callback was stopped. If the
-                     callback is already in a stopped state, the request is
-                     ignored and the method returns ``False``.
-
-        """
-
-        was_stopped = self.request_stop()
-        self.__thrd.join()
-
-        return was_stopped
+        # Execute callback on a new thread.
+        thread = threading.Thread(target=self.__callback,
+                                  args=args, kwargs=kwargs)
+        thread.daemon = True
+        thread.start()
 
 
 class Event(object):
@@ -286,22 +99,22 @@ class Event(object):
 
 
     Args:
-        callbackhandler (:py:class:`.CallbackHandler`, optional): Object for
-        handling callbacks.
+        callback (:py:class:`.Callback`, optional): Object for handling
+            callbacks.
 
     """
 
-    def __init__(self, callbackhandler=CallbackSynchronous):
+    def __init__(self, callback=CallbackSequential):
         """Document the __init__ method at the class level."""
 
         # Check that callback handler has expected properties.
-        if ((not inspect.isclass(callbackhandler)) or
-           (not issubclass(callbackhandler, CallbackHandler))):
-            msg = "Callbackhandler must be a subclass of 'CallbackHandler'."
+        if ((not inspect.isclass(Callback)) or
+            (not issubclass(callback, Callback))):
+            msg = "'callback' must be a subclass of Callback()."
             raise TypeError(msg)
 
         # Store method for executing and handling callbacks.
-        self.__callbackhandler = callbackhandler
+        self.__Callback = callback
 
         # Store callbacks in a dictionary.
         self.__callbacks = dict()
@@ -342,10 +155,6 @@ class Event(object):
 
         """
 
-        # Note: Ask for permission! Ducktyping will cause headaches if
-        # thread/processes do not have properly implemented start/stop
-        # methods. Catch errors early rather than late...
-
         # Check that we can actually call this callback.
         if not hasattr(callback, '__call__'):
             raise TypeError("Callback must contain a '__call__' method.")
@@ -354,9 +163,7 @@ class Event(object):
         # on a thread.
         if not self.is_subscribed(callback):
             with self.__callback_lock:
-                self.__callbacks[callback] = self.__callbackhandler(callback)
-                self.__callbacks[callback].start()
-
+                self.__callbacks[callback] = self.__Callback(callback)
             return True
 
         # Do not add the callback if it already exists.
@@ -380,7 +187,6 @@ class Event(object):
         # If the callback exists, stop processing data and remove the callback.
         if self.is_subscribed(callback):
             with self.__callback_lock:
-                self.__callbacks[callback].stop()
                 del self.__callbacks[callback]
             return True
 
@@ -398,11 +204,12 @@ class Event(object):
         with self.__callback_lock:
             return len(self.__callbacks)
 
-    def trigger(self, data):
+    def trigger(self, *args, **kwargs):
         """Trigger an event and issue data to the callback functions.
 
         Args:
-            data (any): Data to send to the registered callbacks.
+            *args (any): mandatory arguments to send to callback functions.
+            **kwargs (any): key-word arguments to send to callback functions.
 
         """
         # Make a copy of the callback list so we avoid deadlocks
@@ -410,4 +217,4 @@ class Event(object):
             callbacks = copy.copy(self.__callbacks)
 
         for callback in callbacks:
-            callbacks[callback].enqueue(data)
+            callbacks[callback](*args, **kwargs)
