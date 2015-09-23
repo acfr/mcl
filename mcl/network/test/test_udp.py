@@ -8,9 +8,9 @@ from mcl.network.udp import Connection
 from mcl.network.udp import RawBroadcaster
 from mcl.network.udp import RawListener
 
-from mcl.network.test.common import RawBroadcasterTests
-from mcl.network.test.common import RawListenerTests
-from mcl.network.test.common import RawPublishSubscribeTests
+from mcl.network.test.common import BroadcasterTests
+from mcl.network.test.common import ListenerTests
+from mcl.network.test.common import PublishSubscribeTests
 
 # Disable pylint errors:
 #     W0221 - Arguments number differ from overridden method
@@ -84,10 +84,10 @@ class ConnectionTests(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                               RawBroadcaster()
+#                                 Broadcaster()
 # -----------------------------------------------------------------------------
 
-class TestRawBroadcaster(RawBroadcasterTests):
+class TestBroadcaster(BroadcasterTests):
     broadcaster = RawBroadcaster
     connection = Connection(URL)
 
@@ -104,10 +104,10 @@ class TestRawBroadcaster(RawBroadcasterTests):
 
 
 # -----------------------------------------------------------------------------
-#                               RawListener()
+#                                  Listener()
 # -----------------------------------------------------------------------------
 
-class TestRawListener(RawListenerTests):
+class TestListener(ListenerTests):
     listener = RawListener
     connection = Connection(URL)
 
@@ -116,7 +116,7 @@ class TestRawListener(RawListenerTests):
 #                              Publish-Subscribe
 # -----------------------------------------------------------------------------
 
-class TestPublishSubscribe(RawPublishSubscribeTests):
+class TestPublishSubscribe(PublishSubscribeTests):
     broadcaster = RawBroadcaster
     listener = RawListener
     connection = Connection(URL)

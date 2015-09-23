@@ -57,7 +57,14 @@ class ManufactureMessages(unittest.TestCase):
 class RegisterMeta(unittest.TestCase):
 
     def setUp(self):
-        """Create some messages for testing."""
+        """Clear known messages before testing."""
+
+        # WARNING: this should not be deployed in production code. It is an
+        #          abuse that has been used for the purposes of unit-testing.
+        mcl.message.messages._MESSAGES = list()
+
+    def tearDown(self):
+        """Clear known messages after testing."""
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
