@@ -122,7 +122,7 @@ class TestPublishSubscribe(PublishSubscribeTests):
     connection = Connection(URL)
 
     def test_large_data(self):
-        """Test udp.RawBroadcaster/RawListener with large data."""
+        """Test udp send/receive with large data."""
 
         # Create a message which is larger then the UDP MTU.
         packets = 5.555
@@ -153,13 +153,3 @@ class TestPublishSubscribe(PublishSubscribeTests):
 
         # Only ONE message was published, ensure the data was received.
         self.assertEqual(send_string, received_buffer[0][2])
-
-
-# class MessageEcosystemTests(common.MessageEcosystemTests):
-
-#     def test_broadcast_listen(self):
-#         """Test udp MessageBroadcaster/Listener can send/receive pyITS messages."""
-
-#         super(MessageEcosystemTests,
-#               self).test_broadcast_listen(MessageBroadcaster,
-#                                           MessageListener, URL)
