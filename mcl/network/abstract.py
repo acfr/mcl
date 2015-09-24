@@ -20,6 +20,7 @@ from abc import abstractmethod
 from abc import abstractproperty
 from mcl.event.event import Event
 
+
 import textwrap
 import sys as _sys
 from keyword import iskeyword as _iskeyword
@@ -403,12 +404,12 @@ class Connection(tuple):
 
 
 class RawBroadcaster(object):
-    """Abstract object for sending data over a network interface.
+    """Abstract base class for sending data over a network interface.
 
-    The :py:class:`.RawBroadcaster` is an abstract object designed to provide a
-    template for objects in the MCL ecosystem which broadcast data over a
-    network interface. Broadcasters inheriting from this template are likely to
-    integrate safely with the MCL system.
+    The :py:class:`.RawBroadcaster` is an abstract base class designed to
+    provide a template for objects in the MCL ecosystem which broadcast data
+    over a network interface. Broadcasters inheriting from this template are
+    likely to integrate safely with the MCL system.
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
@@ -501,13 +502,74 @@ class RawBroadcaster(object):
         pass
 
 
-class RawListener(Event):
-    """Abstract object for receiving data over a network interface.
+class _HideTriggerMeta(abc.ABCMeta):
+    """Meta-class for making the Event.trigger() method 'private'.
 
-    The :py:class:`.RawListener` is an abstract object designed to provide a
-    template for objects in the MCL ecosystem which listen for data over a
+    The :py:class:`._HideTriggerMeta` object is a meta-class designed to hide
+    the :py:func:`Event.trigger` method in :py:class:`.RawListener`
+    sub-classes.
+
+    Implementations of :py:class:`.RawListener` should link the
+    :py:func:`Event.trigger` method to I/O events such as receiving data on a
+    network interface. While this allows the sub-classes to be event-driven,
+    the :py:func:`Event.trigger` method is exposed.
+
+    This design pattern is an interface design choice that allows
+    :py:class:`.RawListener` objects to inherit functionality from
+    :py:class:`.Event` without obvious exposure of the :py:func:`Event.trigger`
+    method. The goal is to discourage *users* of :py:class:`.RawListener`
+    objects from forcing data to subscribed callback methods by direct calls to
+    the :py:func:`Event.trigger` method. *Developers* of
+    :py:class:`.RawListener` objects will need to call the slightly more
+    obscure '__trigger__' method from I/O loops.
+
+    .. note::
+
+        This meta-class inherits from the abc.ABCMeta object. As such, objects
+        which implement this meta-class will gain the functionality of abstract
+        base classes.
+
+    """
+
+    def __new__(cls, name, bases, dct):
+
+        # Note: Inherting from Event() is not necessary in RawListener() since
+        #       this meta-class redefines the base classes in the following
+        #       code. The sub-class syntax has been left inplace as a reminder
+        #       that RawListener() objects behave like Event() objects.
+        #
+        if (name == 'RawListener') and (bases == (Event,)):
+
+            # Copy Event() object data and rename the trigger method to make it
+            # 'private'.
+            class_dict = dict(Event.__dict__)
+            class_dict['__trigger__'] = class_dict['trigger']
+            class_dict['__trigger__'].func_name = '__trigger__'
+            del(class_dict['trigger'])
+
+            # Override base with 'private' Event() object..
+            bases = (type('PrivateEvent', Event.__bases__, class_dict), )
+
+        return super(_HideTriggerMeta, cls).__new__(cls, name, bases, dct)
+
+
+class RawListener(Event):
+    """Abstract base class for receiving data over a network interface.
+
+    The :py:class:`.RawListener` is an abstract base class designed to provide
+    a template for objects in the MCL ecosystem which listen for data over a
     network interface. Listeners inheriting from this template are likely to
     integrate safely with the MCL system.
+
+    note::
+
+        :py:class:`.RawListener` implements the event-based programming
+        paradigm by inheriting from :py:class:`.Event`. To prevent *users* from
+        triggering callbacks directly, the :py:func:`Event.trigger` method has
+        been obfuscated. Data can be issued to callback functions by calling
+        the RawListener.__trigger__ method. In concrete implementations of the
+        :py:class:`.RawListener, *developers* should call the '__trigger__'
+        method in I/O loops when network data is available.
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
@@ -526,7 +588,7 @@ class RawListener(Event):
     """
 
     # Ensure abstract methods are redefined in sub-classes.
-    __metaclass__ = abc.ABCMeta
+    __metaclass__ = _HideTriggerMeta
 
     def __init__(self, connection, topics=None):
         """Document the __init__ method at the class level."""

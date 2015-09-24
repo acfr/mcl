@@ -150,13 +150,13 @@ class MessageListener(object):
 
             """
 
-            def trigger(self, packed_data):
+            def __trigger__(self, packed_data):
                 """Distribute MCL message to subscribed callbacks."""
 
                 # Attempt to serialise input data.
                 try:
                     msg = message_type(packed_data[2])
-                    super(MessageListener, self).trigger(msg)
+                    super(MessageListener, self).__trigger__(msg)
                 except Exception as e:
                     print e.message
 
