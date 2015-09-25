@@ -21,7 +21,7 @@ the following fields::
 
 where:
     - ``topic`` is the topic that was associated with the message.
-    - ``message``: is the network message, delivered as a pyITS
+    - ``message``: is the network message, delivered as a MCL
       :py:class:`.Message` object.
 
 A process is launched to read the data (stored as dictionaries) from the
@@ -403,7 +403,7 @@ class _ReplayViaNetwork(object):
     def service(self, msg):
         """Re-broadcast recorded messages over the network.
 
-        Re-broadcast pyITS messages over the network. Inputs to this function
+        Re-broadcast MCL messages over the network. Inputs to this function
         are dictionaries of the form::
 
                 {'topic': str(),
@@ -411,7 +411,7 @@ class _ReplayViaNetwork(object):
 
         where:
             - ``topic`` is the topic that was associated with the message.
-            - ``message``: is the network message, delivered as a pyITS
+            - ``message``: is the network message, delivered as a MCL
               :py:class:`.Message` object.
 
         Args:
@@ -450,7 +450,7 @@ class _ReplayViaCallbacks(object):
     def service(self, msg):
         """Process recorded messages via callbacks.
 
-        Process pyITS messages through callback where the only input is a
+        Process MCL messages through callback where the only input is a
         dictionary of the form::
 
                 {'topic': str(),
@@ -458,7 +458,7 @@ class _ReplayViaCallbacks(object):
 
         where:
             - ``topic`` is the topic that was associated with the message.
-            - ``message``: is the network message, delivered as a pyITS
+            - ``message``: is the network message, delivered as a MCL
               :py:class:`.Message` object.
 
         Args:

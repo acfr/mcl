@@ -23,13 +23,13 @@ def dumps_to_list(source=None, format='message', min_time=None, max_time=None):
     directory of network dump files into a list. The following format options
     are available:
 
-        - ``message``: parse network data into a list of pyITS
+        - ``message``: parse network data into a list of MCL
           :py:class:`.Message` objects. This method ensures the data loaded
-          from the dump file(s) complies with the pyITS message specifications.
-        - ``json``: parse network data into a list of pyITS
-          :py:class:`.Message` objects converted into JSON strings. This method
-          ensures the data loaded from the dump file(s) complies with the pyITS
-          message specifications.
+          from the dump file(s) complies with the MCL message specifications.
+        - ``json``: parse network data into a list of MCL :py:class:`.Message`
+          objects converted into JSON strings. This method ensures the data
+          loaded from the dump file(s) complies with the MCL message
+          specifications.
         - ``hex``: parse network data into a list of hex-encoded msgpacked
           strings.
 
@@ -49,7 +49,7 @@ def dumps_to_list(source=None, format='message', min_time=None, max_time=None):
                       point to a single file or a directory containing multiple
                       log files.
         format (str): A string specifying what format to store the messages. If
-                      set to 'message' the logged data will be loaded as pyITS
+                      set to 'message' the logged data will be loaded as MCL
                       :py:class:`.Message` objects. If set to 'json' the logged
                       data will be loaded as JSON strings. If set to 'hex' the
                       logged data will be loaded as hex-encoded msgpacked
@@ -168,7 +168,7 @@ def dump_to_array(source, keys, format='message', min_time=None, max_time=None):
     directory of network dump files into a numpy array. To parse data into a
     numpy array, the following conditions must be met:
 
-        - All messages loaded must be the same pyITS :py:class:`.Message` type.
+        - All messages loaded must be the same MCL :py:class:`.Message` type.
         - The logged messages must contain the specified keys.
         - The contents of the message keys must be convertible to a float.
 
@@ -180,7 +180,7 @@ def dump_to_array(source, keys, format='message', min_time=None, max_time=None):
                      items in this list specify what is copied into the numpy
                      columns.
         format (str): A string specifying what format to load the messages. If
-                      set to 'message' the logged data will be loaded as pyITS
+                      set to 'message' the logged data will be loaded as MCL
                       :py:class:`.Message` objects. If set to 'dictionary' the
                       logged data will be loaded as dictionary objects.
         min_time (float): Minimum time to extract from dataset.
@@ -188,7 +188,7 @@ def dump_to_array(source, keys, format='message', min_time=None, max_time=None):
 
     Returns:
         numpy.array: A numpy array containing the requested keys from a single
-                     pyITS message type.
+                     MCL message type.
 
     Raises:
         IOError: If the input `source` does not exist.

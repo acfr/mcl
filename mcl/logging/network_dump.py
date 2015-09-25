@@ -79,16 +79,6 @@ from logging.network_dump_io import WriteFile
 from logging.network_dump_io import WriteScreen
 from network.abstract import Connection as AbstractConnection
 
-# Define location of items in pyITS frame.
-__TOTAL_MESSAGES__ = 0
-__TOPIC__ = 1
-__PAYLOAD__ = 2
-
-# Time to wait for threads and processes to start/stop. This parameter could be
-# exposed to the user. Currently it is viewed as an unnecessary tuning
-# parameter.
-TIMEOUT = 60
-
 # Initialise logging.
 import logging
 from mcl import LOG_ROOT
@@ -100,6 +90,16 @@ fmt = '%(asctime)s [%(levelname)s]: %(message)s'
 formatter = logging.Formatter(fmt)
 fh.setFormatter(formatter)
 LOGGER.addHandler(fh)
+
+# Define location of items in MCL frame.
+__TOTAL_MESSAGES__ = 0
+__TOPIC__ = 1
+__PAYLOAD__ = 2
+
+# Time to wait for threads and processes to start/stop. This parameter could be
+# exposed to the user. Currently it is viewed as an unnecessary tuning
+# parameter.
+TIMEOUT = 60
 
 
 def syslog(cls, msg, *args):
@@ -184,7 +184,7 @@ class QueuedBroadcastListener(Publisher):
          'payload': str()}
 
     Args:
-        connection (:py:class:`.abstract.Connection`): pyITS connection object.
+        connection (:py:class:`.abstract.Connection`): MCL connection object.
 
     """
 
@@ -195,7 +195,7 @@ class QueuedBroadcastListener(Publisher):
 
         # Store network configuration.
         if not isinstance(connection, AbstractConnection):
-            raise TypeError('Input must be a pyITS connection object.')
+            raise TypeError('Input must be a MCL connection object.')
         self.__connection = connection
 
         msg = "instanting ('%s' on '%s')"
@@ -543,7 +543,7 @@ class NetworkDump(object):
                       stream will be printed directly to the screen with no
                       processing.  If set to 'hex' the raw byte stream will be
                       encoded to hexadecimal and then printed to the screen. If
-                      set to 'human', pyITS will attempt to decode the messages
+                      set to 'human', MCL will attempt to decode the messages
                       and print their contents to the screen in a human
                       readable way.
         screen_width (int): Maximum number of characters to print on the
@@ -576,7 +576,7 @@ class NetworkDump(object):
                       returned, the byte stream will be printed directly to the
                       screen with no processing.  If returned as 'hex' the raw
                       byte stream will be encoded to hexadecimal and then
-                      printed to the screen. If returned as 'human', pyITS will
+                      printed to the screen. If returned as 'human', MCL will
                       attempt to decode the messages and print their contents
                       to the screen in a human readable way.
         screen_width (int): Maximum number of characters that will be printed

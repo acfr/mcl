@@ -13,7 +13,7 @@ import msgpack
 import datetime
 import textwrap
 import subprocess
-from mcl import PYITS_ROOT
+from mcl import MCL_ROOT
 from mcl.message.messages import get_message_object
 from mcl.message.messages import Message as BaseMessage
 
@@ -59,7 +59,7 @@ class WriteScreen(object):
                       stream will be printed directly to the screen with no
                       processing.  If set to 'hex' the raw byte stream will be
                       encoded to hexadecimal and then printed to the screen. If
-                      set to 'human', pyITS will attempt to decode the messages
+                      set to 'human', MCL will attempt to decode the messages
                       and print their contents to the screen in a human
                       readable way.
         column_width (int): Maximum number of characters to print per column of
@@ -134,7 +134,7 @@ class WriteScreen(object):
     def __format_human(self, message):
         """Format message into human readable items."""
 
-        # Convert message into a pyITS message object.
+        # Convert message into a MCL message object.
         message = message['object'](message['payload'])
 
         # Iterate through mandatory items in message. Note that the Message
@@ -246,7 +246,7 @@ class WriteScreen(object):
                        'payload': str()}
 
         where:
-            - `name` is the name of the pyITS message object being broadcast
+            - `name` is the name of the MCL message object being broadcast
             - `address` is the location where the message was received
             - `topic` is the topic that was associated with the message
               broadcast
@@ -312,7 +312,7 @@ class WriteFile(DumpConstants):
                       will log data to the files './data/GnssMessage_<NNN>.log'
                       for split log files (where NNN is incremented for each
                       new split log).
-        message (:py:class:`.Message`): pyITS message object to record to log
+        message (:py:class:`.Message`): MCL message object to record to log
                                         file(s).
         time_origin (datetime.datetime): Time origin used to calculate elapsed
                      time during logging (time data was received - time
@@ -357,7 +357,7 @@ class WriteFile(DumpConstants):
         if issubclass(message, BaseMessage):
             self.__message = message
         else:
-            msg = "The input 'message' must be a pyITS message object."
+            msg = "The input 'message' must be a MCL message object."
             raise TypeError(msg)
 
         # Store file objects.
@@ -462,7 +462,7 @@ class WriteFile(DumpConstants):
 
         # Get repository version.
         try:
-            git_dir = '--git-dir=' + os.path.join(PYITS_ROOT, '../', '.git')
+            git_dir = '--git-dir=' + os.path.join(MCL_ROOT, '../', '.git')
             git_hash = subprocess.check_output(['git', git_dir,
                                                 'rev-parse', 'HEAD'])
             git_hash = git_hash.strip()
@@ -717,7 +717,7 @@ class ReadFile(DumpConstants):
                         (e.g. 'data/GnssMessage_000.log').
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
-        message_type (str): Force reader to unpack messages as a specific pyITS
+        message_type (str): Force reader to unpack messages as a specific MCL
                             message type. This option can be useful for reading
                             unnamed messages or debugging log files. Use with
                             caution.
@@ -924,7 +924,7 @@ class ReadFile(DumpConstants):
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
                   text was recorded. The topic associated with the message
-                  broadcast and the message payload as a pyITS message object.
+                  broadcast and the message payload as a MCL message object.
                   If an error was encountered during parsing an IOError is
                   returned.
 
@@ -1009,7 +1009,7 @@ class ReadFile(DumpConstants):
             - <version> Version used to record log files
             - <revision> Git hash of version used to log data
             - <created> Time when log file was created
-            - <message> is a pointer to the pyITS object stored in the log
+            - <message> is a pointer to the MCL object stored in the log
               file(s)
 
         Returns:
@@ -1071,7 +1071,7 @@ class ReadFile(DumpConstants):
         # Get stored broadcasts. Expect broadcasts to be specified in the
         # following form:
         #
-        #     >>> <pyITSMessage>
+        #     >>> <Message>
         #
         # Remove comment character and '>>>' bullet point.
         line = line.replace(self.COMMENT_CHARACTER, '')
@@ -1112,7 +1112,7 @@ class ReadFile(DumpConstants):
               file and recording the message.
             - ``topic`` is the topic associated with the message during the
               broadcast.
-            - ``message``: is the network message, delivered as a pyITS
+            - ``message``: is the network message, delivered as a MCL
               :py:class:`.Message` object.
 
         If all data has been read from the log file, None is returned.
@@ -1120,7 +1120,7 @@ class ReadFile(DumpConstants):
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
                   text was recorded. The topic associated with the message
-                  broadcast and a populated pyITS message object.
+                  broadcast and a populated MCL message object.
 
         Raises:
             IOError: If an error was encountered during reading.
@@ -1372,7 +1372,7 @@ class ReadDirectory(object):
               file and recording the message.
             - ``topic`` is the topic associated with the message during the
               broadcast.
-            - ``message``: is the network message, delivered as a pyITS
+            - ``message``: is the network message, delivered as a MCL
               :py:class:`.Message` object.
 
         If all data has been read from the log files (directory), None is
@@ -1381,7 +1381,7 @@ class ReadDirectory(object):
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
                   text was recorded. The topic associated with the message
-                  broadcast and a populated pyITS message object.
+                  broadcast and a populated MCL message object.
 
         Raises:
             IOError: If an error was encountered during reading.
