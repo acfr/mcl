@@ -92,7 +92,7 @@ class TestBroadcaster(BroadcasterTests):
     connection = Connection(URL)
 
     def test_topic_at_publish(self):
-        """Test udp.RawBroadcaster() bad topic delimiter."""
+        """Test udp RawBroadcaster() bad topic delimiter."""
 
         # Create broadcaster and listener.
         broadcaster = self.broadcaster(self.connection)

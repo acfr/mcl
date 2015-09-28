@@ -1,0 +1,549 @@
+"""Module for publishing MCL messages over a network.
+
+.. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
+.. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
+
+"""
+import os
+import time
+import Queue
+import datetime
+import threading
+import multiprocessing
+from threading import Thread
+from multiprocessing import Process
+
+import mcl.message.messages
+from mcl.event.event import Event
+from mcl.message.messages import Message
+
+# Initialise logging.
+import logging
+from mcl import LOG_ROOT
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+fh = logging.FileHandler(os.path.join(LOG_ROOT, __name__ + '.log'))
+fh.setLevel(logging.INFO)
+fmt = '%(asctime)s [%(levelname)s]: %(message)s'
+formatter = logging.Formatter(fmt)
+fh.setFormatter(formatter)
+LOGGER.addHandler(fh)
+
+# Time to wait for threads and processes to start/stop. This parameter could be
+# exposed to the user. Currently it is viewed as an unnecessary tuning
+# parameter.
+TIMEOUT = 10
+
+def syslog(cls, msg, *args):
+
+    if isinstance(cls, basestring):
+        syslog_msg = '%s: ' % cls
+    else:
+        syslog_msg = '%s: ' % cls.__class__.__name__
+
+    if args:
+        syslog_msg += msg % args
+    else:
+        syslog_msg += msg
+
+    return syslog_msg
+
+
+def _set_process_name(name):
+    """Function for setting the name of new processes."""
+
+    # Set the name of a new process if 'setproctitle' exists.
+    try:
+        from setproctitle import getproctitle as getproctitle
+        from setproctitle import setproctitle as setproctitle
+
+        current_name = getproctitle()
+        name = current_name + ' -> ' + name
+        setproctitle(name)
+
+    # If 'setproctitle' does not exist. Do nothing.
+    except:
+        pass
+
+
+class MessageBroadcaster(object):
+    """Send messages over a network interface.
+
+    The :py:class:`.MessageBroadcaster` object is a factory which manufactures
+    objects for broadcasting MCL :py:class:`.Message` objects over a
+    network. The returned object overloads the
+    :py:meth:`.RawBroadcaster.publish` of a :py:class:`.RawBroadcaster` object
+    to serialise the contents of a :py:class:`.Message` before
+    transmission. `Message pack <http://msgpack.org/index.html>`_ is used to
+    serialise :py:class:`.Message` objects into byte string.
+
+    For a list of available methods and attributes in the returned object, see
+    :py:class:`.RawBroadcaster`.
+
+    Args:
+        message (:py:class:`.Message`): MCL message object.
+        topic (str): Topic associated with the network interface.
+
+    """
+
+    def __new__(cls, message, topic=None):
+
+        # Ensure 'message' is a Message() object.
+        if not issubclass(message, Message):
+            msg = "'message' must reference a Message() sub-class."
+            raise TypeError(msg)
+
+        # Use closure to define a sub-class of the RawBroadcaster specified in
+        # the message connection. Once defined, return an instance of the new
+        # MessageBroadcaster() sub-class.
+        message_type = message
+
+        class MessageBroadcaster(message.connection.broadcaster):
+            """Send messages over a network interface.
+
+            The :py:class:`.MessageBroadcaster` object provides an interface
+            for broadcasting MCL :py:class:`.Message` objects over a
+            network. Before transmission, :py:class:`.MessageBroadcaster`
+            serialises the contents of the message into a byte string using
+            Message pack.
+
+            :py:class:`.MessageBroadcaster` establishes a network connection
+            using the information contained within the input
+            :py:class:`.Message` type.
+
+            For a list of available methods and attributes, see
+            :py:class:`.RawBroadcaster`.
+
+            Args:
+                message (:py:class:`.Message`): MCL message object.
+                topic (str): Topic associated with the network interface.
+
+            """
+
+            def publish(self, message, topic=None):
+                """Send an MCL message over the network.
+
+                Args:
+                    message (:py:class:`.Message`): MCL message object.
+                    topic (str): Broadcast message with an associated
+                                 topic. This option will temporarily override
+                                 the topic specified during instantiation.
+
+                Raises:
+                    TypeError: If the input `topic` is not a string. Or the
+                        input message type differs from the message specified
+                        during instantiation.
+                    ValueError: If the input `topic` contains the header
+                                delimiter character.
+
+                """
+
+                # Ensure 'message' is a Message() object.
+                if not isinstance(message, message_type):
+                    error_msg = "'msg' must reference a %s() instance."
+                    raise TypeError(error_msg % message_type.__name__)
+
+                # Attempt to serialise input data.
+                try:
+                    packed_data = message.encode()
+                except:
+                    raise TypeError('Could not encode input object')
+
+                # Publish serialised data.
+                super(MessageBroadcaster, self).publish(packed_data,
+                                                        topic=topic)
+
+        return MessageBroadcaster(message.connection, topic=topic)
+
+
+class MessageListener(object):
+    """Receive messages over a network interface.
+
+    The :py:class:`.MessageListener` object is a factory which manufactures
+    objects for receiving MCL :py:class:`.Message` objects over a network. The
+    returned object inherits from the :py:class:`.RawListener` class. When data
+    is received, it is decoded into a :py:class:`.Message` object before an
+    event is raised to forward the received data to subscribed
+    callbacks. `Message pack <http://msgpack.org/index.html>`_ is used to
+    decode the received data.
+
+    For a list of available methods and attributes in the returned object, see
+    :py:class:`.RawListener`.
+
+    Args:
+        message (:py:class:`.Message`): MCL message object.
+        topics (str): List of strings containing topics
+                      :py:class:`.MessageListener` will receive and process.
+
+    """
+
+    def __new__(cls, message, topics=None):
+
+        # Ensure 'message' is a Message() object.
+        if not issubclass(message, Message):
+            msg = "'message' must reference a Message() sub-class."
+            raise TypeError(msg)
+
+        # Use closure to define a sub-class of the RawListener specified in
+        # the message connection. Once defined, return an instance of the new
+        # MessageListener() sub-class.
+        message_type = message
+
+        class MessageListener(message.connection.listener):
+            """Receive messages over a network interface.
+
+            The :py:class:`.MessageListener` object provides an interface for
+            receiving MCL :py:class:`.Message` objects over a network. After
+            receiving data, :py:class:`.MessageListener` decodes the contents
+            data into a :py:class:`.Message` object using Message pack.
+
+            :py:class:`.MessageListener` establishes a network connection
+            using the information contained within the input
+            :py:class:`.Message` type.
+
+            For a list of available methods and attributes, see
+            :py:class:`.RawListener`.
+
+            Args:
+                message (:py:class:`.Message`): MCL message object.
+                topic (str): Topic associated with the network interface.
+
+            """
+
+            def __trigger__(self, packed_data):
+                """Distribute MCL message to subscribed callbacks."""
+
+                # Attempt to serialise input data.
+                try:
+                    msg = message_type(packed_data[2])
+                    super(MessageListener, self).__trigger__(msg)
+                except Exception as e:
+                    print e.message
+
+        return MessageListener(message.connection, topics=topics)
+
+
+class QueuedListener(Event):
+    """Open a broadcast address and listen for data.
+
+    The :py:class:`.QueuedListener` object subscribes to a network
+    broadcast and issues publish events when data is received.
+
+    The difference between this object and other network listeners is that
+    network data is received on a separate process and written to a
+    multi-processing queue. The intention is to use a light-weight process to
+    achieve more accurate timing by avoiding the GIL. Resource allocation is
+    left to the operating system.
+
+    A summary of the :py:class:`.QueuedListener` object is shown
+    below::
+
+               Message broadcast         Message republished
+                 (over network)           (local callbacks)
+                      |                            ^
+         _____________|____________________________|______________
+        |_____________|____________________________|______________|
+        |             |                            |              |
+        |             |      QueuedListener()      |              |
+        |             |                            |              |
+        |     ________V_________           ________|_________     |
+        |    |__________________|         |__________________|    |
+        |    | Process          |         | Thread           |    |
+        |    |                  |         |                  |    |
+        |    |   Add Messages   |         |   Read Messages  |    |
+        |    |   to queue       |         |   from queue     |    |
+        |    |__________________|         |__________________|    |
+        |             |                            ^              |
+        |             v                            |              |
+        |             ------------------------------              |
+        |             |   multiprocessing.Queue()  |              |
+        |             ------------------------------              |
+        |_________________________________________________________|
+
+    If network data is handled immediately upon reception, long callbacks may
+    cause data packets to be lost. By inserting messages into a queue on a
+    separate process, it is less likely messages will be dropped. A separate
+    thread can read buffered network data from the queue and issue lengthy
+    callbacks with minimal impact to the reception process. If data is received
+    faster than it can be processed the queue will grow.
+
+    Messages are published as a dictionary in the following format::
+
+        {'time_received': datetime.datetime(),
+         'name': str(),
+         'connection': object(),
+         'object': object(),
+         'transmissions': int(),
+         'topic': str(),
+         'payload': str()}
+
+    Args:
+        message (:py:class:`.Message`): MCL message object.
+
+    """
+
+    def __init__(self, connection):
+        """Document the __init__ method at the class level."""
+
+        super(QueuedListener, self).__init__()
+
+        # Ensure 'connection' is a Connection() object.
+        if not isinstance(connection, mcl.network.abstract.Connection):
+            msg = "'connection' must reference a Connection() instance."
+            raise TypeError(msg)
+        self.__connection = connection
+
+        # Log initialisation.
+        LOGGER.info(syslog(self, "instanting (%s)", str(self.__connection)))
+
+        # Create objects for inter-process communication.
+        self.__queue = None
+        self.__timeout = 0.1
+
+        # Asynchronous objects. The process is used to enqueue data and the
+        # thread is used to dequeue data.
+        self.__reader = None
+        self.__reader_run_event = threading.Event()
+        self.__writer = None
+        self.__writer_run_event = multiprocessing.Event()
+        self.__is_alive = False
+
+        # Attempt to connect to network interface.
+        try:
+            success = self._open()
+        except:
+            success = False
+
+        if not success:
+            msg = "Could not connect to '%s'." % str(connection)
+            raise IOError(msg)
+
+    def is_alive(self):
+        """Return whether the object is listening for broadcasts.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the object is listening for
+                           broadcasts. Returns :data:`False` if the object is
+                           NOT listening for broadcast.
+
+        """
+
+        return self.__is_alive
+
+    # Note: This method is implemented as a private static method. It is has
+    #       been implemented as a static method to reinforce the idea that
+    #       operations in this method are performed on a separate process (new
+    #       memory space) without explicit reference to the class. The method
+    #       has been encapsulated in the class to reinforce the idea that is it
+    #       functionality that is particular to the class.
+    #
+    @staticmethod
+    def __enqueue(class_name, run_event, connection, queue):
+        """Light weight service to write incoming data to a queue."""
+
+        # Attempt to set process name.
+        proc_name = 'listener (%s)'
+        proc_name = proc_name % str(connection)
+        _set_process_name(proc_name)
+
+        # Log start of process activity.
+        msg = "writing  to  queue (%s)"
+        LOGGER.info(syslog(class_name, msg, str(connection)))
+        run_event.set()
+
+        # Note: lexical closure is (ab)used to provide non-local access to the
+        #       'name', 'connection' and the 'queue' object. This function will
+        #       be executed asynchronously from the listener object where the
+        #       queue object would normally be out of scope. Closure allows the
+        #       queue to remain accessible.
+        #
+        def enqueue(data):
+            """Write broadcast to queue when data is received."""
+
+            try:
+                # Record time data was received.
+                timestamp = datetime.datetime.now()
+
+                # Decompose message.
+                transmissions, topic, payload = data
+
+                # Write message and timestamp to queue.
+                queue.put({'time_received': timestamp,
+                           'connection': connection,
+                           'transmissions': transmissions,
+                           'topic': topic,
+                           'payload': payload})
+
+            except:
+                msg = "error writing to queue (%s)"
+                LOGGER.exception(syslog(class_name, msg, str(connection)))
+
+        # Start listening for network broadcasts.
+        listener = connection.listener(connection)
+        listener.subscribe(enqueue)
+
+        # Wait for user to terminate listening service.
+        while run_event.is_set():
+            try:
+                time.sleep(0.25)
+            except KeyboardInterrupt:
+                break
+            except:
+                msg = "error writing to queue (%s)"
+                LOGGER.exception(syslog(class_name, msg, str(connection)))
+                raise
+
+        # Stop listening for messages.
+        listener.close()
+
+        # Log exiting of process.
+        msg = "writing stopped (%s)"
+        LOGGER.info(syslog(class_name, msg, str(connection)))
+
+    def __dequeue(self, message):
+        """Light weight service to read data from queue and issue callbacks."""
+
+        # Log start of thread activity.
+        msg = "reading from queue (%s)"
+        LOGGER.info(syslog(self, msg, str(self.__connection)))
+        self.__reader_run_event.set()
+
+        # Read data from the queue and trigger an event.
+        while self.__reader_run_event.is_set():
+            try:
+                message = self.__queue.get(timeout=self.__timeout)
+                self.trigger(message)
+
+            except Queue.Empty:
+                pass
+
+            except:
+                msg = "error reading from queue (%s)"
+                LOGGER.exception(syslog(self, msg, str(self.__connection)))
+                raise
+
+        # Log exiting of thread.
+        msg = "reading stopped (%s)"
+        LOGGER.info(syslog(self, msg, str(self.__connection)))
+
+    def _open(self):
+        """Open connection to queued listener and start publishing broadcasts.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if a connection to the queued
+                           listener is opened. If the queued listener is
+                           already open, the request is ignored and the method
+                           returns :data:`False`.
+
+        """
+
+        # Start publishing broadcast-events on a thread.
+        if not self.is_alive():
+            msg = "start request (%s)"
+            LOGGER.info(syslog(self, msg, str(self.__connection)))
+
+            # Reset asynchronous objects.
+            self.__queue = multiprocessing.Queue()
+
+            # Create THREAD for dequeueing and publishing data.
+            self.__reader_run_event.clear()
+            self.__reader = Thread(target=self.__dequeue,
+                                   args=(self.__connection,))
+
+            # Create PROCESS for enqueueing data.
+            self.__writer_run_event.clear()
+            self.__writer = Process(target=self.__enqueue,
+                                    args=(self.__class__.__name__,
+                                          self.__writer_run_event,
+                                          self.__connection,
+                                          self.__queue,))
+
+            # Start asynchronous objects and wait for them to become alive.
+            self.__writer.daemon = True
+            self.__reader.daemon = True
+
+            # Wait for queue READER to start.
+            start_wait = time.time()
+            self.__reader.start()
+            while not self.__reader_run_event.is_set():
+                if (time.time() - start_wait) > TIMEOUT:
+                    msg = 'timed out waiting for thread to start.'
+                    LOGGER.warning(syslog(self, msg))
+                    raise Exception(msg)
+                else:
+                    time.sleep(0.01)
+
+            # Wait for queue WRITER to start.
+            start_wait = time.time()
+            self.__writer.start()
+            while not self.__writer_run_event.is_set():
+                if (time.time() - start_wait) > TIMEOUT:
+                    msg = 'timed out waiting for process to start.'
+                    LOGGER.warning(syslog(self, msg))
+                    raise Exception(msg)
+                else:
+                    time.sleep(0.01)
+
+            # Log successful starting of thread.
+            LOGGER.info(syslog(self, "running (%s)", str(self.__connection)))
+
+            self.__is_alive = True
+            return True
+
+        else:
+            return False
+
+    def request_close(self):
+
+        if self.is_alive():
+            self.__writer_run_event.clear()
+            self.__reader_run_event.clear()
+
+    def close(self):
+        """Close connection to queued listener.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the queued listener was
+                           closed. If the queued listener was already closed,
+                           the request is ignored and the method returns
+                           :data:`False`.
+
+        """
+
+        # Stop queuing broadcasts on process.
+        if self.is_alive():
+            LOGGER.info(syslog(self, "stop request (%s)",
+                               str(self.__connection)))
+
+            # Send signal to STOP queue WRITER and READER.
+            self.__writer_run_event.clear()
+            self.__reader_run_event.clear()
+
+            # Wait for queue READER to terminate.
+            self.__reader.join(TIMEOUT)
+            if self.__reader.is_alive():
+                msg = "timed out waiting for thread (%s) to stop."
+                msg = msg % str(self.__connection)
+                LOGGER.warning(syslog(self, msg))
+                raise Exception(msg)
+
+            # Wait for queue WRITER to terminate.
+            self.__writer.join(TIMEOUT)
+            if self.__writer.is_alive():
+                msg = "timed out waiting for (%s) process to stop."
+                msg = msg % str(self.__connection)
+                LOGGER.warning(syslog(self, msg))
+                raise Exception(msg)
+
+            # Log succeful shutdown of thread and process.
+            msg = "stopped (%s)"
+            LOGGER.info(syslog(self, msg, str(self.__connection)))
+
+            # Reset asynchronous objects (Drop data in the queue).
+            self.__queue = None
+            self.__reader = None
+            self.__writer = None
+            self.__is_alive = False
+            return True
+        else:
+            return False

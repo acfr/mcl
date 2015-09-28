@@ -1,5 +1,7 @@
 import time
+import threading
 import unittest
+import multiprocessing
 
 from mcl.test.common import attr_exists
 from mcl.test.common import attr_issubclass
@@ -7,12 +9,19 @@ from mcl.test.common import attr_isinstance
 from mcl.test.common import compile_docstring
 
 import mcl.message.messages
+from mcl.network.network import QueuedListener
+from mcl.network.network import MessageListener
+from mcl.network.network import MessageBroadcaster
 from mcl.network.abstract import Connection as AbstractConnection
-from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
-from mcl.network.message import MessageBroadcaster
-from mcl.network.message import MessageListener
+from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 
+# Note: The delay is used to 'synchronise' threaded events so that race
+#       conditions do not occur.
+DELAY = 0.15
+TIMEOUT = 5.0
+
+# Topics used for testing.
 TOPIC = 'test topic'
 TOPICS = ['topic A', 'topic B']
 
@@ -45,8 +54,7 @@ class _BroadcasterTestsMeta(type):
                         "a abstract.Connection() sub-class.")
 
         # Create name from module origin and object name.
-        module_name = '%s.%s' % (dct['broadcaster'].__module__.split('.')[-1],
-                                 dct['broadcaster'].__name__)
+        module_name = '%s' % dct['broadcaster'].__module__.split('.')[-1]
 
         # Rename docstrings of unit-tests and copy into new sub-class.
         method_dct = compile_docstring(bases[0], module_name)
@@ -99,7 +107,7 @@ class BroadcasterTests(object):
         mcl.message.messages._MESSAGES = list()
 
     def test_init(self):
-        """Test %s() can be initialised and closed."""
+        """Test %s RawBroadcaster() can be initialised and closed."""
 
         # Create an instance of RawBroadcaster() with the default topic.
         broadcaster = self.broadcaster(self.connection)
@@ -118,7 +126,7 @@ class BroadcasterTests(object):
         self.assertFalse(result)
 
     def test_bad_init(self):
-        """Test %s() catches bad initialisation inputs."""
+        """Test %s RawBroadcaster() catches bad initialisation inputs."""
 
         # Test instantiation fails if 'connection' is not a class an not an
         # instance.
@@ -134,7 +142,7 @@ class BroadcasterTests(object):
             self.broadcaster(self.connection, topic=TOPICS)
 
     def test_init_topic(self):
-        """Test %s() 'topic' parameter at initialisation."""
+        """Test %s RawBroadcaster() 'topic' parameter at initialisation."""
 
         # Create an instance of RawBroadcaster() with a specific topic.
         broadcaster = self.broadcaster(self.connection, topic=TOPIC)
@@ -147,7 +155,7 @@ class BroadcasterTests(object):
         broadcaster.close()
 
     def test_publish(self):
-        """Test %s() can publish data."""
+        """Test %s RawBroadcaster() can publish data."""
 
         # Create an instance of RawBroadcaster().
         broadcaster = self.broadcaster(self.connection)
@@ -166,7 +174,7 @@ class BroadcasterTests(object):
             broadcaster.publish('test')
 
     def test_publish_topic(self):
-        """Test %s() can publish data with a topic."""
+        """Test %s RawBroadcaster() can publish data with a topic."""
 
         # Create an instance of RawBroadcaster().
         broadcaster = self.broadcaster(self.connection)
@@ -181,7 +189,7 @@ class BroadcasterTests(object):
         broadcaster.close()
 
     def test_message_init(self):
-        """Test %s() can initialise MessageBroadcaster() objects."""
+        """Test %s MessageBroadcaster() initialisation."""
 
         # Create an instance of MessageBroadcaster() with defaults.
         broadcaster = MessageBroadcaster(self.Message)
@@ -204,7 +212,7 @@ class BroadcasterTests(object):
             MessageBroadcaster(self.Message, topic=5)
 
     def test_message_publish(self):
-        """Test %s() can publish data via a MessageBroadcaster()."""
+        """Test %s MessageBroadcaster() publish."""
 
         # Create an instance of MessageBroadcaster().
         message = self.Message()
@@ -253,8 +261,7 @@ class _ListenerTestsMeta(type):
                         "a abstract.Connection() sub-class.")
 
         # Create name from module origin and object name.
-        module_name = '%s.%s' % (dct['listener'].__module__.split('.')[-1],
-                                 dct['listener'].__name__)
+        module_name = '%s' % dct['listener'].__module__.split('.')[-1]
 
         # Rename docstrings of unit-tests and copy into new sub-class.
         method_dct = compile_docstring(bases[0], module_name)
@@ -307,7 +314,7 @@ class ListenerTests(object):
         mcl.message.messages._MESSAGES = list()
 
     def test_init(self):
-        """Test %s() can be initialised and closed."""
+        """Test %s RawListener() can be initialised and closed."""
 
         # Create an instance of RawListener() with the default topic.
         listener = self.listener(self.connection)
@@ -326,7 +333,7 @@ class ListenerTests(object):
         self.assertFalse(result)
 
     def test_bad_init(self):
-        """Test %s() catches bad initialisation inputs."""
+        """Test %s RawListener() catches bad initialisation inputs."""
 
         # Test instantiation fails if 'connection' is not a class an not an
         # instance.
@@ -342,7 +349,7 @@ class ListenerTests(object):
             self.listener(self.connection, topics=['topic', 10])
 
     def test_init_topics(self):
-        """Test %s() 'topics' parameter at initialisation."""
+        """Test %s RawListener() 'topics' parameter at initialisation."""
 
         # Create an instance of RawListener() with a SINGLE topics.
         listener = self.listener(self.connection, topics=TOPIC)
@@ -353,7 +360,7 @@ class ListenerTests(object):
         self.assertEqual(listener.topics, TOPICS)
 
     def test_subscriptions(self):
-        """Test %s() can subscribe and unsubscribe callbacks."""
+        """Test %s RawListener() can subscribe and unsubscribe callbacks."""
 
         # NOTE: This testing is theoretically redundant. Unit test code on the
         #       parent class 'vent() should pick up any errors. To be paranoid
@@ -374,7 +381,7 @@ class ListenerTests(object):
         self.assertEqual(listener.num_subscriptions(), 0)
 
     def test_message_init(self):
-        """Test %s() can initialise MessageListener() objects."""
+        """Test %s MessageListener() initialisation."""
 
         # Create an instance of MessageListener() with defaults.
         listener = MessageListener(self.Message)
@@ -395,6 +402,100 @@ class ListenerTests(object):
         # Ensure non-string topics are caught.
         with self.assertRaises(TypeError):
             MessageListener(self.Message, topics=5)
+
+    def test_queuedlistener_init(self):
+        """Test %s QueuedListener() initialisation."""
+
+        # Instantiate QueuedListener() using connection object.
+        listener = QueuedListener(self.Message.connection)
+        self.assertTrue(listener.is_alive())
+        self.assertFalse(listener._open())
+
+        # Stop listener.
+        self.assertTrue(listener.close())
+        self.assertFalse(listener.is_alive())
+        self.assertFalse(listener.close())
+
+        # Ensure instantiation fails if the input is not a MCL connection.
+        # object.
+        with self.assertRaises(TypeError):
+            QueuedListener('hat')
+
+    def test_queuedlistener_enqueue(self):
+        """Test %s QueuedListener() multiprocess enqueue functionality."""
+
+        # NOTE: QueuedListener is designed to run on a separate
+        #       process. The code run on that process is contained within the
+        #       class. Exceptions encountered in that will not be caught or
+        #       unit tested unless the code is tested directly in this process.
+        #       However, the code has been made 'private' as it should not be
+        #       called directly and it maintains a clean API. To properly
+        #       unit-test this code, the 'private' mangling of the code will be
+        #       dodged.
+
+        # Create broadcaster.
+        broadcaster = self.Message.connection.broadcaster
+        broadcaster = broadcaster(self.Message.connection)
+
+        # Abuse intention of 'private' mangling to get queuing function.
+        fcn = QueuedListener._QueuedListener__enqueue
+        queue = multiprocessing.Queue()
+
+        # The '__enqueue' method does not reference 'self' so it can be tested
+        # on this thread. However, it does block so multi-threading must be
+        # used to terminate its operation.
+        run_event = threading.Event()
+        run_event.set()
+
+        # Launch '__enqueue' method on a new thread.
+        thread = threading.Thread(target=fcn,
+                                  args=(QueuedListener(self.Message.connection),
+                                        run_event,
+                                        self.Message.connection,
+                                        queue))
+        thread.daemon = True
+        thread.start()
+        time.sleep(DELAY)
+
+        # Publish data via broadcaster.
+        test_data = 'test'
+        broadcaster.publish(test_data)
+        time.sleep(DELAY)
+
+        # Wait for thread to close.
+        run_event.clear()
+        thread.join(TIMEOUT)
+
+        # Ensure data was processed.
+        self.assertEqual(queue.get()['payload'], test_data)
+
+    def test_receive(self):
+        """Test %s QueuedListener() send-receive functionality."""
+
+        # Create QueuedListener().
+        listener = QueuedListener(self.Message.connection)
+
+        # Create broadcaster.
+        broadcaster = self.Message.connection.broadcaster
+        broadcaster = broadcaster(self.Message.connection)
+
+        # Catch messages.
+        data_buffer = list()
+        listener.subscribe(lambda data: data_buffer.append(data))
+
+        # Send message.
+        test_data = 'test'
+        broadcaster.publish(test_data)
+        time.sleep(DELAY)
+
+        # Ensure the message was received.
+        self.assertEqual(len(data_buffer), 1)
+        self.assertEqual(data_buffer[0]['payload'], test_data)
+
+        # Stop listener and broadcaster.
+        listener.close()
+        broadcaster.close()
+
 
 # -----------------------------------------------------------------------------
 #                               Publish-Subscribe
