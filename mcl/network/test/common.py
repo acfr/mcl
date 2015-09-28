@@ -18,7 +18,7 @@ from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 
 # Note: The delay is used to 'synchronise' threaded events so that race
 #       conditions do not occur.
-DELAY = 0.15
+DELAY = 0.25
 TIMEOUT = 5.0
 
 # Topics used for testing.
