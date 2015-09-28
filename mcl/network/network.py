@@ -16,6 +16,7 @@ import mcl.logging.sys
 import mcl.message.messages
 from mcl.event.event import Event
 from mcl.message.messages import Message
+from mcl.event.event import _HideTriggerMeta
 
 
 # Time to wait for threads and processes to start/stop. This parameter could be
@@ -257,16 +258,20 @@ class QueuedListener(Event):
 
     """
 
+    # Rename the 'trigger' method to '__trigger__' so it is more 'private'.
+    __metaclass__ = _HideTriggerMeta
+
     def __init__(self, connection):
         """Document the __init__ method at the class level."""
-
-        super(QueuedListener, self).__init__()
 
         # Ensure 'connection' is a Connection() object.
         if not isinstance(connection, mcl.network.abstract.Connection):
             msg = "'connection' must reference a Connection() instance."
             raise TypeError(msg)
         self.__connection = connection
+
+        # Initialise Event() object.
+        super(QueuedListener, self).__init__()
 
         # Log initialisation.
         mcl.logging.sys.info(self, "%s - instanting", str(self.__connection))
@@ -376,7 +381,7 @@ class QueuedListener(Event):
         while self.__reader_run_event.is_set():
             try:
                 message = self.__queue.get(timeout=self.__timeout)
-                self.trigger(message)
+                self.__trigger__(message)
 
             except Queue.Empty:
                 pass

@@ -218,3 +218,54 @@ class Event(object):
 
         for callback in callbacks:
             callbacks[callback](*args, **kwargs)
+
+
+class _HideTriggerMeta(type):
+    """Meta-class for making the Event.trigger() method 'private'.
+
+    The :py:class:`._HideTriggerMeta` object is a meta-class designed to hide
+    the :py:func:`Event.trigger` method in :py:class:`.RawListener`
+    sub-classes.
+
+    Implementations of :py:class:`.RawListener` should link the
+    :py:func:`Event.trigger` method to I/O events such as receiving data on a
+    network interface. While this allows the sub-classes to be event-driven,
+    the :py:func:`Event.trigger` method is exposed.
+
+    This design pattern is an interface design choice that allows
+    :py:class:`.RawListener` objects to inherit functionality from
+    :py:class:`.Event` without obvious exposure of the :py:func:`Event.trigger`
+    method. The goal is to discourage *users* of :py:class:`.RawListener`
+    objects from forcing data to subscribed callback methods by direct calls to
+    the :py:func:`Event.trigger` method. *Developers* of
+    :py:class:`.RawListener` objects will need to call the slightly more
+    obscure '__trigger__' method from I/O loops.
+
+    .. note::
+
+        This meta-class inherits from the abc.ABCMeta object. As such, objects
+        which implement this meta-class will gain the functionality of abstract
+        base classes.
+
+    """
+
+    def __new__(cls, name, bases, dct):
+
+        # Note: Inherting from Event() is not necessary in RawListener() since
+        #       this meta-class redefines the base classes in the following
+        #       code. The sub-class syntax has been left inplace as a reminder
+        #       that RawListener() objects behave like Event() objects.
+        #
+        if bases == (Event,):
+
+            # Copy Event() object data and rename the trigger method to make it
+            # 'private'.
+            class_dict = dict(Event.__dict__)
+            class_dict['__trigger__'] = class_dict['trigger']
+            class_dict['__trigger__'].func_name = '__trigger__'
+            del(class_dict['trigger'])
+
+            # Override base with 'private' Event() object..
+            bases = (type('PrivateEvent', Event.__bases__, class_dict), )
+
+        return super(_HideTriggerMeta, cls).__new__(cls, name, bases, dct)
