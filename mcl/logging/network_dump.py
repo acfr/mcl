@@ -73,11 +73,10 @@ import multiprocessing
 from threading import Thread
 from multiprocessing import Process
 
-from publisher import Publisher
-from network import RawListener
-from logging.network_dump_io import WriteFile
-from logging.network_dump_io import WriteScreen
-from network.abstract import Connection as AbstractConnection
+import mcl.message.messages
+from mcl.event.event import Event
+from mcl.logging.network_dump_io import WriteFile
+from mcl.logging.network_dump_io import WriteScreen
 
 # Initialise logging.
 import logging
@@ -103,14 +102,17 @@ TIMEOUT = 60
 
 
 def syslog(cls, msg, *args):
+
     if isinstance(cls, basestring):
         syslog_msg = '%s: ' % cls
     else:
         syslog_msg = '%s: ' % cls.__class__.__name__
+
     if args:
         syslog_msg += msg % args
     else:
         syslog_msg += msg
+
     return syslog_msg
 
 
@@ -129,7 +131,7 @@ def _set_process_name(name):
         pass
 
 
-class QueuedBroadcastListener(Publisher):
+class QueuedBroadcastListener(Event):
     """Open a broadcast address and listen for data.
 
     The :py:class:`.QueuedBroadcastListener` object subscribes to a network
@@ -177,31 +179,34 @@ class QueuedBroadcastListener(Publisher):
 
         {'time_received': datetime.datetime(),
          'name': str(),
-         'address': str(),
+         'connection': object(),
          'object': object(),
          'transmissions': int(),
          'topic': str(),
          'payload': str()}
 
     Args:
-        connection (:py:class:`.abstract.Connection`): MCL connection object.
+        message (:py:class:`.Message`): MCL message object.
 
     """
 
-    def __init__(self, connection):
+    def __init__(self, message):
         """Document the __init__ method at the class level."""
 
         super(QueuedBroadcastListener, self).__init__()
 
-        # Store network configuration.
-        if not isinstance(connection, AbstractConnection):
-            raise TypeError('Input must be a MCL connection object.')
-        self.__connection = connection
+        # Ensure 'message' is a Message() object.
+        if not issubclass(message, mcl.message.messages.Message):
+            msg = "'message' must reference a Message() sub-class."
+            raise TypeError(msg)
+        self.__message = message
 
-        msg = "instanting ('%s' on '%s')"
-        LOGGER.info(syslog(self, msg,
-                           connection.message.__name__,
-                           connection.url))
+        # Create string for identifying Queuedbroadcastlistener in log files.
+        self.__logger_ID = "'%s' on '%s'" % (message.__name__,
+                                             str(message.connection))
+
+        # Log initialisation.
+        LOGGER.info(syslog(self, "instanting (%s)", self.__logger_ID))
 
         # Create objects for inter-process communication.
         self.__queue = None
@@ -222,7 +227,7 @@ class QueuedBroadcastListener(Publisher):
             success = False
 
         if not success:
-            msg = "Could not connect to '%s'." % str(connection)
+            msg = "Could not connect to '%s'." % str(message.connection)
             raise IOError(msg)
 
     def is_alive(self):
@@ -237,58 +242,63 @@ class QueuedBroadcastListener(Publisher):
 
         return self.__is_alive
 
+    # Note: This method is implemented as a private static method. It is has
+    #       been implemented as a static method to reinforce the idea that
+    #       operations in this method are performed on a separate process (new
+    #       memory space) without explicit reference to the class. The method
+    #       has been encapsulated in the class to reinforce the idea that is it
+    #       functionality that is particular to the class.
+    #
     @staticmethod
-    def __enqueue(class_name, run_event, connection, queue):
+    def __enqueue(class_name, run_event, message, queue):
         """Light weight service to write incoming data to a queue."""
 
         # Attempt to set process name.
-        msg_name = connection.message.__name__
-        url = connection.url
+        msg_name = message.__name__
+        connection = message.connection
         proc_name = '%s listener (%s)'
-        proc_name = proc_name % (msg_name, url)
+        proc_name = proc_name % (msg_name, str(connection))
         _set_process_name(proc_name)
 
-        msg = "writing  to  queue ('%s' on '%s')"
-        LOGGER.info(syslog(class_name, msg, msg_name, url))
+        # Create ID for logging on process.
+        logger_ID = "'%s' on '%s'" % (msg_name, str(connection))
+
+        # Log start of process activity.
+        msg = "writing  to  queue (%s)"
+        LOGGER.info(syslog(class_name, msg, logger_ID))
         run_event.set()
 
-        # Note: since this function operates on a process, references to 'self'
-        #       have been eliminated. Since these methods do not require access
-        #       to the parent object they could be designed as functions. They
-        #       have been embedded in an object to reduce clutter in the
-        #       namespace and conceptually encapsulate the functionality.
-
-        def enqueue(message):
+        # Note: lexical closure is (ab)used to provide non-local access to the
+        #       'name', 'connection' and the 'queue' object. This function will
+        #       be executed asynchronously from the listener object where the
+        #       queue object would normally be out of scope. Closure allows the
+        #       queue to remain accessible.
+        #
+        def enqueue(data):
             """Write broadcast to queue when data is received."""
-
-            # Note: lexical closure is (ab)used to provide non-local access to
-            #       the 'name', 'address' and the 'queue' object. This function
-            #       will be executed asynchronously from the listener object
-            #       where the queue object would normally be out of
-            #       scope. Closure allows the queue to remain accessible.
 
             try:
                 # Record time data was received.
                 timestamp = datetime.datetime.now()
 
                 # Decompose message.
-                transmissions, topic, payload = message
+                transmissions, topic, payload = data
 
                 # Write message and timestamp to queue.
                 queue.put({'time_received': timestamp,
                            'name': msg_name,
-                           'address': connection.url,
-                           'object': connection.message,
+                           'connection': connection,
+                           'object': message,
                            'transmissions': transmissions,
                            'topic': topic,
                            'payload': payload})
 
             except:
-                msg = "error writing to queue ('%s' on '%s')"
-                LOGGER.exception(syslog(class_name, msg, msg_name, url))
+                msg = "error writing to queue (%s)"
+                LOGGER.exception(syslog(class_name, msg, logger_ID))
 
         # Start listening for network broadcasts.
-        listener = RawListener.from_connection(connection)
+        listener = message.connection.listener(message.connection)
         listener.subscribe(enqueue)
 
         # Wait for user to terminate listening service.
@@ -298,38 +308,42 @@ class QueuedBroadcastListener(Publisher):
             except KeyboardInterrupt:
                 break
             except:
-                msg = "error writing to queue ('%s' on '%s')"
-                LOGGER.exception(syslog(class_name, msg, msg_name, url))
+                msg = "error writing to queue (%s)"
+                LOGGER.exception(syslog(class_name, msg, logger_ID))
                 raise
 
         # Stop listening for messages.
         listener.close()
 
-        msg = "writing stopped ('%s' on '%s')"
-        LOGGER.info(syslog(class_name, msg, msg_name, url))
+        # Log exiting of process.
+        msg = "writing stopped (%s)"
+        LOGGER.info(syslog(class_name, msg, logger_ID))
 
-    def __dequeue(self, name, url):
+    def __dequeue(self, message):
         """Light weight service to read data from queue and issue callbacks."""
 
-        msg = "reading from queue ('%s' on '%s')"
-        LOGGER.info(syslog(self, msg, name, url))
+        # Log start of thread activity.
+        msg = "reading from queue (%s)"
+        LOGGER.info(syslog(self, msg, self.__logger_ID))
         self.__reader_run_event.set()
 
+        # Read data from the queue and trigger an event.
         while self.__reader_run_event.is_set():
             try:
                 message = self.__queue.get(timeout=self.__timeout)
-                self.__publish__(message)
+                self.trigger(message)
 
             except Queue.Empty:
                 pass
 
             except:
-                msg = "error reading from queue ('%s' on '%s')"
-                LOGGER.exception(syslog(self, msg, name, url))
+                msg = "error reading from queue (%s)"
+                LOGGER.exception(syslog(self, msg, self.__logger_ID))
                 raise
 
-        msg = "reading stopped ('%s' on '%s')"
-        LOGGER.info(syslog(self, msg, name, url))
+        # Log exiting of thread.
+        msg = "reading stopped (%s)"
+        LOGGER.info(syslog(self, msg, self.__logger_ID))
 
     def _open(self):
         """Open connection to queued listener and start publishing broadcasts.
@@ -344,25 +358,23 @@ class QueuedBroadcastListener(Publisher):
 
         # Start publishing broadcast-events on a thread.
         if not self.is_alive():
-            msg = "start request ('%s' on '%s')"
-            LOGGER.info(syslog(self, msg, self.__connection.message.__name__,
-                               self.__connection.url))
+            msg = "start request (%s)"
+            LOGGER.info(syslog(self, msg, self.__logger_ID))
 
             # Reset asynchronous objects.
             self.__queue = multiprocessing.Queue()
 
-            # Create thread for dequeueing and publishing data.
+            # Create THREAD for dequeueing and publishing data.
             self.__reader_run_event.clear()
             self.__reader = Thread(target=self.__dequeue,
-                                   args=(self.__connection.message.__name__,
-                                         self.__connection.url,))
+                                   args=(self.__message,))
 
-            # Create process for enqueueing data on a separate process.
+            # Create PROCESS for enqueueing data.
             self.__writer_run_event.clear()
             self.__writer = Process(target=self.__enqueue,
                                     args=(self.__class__.__name__,
                                           self.__writer_run_event,
-                                          self.__connection,
+                                          self.__message,
                                           self.__queue,))
 
             # Start asynchronous objects and wait for them to become alive.
@@ -391,9 +403,8 @@ class QueuedBroadcastListener(Publisher):
                 else:
                     time.sleep(0.01)
 
-            msg = "running ('%s' on '%s')"
-            LOGGER.info(syslog(self, msg, self.__connection.message.__name__,
-                               self.__connection.url))
+            # Log successful starting of thread.
+            LOGGER.info(syslog(self, "running (%s)", self.__logger_ID))
 
             self.__is_alive = True
             return True
@@ -420,9 +431,7 @@ class QueuedBroadcastListener(Publisher):
 
         # Stop queuing broadcasts on process.
         if self.is_alive():
-            msg = "stop request ('%s' on '%s')"
-            LOGGER.info(syslog(self, msg, self.__connection.message.__name__,
-                               self.__connection.url))
+            LOGGER.info(syslog(self, "stop request (%s)", self.__logger_ID))
 
             # Send signal to STOP queue WRITER and READER.
             self.__writer_run_event.clear()
@@ -431,24 +440,22 @@ class QueuedBroadcastListener(Publisher):
             # Wait for queue READER to terminate.
             self.__reader.join(TIMEOUT)
             if self.__reader.is_alive():
-                msg = "timed out waiting for thread ('%s' on '%s') to stop."
-                msg = msg % (self.__connection.message.__name__,
-                             self.__connection.url)
+                msg = "timed out waiting for thread (%s) to stop."
+                msg = msg % self.__logger_ID
                 LOGGER.warning(syslog(self, msg))
                 raise Exception(msg)
 
             # Wait for queue WRITER to terminate.
             self.__writer.join(TIMEOUT)
             if self.__writer.is_alive():
-                msg = "timed out waiting for ('%s' on '%s') process to stop."
-                msg = msg % (self.__connection.message.__name__,
-                             self.__connection.url)
+                msg = "timed out waiting for (%s) process to stop."
+                msg = msg % self.__logger_ID
                 LOGGER.warning(syslog(self, msg))
                 raise Exception(msg)
 
-            msg = "stopped ('%s' on '%s')"
-            LOGGER.info(syslog(self, msg, self.__connection.message.__name__,
-                               self.__connection.url))
+            # Log succeful shutdown of thread and process.
+            msg = "stopped (%s)"
+            LOGGER.info(syslog(self, msg, self.__logger_ID))
 
             # Reset asynchronous objects (Drop data in the queue).
             self.__queue = None

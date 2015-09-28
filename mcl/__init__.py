@@ -11,5 +11,11 @@ multiple packages within the MCL namespace.
 
 """
 
+# Location of pyITS.
 import os
-import msgpack
+MCL_ROOT = os.path.dirname(__file__)
+
+# Location for logging data.
+LOG_ROOT = '/tmp/'
+if not os.path.exists(LOG_ROOT):
+    LOG_ROOT = PYITS_ROOT

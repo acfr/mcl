@@ -13,9 +13,10 @@ import msgpack
 import datetime
 import textwrap
 import subprocess
+
 from mcl import MCL_ROOT
-from mcl.message.messages import get_message_object
-from mcl.message.messages import Message as BaseMessage
+import mcl.message.messages
+from mcl.message.messages import get_message_objects
 
 
 class DumpConstants(object):
@@ -354,7 +355,7 @@ class WriteFile(DumpConstants):
             raise IOError('The directory %s does not exist.' % dir_name)
 
         # Store type of recorded data.
-        if issubclass(message, BaseMessage):
+        if issubclass(message, mcl.message.messages.Message):
             self.__message = message
         else:
             msg = "The input 'message' must be a MCL message object."
@@ -968,7 +969,7 @@ class ReadFile(DumpConstants):
                 # Package up data in a dictionary
                 message = {'elapsed_time': elapsed_time,
                            'topic': topic[1:-1],
-                           'message': get_message_object(dct['name'])(dct)}
+                           'message': get_message_objects(dct['name'])(dct)}
 
                 # Filter out messages before requested period.
                 if self.__min_time and elapsed_time < self.__min_time:

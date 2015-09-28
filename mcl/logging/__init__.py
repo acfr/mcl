@@ -13,6 +13,3 @@
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
-
-from network_dump import NetworkDump
-from network_dump_replay import NetworkReplay
