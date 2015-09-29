@@ -152,4 +152,4 @@ class TestPublishSubscribe(PublishSubscribeTests):
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.
-        self.assertEqual(send_string, received_buffer[0][2])
+        self.assertEqual(send_string, received_buffer[0]['payload'])

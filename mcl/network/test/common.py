@@ -663,7 +663,7 @@ class PublishSubscribeTests(object):
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.
-        self.assertEqual(send_string, received_buffer[0][2])
+        self.assertEqual(send_string, received_buffer[0]['payload'])
 
     def test_topic_at_init(self):
         """Test %s with broadcast topic set at initialisation."""
@@ -690,8 +690,8 @@ class PublishSubscribeTests(object):
 
         # Ensure message was transmitted with a topic.
         self.assertEqual(len(received_buffer), 1)
-        self.assertEqual(initial_topic, received_buffer[0][1])
-        self.assertEqual(send_string, received_buffer[0][2])
+        self.assertEqual(initial_topic, received_buffer[0]['topic'])
+        self.assertEqual(send_string, received_buffer[0]['payload'])
 
     def test_topic_at_publish(self):
         """Test %s with broadcast topic set at publish."""
@@ -762,8 +762,8 @@ class PublishSubscribeTests(object):
         # Ensure ONE specific topic was received.
         send_string = send_strings[send_topics.index(listen_topic)]
         self.assertEqual(len(topic_buffer), 1)
-        self.assertEqual(listen_topic, topic_buffer[0][1])
-        self.assertEqual(send_string, topic_buffer[0][2])
+        self.assertEqual(listen_topic, topic_buffer[0]['topic'])
+        self.assertEqual(send_string, topic_buffer[0]['payload'])
 
     def test_listen_multiple_topics(self):
         """Test %s by listening for multiple topics from many."""
@@ -804,8 +804,8 @@ class PublishSubscribeTests(object):
         self.assertEqual(len(topic_buffer), len(listen_topics))
         for i, topic in enumerate(listen_topics):
             send_string = send_strings[send_topics.index(topic)]
-            self.assertEqual(topic, topic_buffer[i][1])
-            self.assertEqual(send_string, topic_buffer[i][2])
+            self.assertEqual(topic, topic_buffer[i]['topic'])
+            self.assertEqual(send_string, topic_buffer[i]['payload'])
 
     def test_message_send_receive(self):
         """Test %s with MessageBroadcaster/Listener() objects."""

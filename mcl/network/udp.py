@@ -165,29 +165,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
     fragmented into smaller sub-packets which obey the network maximum
     transmission unit (MTU) constraints.
 
-    Data packets are published using a header-payload protocol::
-
-        --------------------
-        | header | payload |
-        --------------------
-
-    The header consists of a comma separated string::
-
-        -------------------------------------------------------------
-        | transmission counter, topic, packet number, total packets |
-        -------------------------------------------------------------
-
-    where:
-
-        - Transmission counter is an integer representing the total number of
-          data packets send using :py:class:`.RawBroadcaster`.
-        - Topic is a string representing the topic associated with the current
-          data packet. This can be used for filtering broadcasts.
-        - Packet number is an integer indicating that the current packet is the
-          Nth packet out of M packets in a sequence.
-        - Total packets is an integer indicating that the current packet is a
-          member of a sequence of M packets.
-
     The payload is represented as a string. The :py:class:`.RawBroadcaster`
     object does not assume any encoding on the string. To send binary data over
     the network, it must be serialised before issuing a call to
@@ -316,6 +293,33 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
         """
 
+        # Note:
+        #
+        #     Data packets are published using a header-payload protocol::
+        #
+        #         --------------------
+        #         | header | payload |
+        #         --------------------
+        #
+        #     The header consists of a comma separated string::
+        #
+        #         -------------------------------------------------------------
+        #         | transmission counter, topic, packet number, total packets |
+        #         -------------------------------------------------------------
+        #
+        #     where:
+        #
+        #         - Transmission counter is an integer representing the total
+        #           number of data packets send using
+        #           :py:class:`.RawBroadcaster`.
+        #         - Topic is a string representing the topic associated with
+        #           the current data packet. This can be used for filtering
+        #           broadcasts.
+        #         - Packet number is an integer indicating that the current
+        #           packet is the Nth packet out of M packets in a sequence.
+        #         - Total packets is an integer indicating that the current
+        #           packet is a member of a sequence of M packets.
+        #
         if self.is_open:
 
             # Ensure data is a string. Non-string data must be serialised
@@ -395,11 +399,25 @@ class RawListener(AbstractRawListener):
     The :py:class:`.RawListener` object subscribes to a UDP socket and issues
     publish events when UDP data is received. The object marshalls broadcasts
     and ensures multiple, fragmented packets will be recomposed into a single
-    packet. :py:class:`.RawListener` expects data to be published following the
-    same protocol as :py:class:`.RawBroadcaster`. See
-    :py:class:`.RawBroadcaster` for details. When data packets arrive, they are
-    made available to other objects using the publish-subscribe paradigm
-    implemented by the parent class :py:class:`.Publisher`.
+    packet.
+
+    When data packets arrive, they are made available to other objects using
+    the publish-subscribe paradigm implemented by the parent class
+    :py:class:`.Event`. When data arrives, it is published to callbacks in the
+    following format::
+
+        {'transmissions': int(),
+         'topic': str(),
+         'payload': str()}
+
+    where:
+
+        - ``transmissions`` is an integer representing the total number of data
+          packets sent at the origin.
+        - ``topic`` is a string representing the topic associated with the
+          current data packet. This can be used for filtering broadcasts.
+        - ``payload`` contains the contents of the data transmission as a
+          string.
 
     **Note:** :py:class:`.RawListener` does not interpret the received data in
     anyway. Code receiving the data must be aware of how to handle it. A method
@@ -597,7 +615,9 @@ class RawListener(AbstractRawListener):
             if packets == 1:
                 with self.__counter_lock:
                     self.__counter += 1
-                self.__trigger__((transmissions, topic, payload))
+                self.__trigger__({'transmissions': transmissions,
+                                  'topic': topic,
+                                  'payload': payload})
                 continue
 
             # Data fits into multiple frames. The code from this point forwards
@@ -684,7 +704,9 @@ class RawListener(AbstractRawListener):
                 payload = ''.join(receive_buffer[frame_identifier])
                 with self.__counter_lock:
                     self.__counter += 1
-                self.__trigger__((transmissions, topic, payload))
+                self.__trigger__({'transmissions': transmissions,
+                                  'topic': topic,
+                                  'payload': payload})
 
                 # Free space in buffer.
                 del receive_buffer[frame_identifier]

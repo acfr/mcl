@@ -6,7 +6,6 @@
 """
 import time
 import Queue
-import datetime
 import threading
 import multiprocessing
 from threading import Thread
@@ -406,18 +405,12 @@ class QueuedListener(Event):
             """Write broadcast to queue when data is received."""
 
             try:
-                # Record time data was received.
-                timestamp = datetime.datetime.now()
-
-                # Decompose message.
-                transmissions, topic, payload = data
-
-                # Write message and timestamp to queue.
-                queue.put({'time_received': timestamp,
-                           'connection': connection,
-                           'transmissions': transmissions,
-                           'topic': topic,
-                           'payload': payload})
+                # Write data to queue.
+                #
+                # Note: Objects enqueued by the same process will always be in
+                #       the expected order with respect to each other.
+                #
+                queue.put(data)
 
             except:
                 pass
@@ -435,7 +428,7 @@ class QueuedListener(Event):
             except:
                 raise
 
-        # Stop listening for messages.
+        # Stop listening for data.
         listener.close()
 
     def __dequeue(self):
