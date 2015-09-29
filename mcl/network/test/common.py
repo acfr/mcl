@@ -9,6 +9,8 @@ from mcl.test.common import attr_isinstance
 from mcl.test.common import compile_docstring
 
 import mcl.message.messages
+from mcl.network.network import RawListener
+from mcl.network.network import RawBroadcaster
 from mcl.network.network import QueuedListener
 from mcl.network.network import MessageListener
 from mcl.network.network import MessageBroadcaster
@@ -124,6 +126,14 @@ class BroadcasterTests(object):
         # Close a closed connection.
         result = broadcaster.close()
         self.assertFalse(result)
+
+    def test_factory(self):
+        """Test %s RawBroadcaster() from connection."""
+
+        # Manufacture an instance of RawBroadcaster() from the connection
+        # object.
+        broadcaster = RawBroadcaster(self.connection)
+        broadcaster.close()
 
     def test_bad_init(self):
         """Test %s RawBroadcaster() catches bad initialisation inputs."""
@@ -332,6 +342,13 @@ class ListenerTests(object):
         result = listener.close()
         self.assertFalse(result)
 
+    def test_factory(self):
+        """Test %s RawListener() from connection."""
+
+        # Manufacture an instance of RawListener() from the connection object.
+        listener = RawListener(self.connection)
+        listener.close()
+
     def test_bad_init(self):
         """Test %s RawListener() catches bad initialisation inputs."""
 
@@ -434,8 +451,7 @@ class ListenerTests(object):
         #       dodged.
 
         # Create broadcaster.
-        broadcaster = self.Message.connection.broadcaster
-        broadcaster = broadcaster(self.Message.connection)
+        broadcaster = RawBroadcaster(self.Message.connection)
 
         # Abuse intention of 'private' mangling to get queuing function.
         fcn = QueuedListener._QueuedListener__enqueue
@@ -476,8 +492,7 @@ class ListenerTests(object):
         listener = QueuedListener(self.Message.connection)
 
         # Create broadcaster.
-        broadcaster = self.Message.connection.broadcaster
-        broadcaster = broadcaster(self.Message.connection)
+        broadcaster = RawBroadcaster(self.Message.connection)
 
         # Catch messages.
         data_buffer = list()

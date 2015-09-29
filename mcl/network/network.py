@@ -17,7 +17,7 @@ import mcl.message.messages
 from mcl.event.event import Event
 from mcl.message.messages import Message
 from mcl.event.event import _HideTriggerMeta
-
+from mcl.network.abstract import Connection as AbstractConnection
 
 # Time to wait for threads and processes to start/stop. This parameter could be
 # exposed to the user. Currently it is viewed as an unnecessary tuning
@@ -40,6 +40,68 @@ def _set_process_name(name):
     # If 'setproctitle' does not exist. Do nothing.
     except:
         pass
+
+
+def RawBroadcaster(connection, topic=None):
+    """Return an object for sending data over a network interface.
+
+    Args:
+        connection (:py:class:`.Connection`): Connection object.
+        topic (str): Topic associated with the network interface.
+
+    Attributes:
+        connection (:py:class:`.Connection`): Connection object.
+        topic (str): Topic associated with the network interface.
+        is_open (bool): Returns :data:`True` if the network interface is
+                        open. Otherwise returns :data:`False`.
+        counter (int): Number of broadcasts issued.
+
+    Raises:
+        TypeError: If any of the inputs are ill-specified.
+
+    """
+
+    # Ensure the connection object is properly specified.
+    if not isinstance(connection, AbstractConnection):
+        msg = "The argument 'connection' must be an instance of a "
+        msg += "Connection()."
+        raise TypeError(msg)
+
+    try:
+        return connection.broadcaster(connection, topic=topic)
+    except:
+        raise
+
+
+def RawListener(connection, topics=None):
+    """Return an object for receiving data over a network interface.
+
+    Args:
+        connection (:py:class:`.Connection`): Connection object.
+        topics (str): Topics associated with the network interface.
+
+    Attributes:
+        connection (:py:class:`.Connection`): Connection object.
+        topics (str): Topics associated with the network interface.
+        is_open (bool): Returns :data:`True` if the network interface is
+                        open. Otherwise returns :data:`False`.
+        counter (int): Number of broadcasts received.
+
+    Raises:
+        TypeError: If any of the inputs are ill-specified.
+
+    """
+
+    # Ensure the connection object is properly specified.
+    if not isinstance(connection, AbstractConnection):
+        msg = "The argument 'connection' must be an instance of a "
+        msg += "Connection()."
+        raise TypeError(msg)
+
+    try:
+        return connection.listener(connection, topics=topics)
+    except:
+        raise
 
 
 class MessageBroadcaster(object):
@@ -356,7 +418,7 @@ class QueuedListener(Event):
                 pass
 
         # Start listening for network broadcasts.
-        listener = connection.listener(connection)
+        listener = RawListener(connection)
         listener.subscribe(enqueue)
 
         # Wait for user to terminate listening service.

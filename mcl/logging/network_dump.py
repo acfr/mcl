@@ -64,17 +64,11 @@ shows :py:class:.`NetworkDump` listening for two message types::
 """
 import os
 import time
-import Queue
 import socket
 import datetime
 import threading
 import collections
-import multiprocessing
-from threading import Thread
-from multiprocessing import Process
 
-import mcl.message.messages
-from mcl.event.event import Event
 from mcl.logging.network_dump_io import WriteFile
 from mcl.logging.network_dump_io import WriteScreen
 
