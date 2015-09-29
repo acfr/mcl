@@ -276,7 +276,7 @@ class QueuedListener(Event):
     A summary of the :py:class:`.QueuedListener` object is shown
     below::
 
-               Message broadcast         Message republished
+                 Data broadcast           Data republished
                  (over network)           (local callbacks)
                       |                            ^
          _____________|____________________________|______________
@@ -288,8 +288,8 @@ class QueuedListener(Event):
         |    |__________________|         |__________________|    |
         |    | Process          |         | Thread           |    |
         |    |                  |         |                  |    |
-        |    |   Add Messages   |         |   Read Messages  |    |
-        |    |   to queue       |         |   from queue     |    |
+        |    |     Add data     |         |    Read data     |    |
+        |    |     to queue     |         |    from queue    |    |
         |    |__________________|         |__________________|    |
         |             |                            ^              |
         |             v                            |              |
@@ -299,24 +299,29 @@ class QueuedListener(Event):
         |_________________________________________________________|
 
     If network data is handled immediately upon reception, long callbacks may
-    cause data packets to be lost. By inserting messages into a queue on a
-    separate process, it is less likely messages will be dropped. A separate
-    thread can read buffered network data from the queue and issue lengthy
-    callbacks with minimal impact to the reception process. If data is received
-    faster than it can be processed the queue will grow.
+    cause data packets to be lost. By inserting data into a queue on a separate
+    process, it is less likely data will be dropped. A separate thread can read
+    buffered network data from the queue and issue lengthy callbacks with
+    minimal impact to the reception process. If data is received faster than it
+    can be processed the queue will grow.
 
-    Messages are published as a dictionary in the following format::
+    Data are published as a dictionary in the following format::
 
-        {'time_received': datetime.datetime(),
-         'name': str(),
-         'connection': object(),
-         'object': object(),
-         'transmissions': int(),
+        {'transmissions': int(),
          'topic': str(),
          'payload': str()}
 
+    where:
+
+        - ``transmissions`` is an integer representing the total number of data
+          packets sent at the origin.
+        - ``topic`` is a string representing the topic associated with the
+          current data packet. This can be used for filtering broadcasts.
+        - ``payload`` contains the contents of the data transmission as a
+          string.
+
     Args:
-        message (:py:class:`.Message`): MCL message object.
+        connection (:py:class:`.Connection`): MCL connection object.
 
     """
 
