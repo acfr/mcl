@@ -438,7 +438,7 @@ class QueuedListener(Event):
         # Stop listening for messages.
         listener.close()
 
-    def __dequeue(self, message):
+    def __dequeue(self):
         """Light weight service to read data from queue and issue callbacks."""
 
         # Log start of thread activity.
@@ -447,8 +447,8 @@ class QueuedListener(Event):
         # Read data from the queue and trigger an event.
         while self.__reader_run_event.is_set():
             try:
-                message = self.__queue.get(timeout=self.__timeout)
-                self.__trigger__(message)
+                data = self.__queue.get(timeout=self.__timeout)
+                self.__trigger__(data)
 
             except Queue.Empty:
                 pass
@@ -478,8 +478,7 @@ class QueuedListener(Event):
 
             # Create THREAD for dequeueing and publishing data.
             self.__reader_run_event.clear()
-            self.__reader = Thread(target=self.__dequeue,
-                                   args=(self.__connection,))
+            self.__reader = Thread(target=self.__dequeue)
 
             # Create PROCESS for enqueueing data.
             self.__writer_run_event.clear()
