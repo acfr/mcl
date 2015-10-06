@@ -721,8 +721,8 @@ class PublishSubscribeTests(object):
         # Ensure messages were transmitted with the correct topics.
         self.assertEqual(len(received), len(send_topics))
         for (i, topic) in enumerate(send_topics):
-            self.assertEqual(topic, received[i][1])
-            self.assertEqual(send_strings[i], received[i][2])
+            self.assertEqual(topic, received[i]['topic'])
+            self.assertEqual(send_strings[i], received[i]['payload'])
 
     def test_listen_single_topic(self):
         """Test %s by listening for a single topic from many."""

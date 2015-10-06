@@ -252,7 +252,7 @@ class MessageListener(object):
 
                 # Attempt to serialise input data.
                 try:
-                    msg = message_type(packed_data[2])
+                    msg = message_type(packed_data['payload'])
                     super(MessageListener, self).__trigger__(msg)
                 except Exception as e:
                     print e.message
