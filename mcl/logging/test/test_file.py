@@ -1,170 +1,135 @@
 import os
+import shutil
 import unittest
-from mcl.logging.network_dump_io import WriteScreen
-from mcl.logging.network_dump_io import WriteFile
-from mcl.logging.network_dump_io import ReadFile
-from mcl.logging.network_dump_io import ReadDirectory
-from mcl.message.messages import ImuMessage
-from mcl.message.messages import GnssMessage
+
+import mcl.message.messages
+from mcl.logging.file import WriteFile
+from mcl.network.abstract import Connection as AbstractConnection
 
 _DIRNAME = os.path.dirname(__file__)
+LOG_PATH = os.path.join(_DIRNAME, 'tmp')
 
 
-def delete_if_exists(fname):
-    """Delete file if it exists."""
-
-    if os.path.exists(fname):
-        os.remove(fname)
+class UnitTestMessage(mcl.message.messages.Message):
+    mandatory = ('A', 'B',)
+    connection = AbstractConnection()
 
 
-class WriteScreenTests(unittest.TestCase):
-
-    def test_initialisation(self):
-        """Test WriteScreen() initialisation."""
-
-        # Test different invocations of WriteScreen().
-        WriteScreen()
-        WriteScreen(format='raw')
-        WriteScreen(format='hex')
-        WriteScreen(format='human')
-        WriteScreen(screen_width=80)
-        WriteScreen(column_width=10)
-
-        # Ensure failure on invalid formats.
-        with self.assertRaises(ValueError):
-            WriteScreen(format='cat')
-
-        # Ensure failure on invalid column widths.
-        with self.assertRaises(ValueError):
-            WriteScreen(column_width=4)
-
-        # Ensure failure on invalid screen widths.
-        with self.assertRaises(ValueError):
-            WriteScreen(screen_width=4)
-
-    def test_truncate_string(self):
-        """Test WriteScreen() string truncation."""
-
-        width = 10
-        short_string = 'test'
-        padded_string = 'test      '
-        long_string = 'input long string'
-        truncated = 'input l...'
-        ws = WriteScreen()
-
-        # Ensure object does not alter short strings.
-        output = ws._WriteScreen__truncate_string(short_string, width)
-        self.assertEqual(padded_string, output)
-
-        # Ensure object can truncate long strings.
-        output = ws._WriteScreen__truncate_string(long_string, width)
-        self.assertEqual(truncated, output)
-
-    def test_format_raw_hex_string(self):
-        """Test WriteScreen() raw/hex formatting."""
-
-        message = {'name': 'TestMessage',
-                   'address': 'test@address',
-                   'topic': 'test',
-                   'payload': 'test\nraw\nstring'}
-
-        netstr = 'TestMes...    test@ad...    test          '
-        rawstr = netstr + message['payload']
-        hexstr = netstr + message['payload'].encode('hex')
-
-        # Ensure raw strings are not modified.
-        ws = WriteScreen(format='raw')
-        output = ws._WriteScreen__format_message(message)
-        self.assertEqual(rawstr, output)
-
-        # Ensure object can convert strings to hex encoding.
-        ws = WriteScreen(format='hex')
-        output = ws._WriteScreen__format_message(message)
-        self.assertEqual(hexstr, output)
-
-    def test_format_human_string(self):
-        """Test WriteScreen() human formatting."""
-
-        # Create message object for testing.
-        gns_message = GnssMessage()
-        gns_message.update(source_timestamp=1, easting=2, northing=3,
-                           heading=4, speed=5, latitude=6, longitude=7,
-                           elevation=8)
-
-        # Package up message object.
-        message = {'name': 'GnssMessage',
-                   'address': 'test@address',
-                   'topic': 'test',
-                   'object': GnssMessage,
-                   'payload': gns_message.encode()}
-
-        netstr = 'GnssMes...    test@ad...    test          '
-        humstr = netstr + '1    2    3    4    5    6    7    8    '
-
-        # Ensure object can convert serialised message objects into human
-        # readable strings.
-        ws = WriteScreen(format='human')
-        output = ws._WriteScreen__format_message(message)
-        self.assertEqual(humstr, output)
-
+# -----------------------------------------------------------------------------
+#                                  WriteFile()
+# -----------------------------------------------------------------------------
 
 class WriteFileTests(unittest.TestCase):
 
+    def setUp(self):
+        """Create logging path if it does not exist."""
+
+        if not os.path.exists(LOG_PATH):
+            os.makedirs(LOG_PATH)
+
+        with open(os.path.join(LOG_PATH, 'README'), 'w') as f:
+            f.write('This directory was created automatically\n')
+            f.write('for unit-testing & can be safely deleted.\n')
+
+    def tearDown(self):
+        """Delete files created for test logging."""
+
+        if os.path.exists(LOG_PATH):
+            shutil.rmtree(LOG_PATH)
+
+    def delete_if_exists(self, fname):
+        """Delete file if it exists."""
+
+        if os.path.exists(fname):
+            os.remove(fname)
+
+    def test_bad_init(self):
+        """Test WriteFile() catches bad initialisation."""
+
+        prefix = os.path.join(LOG_PATH, 'unittest')
+
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessage, max_entries='a')
+
+        # Ensure max_time is specified properly.
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessage, max_time='a')
+
     def test_initialisation(self):
-        """Test WriteFile() initialisation."""
+        """Test WriteFile() initialisation with no splitting."""
 
-        # Parameters for test file.
-        fname = os.path.join(_DIRNAME, 'TestLog')
+        # Create prefix for data log.
+        prefix = os.path.join(LOG_PATH, 'unittest')
+        tmp = prefix + '.tmp'
 
-        # Instantiate object to log all entries in one file.
-        delete_if_exists(fname + '.tmp')
-        wf = WriteFile(fname, GnssMessage)
-        self.assertEqual(fname + '.tmp', wf._WriteFile__get_filename())
+        # Delete log if it already exists (it shouldn't).
+        self.delete_if_exists(tmp)
+
+        # Create logging object.
+        wf = WriteFile(prefix, UnitTestMessage)
+        self.assertEqual(tmp, wf._WriteFile__get_filename())
+
+        # Log file does not exist until data has been written.
+        self.assertFalse(os.path.exists(tmp))
         wf.close()
 
-        # Instantiate object to log entries in split files (by number).
-        delete_if_exists(fname + '_000.tmp')
-        wf = WriteFile(fname, GnssMessage, max_entries=10)
-        self.assertEqual(fname + '_000.tmp', wf._WriteFile__get_filename())
-        wf.close()
+    def test_initialisation_split(self):
+        """Test WriteFile() initialisation with splitting."""
 
-        # Instantiate object to log entries in split files (by time).
-        delete_if_exists(fname + '_000.tmp')
-        wf = WriteFile(fname, GnssMessage, max_time=60)
-        self.assertEqual(fname + '_000.tmp', wf._WriteFile__get_filename())
+        # Create prefix for data log.
+        prefix = os.path.join(LOG_PATH, 'unittest')
+        tmp = prefix + '_000.tmp'
+
+        # Delete split log if it already exists (it shouldn't).
+        self.delete_if_exists(tmp)
+
+        # Limit logging by both entries and time.
+        max_entries = 10
+        max_time = 60
+
+        # Create split logging object.
+        wf = WriteFile(prefix, UnitTestMessage,
+                       max_entries=max_entries,
+                       max_time=max_time)
+        self.assertEqual(tmp, wf._WriteFile__get_filename())
+        self.assertEqual(wf.max_entries, max_entries)
+        self.assertEqual(wf.max_time, max_time)
+
+        # Split log file does not exist until data has been written.
+        self.assertFalse(os.path.exists(tmp))
         wf.close()
 
     def test_write_single(self):
         """Test WriteFile() write single file."""
 
-        # Parameters for test file.
-        fname = os.path.join(_DIRNAME, 'TestLog')
-        temp = fname + '.tmp'
-        log = fname + '.log'
+        # Create file names.
+        prefix = os.path.join(LOG_PATH, 'unittest')
+        tmp = prefix + '.tmp'
+        log = prefix + '.log'
 
         # Ensure logs do not exist before testing.
-        delete_if_exists(temp)
-        delete_if_exists(log)
+        self.delete_if_exists(tmp)
+        self.delete_if_exists(log)
 
         # Create data for testing.
-        gns_message = GnssMessage()
-        gns_message.update(source_timestamp=1, easting=2, northing=3,
-                           heading=4, speed=5, latitude=6, longitude=7,
-                           elevation=8)
+        test_message = UnitTestMessage(A=1, B=2)
 
         # Package up message object.
         message = {'time_received': None,
                    'topic': 'test',
-                   'payload': gns_message.encode()}
+                   'payload': test_message.encode()}
 
-        # Instantiate object to log all entries in one file.
-        wf = WriteFile(fname, GnssMessage)
+        # Create logging object.
+        wf = WriteFile(prefix, UnitTestMessage)
+        self.assertFalse(os.path.exists(tmp))
+
+        # Log data and ensure file exists.
         wf.write(message)
+        self.assertTrue(os.path.exists(tmp))
 
-        # Ensure file is open for writing.
-        self.assertTrue(os.path.exists(temp))
-
-        # Ensure file is has closed writing.
+        # Ensure log file gets 'closed' - rotated from '.tmp' to '.log'
+        # extension.
         wf.close()
         self.assertTrue(os.path.exists(log))
 
@@ -179,79 +144,64 @@ class WriteFileTests(unittest.TestCase):
         self.assertEqual(payload.decode('hex'), message['payload'])
 
         # Clean up after testing.
-        delete_if_exists(temp)
-        delete_if_exists(log)
+        self.delete_if_exists(tmp)
+        self.delete_if_exists(log)
 
     def test_write_split(self):
         """Test WriteFile() write split files."""
 
-        # Parameters for test file.
-        fname = os.path.join(_DIRNAME, 'TestLog')
-        temp1 = fname + '_000.tmp'
-        temp2 = fname + '_001.tmp'
-        log1 = fname + '_000.log'
-        log2 = fname + '_001.log'
+        # Create file names.
+        prefix = os.path.join(LOG_PATH, 'unittest')
+        tmp0 = prefix + '_000.tmp'
+        tmp1 = prefix + '_001.tmp'
+        log0 = prefix + '_000.log'
+        log1 = prefix + '_001.log'
 
         # Ensure logs do not exist before testing.
-        delete_if_exists(temp1)
-        delete_if_exists(temp2)
-        delete_if_exists(log1)
-        delete_if_exists(log2)
+        for fname in [tmp0, tmp1, log0, log1]:
+            self.delete_if_exists(fname)
 
-        # Create first message for testing.
-        gns_message = GnssMessage()
-        gns_message.update(source_timestamp=1, easting=2, northing=3,
-                           heading=4, speed=5, latitude=6, longitude=7,
-                           elevation=8)
+        # Create data for testing.
+        test_message = UnitTestMessage(A=1, B=2)
 
-        message1 = {'time_received': None,
-                    'topic': 'test1',
-                    'payload': gns_message.encode()}
+        # Package up message object.
+        message = {'time_received': None,
+                   'topic': 'test',
+                   'payload': test_message.encode()}
 
-        # Create second message for testing.
-        gns_message.update(source_timestamp=11, easting=12, northing=13,
-                           heading=14, speed=15, latitude=16, longitude=17,
-                           elevation=18)
+        # Create logging object.
+        wf = WriteFile(prefix, UnitTestMessage, max_entries=2)
+        wf.write(message)
+        wf.write(message)
+        self.assertTrue(os.path.exists(tmp0))
 
-        message2 = {'time_received': None,
-                    'topic': 'test2',
-                    'payload': gns_message.encode()}
+        # Ensure log file gets 'closed' - rotated from '.tmp' to '.log'
+        # extension when splitting condition is breached.
+        wf.write(message)
+        self.assertTrue(os.path.exists(log0))
+        self.assertTrue(os.path.exists(tmp1))
 
-        # Instantiate object to log all entries in one file.
-        wf = WriteFile(fname, GnssMessage, max_entries=1)
-        wf.write(message1)
-        self.assertTrue(os.path.exists(temp1))
-        wf.write(message2)
-        self.assertTrue(os.path.exists(log1))
-        self.assertTrue(os.path.exists(temp2))
-
-        # Ensure data has been written to the FIRST file correctly (skip
-        # header).
-        with open(log1, 'r') as f:
-            lines = f.readlines()
-        time, topic, payload = lines[-1].split()
-        self.assertEqual(float(time), 0.0)
-        self.assertEqual(topic, "'" + message1['topic'] + "'")
-        self.assertEqual(payload.decode('hex'), message1['payload'])
-
-        # Close files.
+        # Ensure split log file gets 'closed' - rotated from '.tmp' to '.log'
+        # extension.
         wf.close()
-        self.assertTrue(os.path.exists(log2))
+        self.assertTrue(os.path.exists(log1))
 
-        # Ensure data has been written to the SECOND file correctly. Note that
-        # there is no header to skip.
-        with open(log2, 'r') as f:
-            line = f.readline()
-        time, topic, payload = line.split()
-        self.assertEqual(topic, "'" + message2['topic'] + "'")
-        self.assertEqual(payload.decode('hex'), message2['payload'])
+        # Ensure data has been written to the files correctly.
+        for fname in [log0, log1]:
+            with open(fname, 'r') as f:
+                lines = f.readlines()
+            time, topic, payload = lines[-1].split()
+            self.assertEqual(topic, "'" + message['topic'] + "'")
+            self.assertEqual(payload.decode('hex'), message['payload'])
 
         # Clean up after testing.
-        delete_if_exists(temp1)
-        delete_if_exists(temp2)
-        delete_if_exists(log1)
-        delete_if_exists(log2)
+        for fname in [tmp0, tmp1, log0, log1]:
+            self.delete_if_exists(fname)
 
+
+-----------------------------------------------------------------------------
+                                 ReadFile()
+-----------------------------------------------------------------------------
 
 class ReadFileTests(unittest.TestCase):
 

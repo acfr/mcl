@@ -135,7 +135,8 @@ class ScreenDump(object):
 
     Attributes:
         connections (tuple): Tuple of :py:class:`.abstract.Connection` objects
-                             specifying which network traffic is being logged.
+                             specifying which network traffic is being
+                             displayed.
         is_alive (bool): Returns :data:`True` if the object is dumping network
                          data otherwise :data:`False` is returned.
         formatting (str): Method for displaying data on the screen. Format can
