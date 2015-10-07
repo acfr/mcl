@@ -64,10 +64,6 @@ class _MessageMeta(type):
 
     """
 
-    @property
-    def connection(self):
-        return self._connection
-
     def __new__(cls, name, bases, dct):
         """Manufacture a message class.
 
@@ -163,11 +159,15 @@ class _MessageMeta(type):
             seen_attr.add(attr)
 
         # Embed the mandatory items in a class property.
-        del dct['mandatory']
-        dct['mandatory'] = property(lambda self: mandatory)
-        dct['connection'] = property(lambda self: connection)
-        dct['_connection'] = connection
+        dct['name'] = property(lambda cls: name)
+        dct['mandatory'] = property(lambda cls: mandatory)
+        dct['connection'] = property(lambda cls: connection)
         obj = super(_MessageMeta, cls).__new__(cls, name, bases, dct)
+
+        # Add read-only properties as CLASS attributes.
+        type(obj).name = property(lambda cls: name)
+        type(obj).mandatory = property(lambda cls: mandatory)
+        type(obj).connection = property(lambda cls: connection)
 
         # Store message definition.
         _MESSAGES.append(obj)
