@@ -249,7 +249,7 @@ class Message(dict):
         https://docs.python.org/2/library/datetime.html#datetime.datetime.now
 
         """
-        time_now = datetime.datetime.now()
+        time_now = datetime.datetime.utcnow()
         time_origin = datetime.datetime.utcfromtimestamp(0)
         timestamp = (time_now - time_origin).total_seconds()
         super(Message, self).__setitem__('timestamp', timestamp)
@@ -361,7 +361,9 @@ class Message(dict):
 
         # Set the default timestamp to None. If it is updated by the passed in
         # arguments, we won't update it automatically.
-        self['timestamp'] = None
+        if 'timestamp' not in self:
+            self['timestamp'] = None
+        original_time = self['timestamp']
 
         if len(args) > 1:
             msg = 'Input argument must be a msgpack serialised dictionary, '
@@ -399,8 +401,10 @@ class Message(dict):
             msg = "The key value '%s' in '%s' is read-only."
             raise ValueError(msg % ('name', self.__class__.__name__))
 
-        # Record the time of update.
-        if not self['timestamp']:
+        # Record the time of update if the 'timestamp' field was not
+        # specified. By checking for changes to the 'timestamp' field, users
+        # can set null values (None) or falsy values (a timestamp of 0).
+        if self['timestamp'] == original_time:
             self.__set_time()
 
 
