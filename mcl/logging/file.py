@@ -51,6 +51,7 @@ import mcl.logging.sys
 from mcl import MCL_ROOT
 from mcl.message.messages import Message
 from mcl.network.network import QueuedListener
+from mcl.message.messages import get_message_objects
 from mcl.network.abstract import Connection as AbstractConnection
 
 import mcl.message.messages
@@ -177,7 +178,7 @@ class WriteFile(DumpConstants):
 
         # Store objects for splitting files.
         self.__file_number = 0
-        self.__file_time = 0
+        self.__file_time = None
         self.__file_entries = 0
 
         # Ensure max_entries is properly specified.
@@ -190,10 +191,10 @@ class WriteFile(DumpConstants):
 
         # Ensure max_time is properly specified.
         if ((max_time is None) or
-            (isinstance(max_time, (int, long)) and max_time > 0)):
+            (isinstance(max_time, (int, long, float)) and max_time > 0)):
             self.__max_time = max_time
         else:
-            msg = "The '%s' parameter must be a non-zero, positive integer."
+            msg = "The '%s' parameter must be a non-zero number."
             raise TypeError(msg % 'max_time')
 
         # Ensure the file (first split) does not exist.
@@ -266,6 +267,9 @@ class WriteFile(DumpConstants):
             except:
                 msg = "Could not rename log file '%s' to '%s'."
                 print msg % (self.__get_filename(), filename)
+
+        # Increment file counter
+        self.__file_number += 1
 
     def __create_header(self):
         """Write header data to file.
@@ -422,24 +426,28 @@ class WriteFile(DumpConstants):
 
         """
 
+        # Get contents of message.
         topic = message['topic']
         time_received = message['time_received']
         message = message['payload']
 
-        # Note: This method uses datetime.now() to return the current local
-        #       date and time. If possible, datetime supplies more precision
-        #       than can be gotten from going through a time.time() timestamp.
-        #
-        #       In this method, the absolute time is not important (the
-        #       epoch). It is the relative or elapsed time that is
-        #       important. This allows any (non-changing) epoch to be used.
-        #       any epoch.
+        # If no received time is supplied with the data record the current
+        # time.
+        if not time_received:
+            time_received = datetime.datetime.utcnow()
 
-        # Create flag to indicate whether a new split should be created.
-        close_file = False
+        # If no time origin is supplied, record time relative to the first
+        # message received.
+        if not self.__time_origin:
+            self.__time_origin = time_received
+
+        # If the file does not exist, create it.
+        if not self.__header:
+            self.__create_header()
 
         # Check number of entries in the file. Start a new split if the current
         # data exceeds the message capacity of the current split.
+        close_file = False
         if self.__max_entries is not None:
             self.__file_entries += 1
             if self.__file_entries > self.__max_entries:
@@ -449,41 +457,25 @@ class WriteFile(DumpConstants):
         # data was received outside the window of time the current split is
         # logging.
         if self.__max_time is not None:
-            if not self.__file_time:
-                self.__file_time = datetime.datetime.now()
+            if self.__file_time is None:
+                self.__file_time = time_received
 
-            split_time = datetime.datetime.now() - self.__file_time
-            split_time = split_time.total_seconds()
-            if split_time > self.__max_time:
+            split_time = (time_received - self.__file_time).total_seconds()
+            if split_time >= self.__max_time:
                 close_file = True
 
         # Either the number of entries in the file or time since the file was
         # created have been exceeded (or both). Create a new split.
         if close_file:
             self.__close_file()
-            self.__file_number += 1
             self.__file_entries = 1
-            self.__file_time = None
-
-        # If no received time is supplied with the data record the current
-        # time.
-        if not time_received:
-            time_received = datetime.datetime.now()
-
-        # If no time origin is supplied, record time relative to the first
-        # message received.
-        if not self.__time_origin:
-            self.__time_origin = time_received
+            self.__file_time = time_received
 
         # Calculate time elapsed since file was created.
         elapsed_time = (time_received - self.__time_origin).total_seconds()
 
         # Format message for recording.
         file_str = self.__format_message(elapsed_time, topic, message)
-
-        # If the file does not exist, create it.
-        if not self.__header:
-            self.__create_header()
 
         # Write raw/hex message to file.
         with open(self.__get_filename(), 'a') as fp:
@@ -893,8 +885,8 @@ class ReadFile(DumpConstants):
         #
         # Remove comment character and '>>>' bullet point.
         line = line.replace(self.COMMENT_CHARACTER, '')
-        message_name = line.replace(self.BROADCAST_MARKER, '')
-        message = get_message_object(message_name)
+        message_name = line.replace(self.BROADCAST_MARKER, '').strip()
+        message = get_message_objects(message_name)
 
         # Find end of header block.
         while line.strip() != self.COMMENT_BLOCK:
@@ -1403,7 +1395,7 @@ class NetworkDump(object):
             # Note: The time of initialisation is used in ALL files as the
             #       origin. This is used to help synchronise the timing between
             #       files.
-            time_origin = datetime.datetime.now()
+            time_origin = datetime.datetime.utcnow()
 
             # Create directory with current time stamp.
             start_time = time.strftime('%Y%m%dT%H%M%S')
