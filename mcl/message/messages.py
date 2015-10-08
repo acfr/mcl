@@ -158,16 +158,23 @@ class _MessageMeta(type):
                 raise ValueError('Encountered duplicate field name: %r' % attr)
             seen_attr.add(attr)
 
-        # Embed the mandatory items in a class property.
+        # Add basic message attributes as read-only CLASS attributes. This is
+        # done by dynamically manufacturing a meta-class with properties
+        # returning the basic message attributes.
+        metacls = type('%sMeta' % name, (cls,),
+                       {'name': property(lambda cls: name),
+                        'mandatory': property(lambda cls: mandatory),
+                        'connection': property(lambda cls: connection)})
+
+        # Add basic message attributes as read-only INSTANCE attributes. This
+        # is done by adding properties that return the basic message attributes
+        # to the manufactured class.
+        del(dct['mandatory'])
+        del(dct['connection'])
         dct['name'] = property(lambda cls: name)
         dct['mandatory'] = property(lambda cls: mandatory)
         dct['connection'] = property(lambda cls: connection)
-        obj = super(_MessageMeta, cls).__new__(cls, name, bases, dct)
-
-        # Add read-only properties as CLASS attributes.
-        type(obj).name = property(lambda cls: name)
-        type(obj).mandatory = property(lambda cls: mandatory)
-        type(obj).connection = property(lambda cls: connection)
+        obj = super(_MessageMeta, cls).__new__(metacls, name, bases, dct)
 
         # Store message definition.
         _MESSAGES.append(obj)
