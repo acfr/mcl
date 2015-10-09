@@ -5,7 +5,10 @@ import unittest
 import mcl.message.messages
 from mcl.logging.file import WriteFile
 from mcl.logging.file import ReadFile
+from mcl.logging.file import ReadDirectory
 from mcl.network.abstract import Connection as AbstractConnection
+from mcl.network.abstract import RawListener as AbstractRawListener
+from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 
 _DIRNAME = os.path.dirname(__file__)
 TMP_PATH = os.path.join(_DIRNAME, 'tmp')
@@ -13,9 +16,24 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 
 
+# -----------------------------------------------------------------------------
+#                           Objects for unit-testing
+# -----------------------------------------------------------------------------
+
+class UnitTestConnection(AbstractConnection):
+    mandatory = ('channel', )
+    broadcaster = AbstractRawBroadcaster
+    listener = AbstractRawListener
+
+
 class UnitTestMessageA(mcl.message.messages.Message):
     mandatory = ('data',)
-    connection = AbstractConnection()
+    connection = UnitTestConnection(channel='A')
+
+
+class UnitTestMessageB(mcl.message.messages.Message):
+    mandatory = ('data',)
+    connection = UnitTestConnection(channel='B')
 
 
 # -----------------------------------------------------------------------------
@@ -252,11 +270,11 @@ class ReadFileTests(unittest.TestCase):
         rf = ReadFile(fname)
 
         # Ensure items in file can be read correctly.
-        for i in range(0, 10):
+        for i in range(1, 10):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -267,12 +285,12 @@ class ReadFileTests(unittest.TestCase):
         """Test ReadFile() read min/max time."""
 
         # Define time interval of interest.
-        min_time = 0.35
-        max_time = 0.85
+        min_time = 0.035
+        max_time = 0.085
 
         # Create file reader object.
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        rf = ReadFile(fname, min_time=0.35, max_time=0.85)
+        rf = ReadFile(fname, min_time=min_time, max_time=max_time)
 
         # Ensure time ranges were set.
         self.assertEqual(rf.min_time, min_time)
@@ -281,8 +299,8 @@ class ReadFileTests(unittest.TestCase):
         # Ensure object can filter items by time .
         for i in range(4, 9):
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         message = rf.read()
@@ -296,25 +314,25 @@ class ReadFileTests(unittest.TestCase):
         rf = ReadFile(fname)
 
         # Read first five items.
-        for i in range(0, 6):
+        for i in range(1, 6):
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
         # Reset object.
         rf.reset()
 
         # Re-read all data.
-        for i in range(0, 10):
+        for i in range(1, 10):
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
     def test_read_split(self):
         """Test ReadFile() read split files."""
 
         # Prefix of split log files.
-        fname = os.path.join(SPT_PATH, 'UnitTestMessageA_split_time')
+        fname = os.path.join(SPT_PATH, 'UnitTestMessageA')
         rf = ReadFile(fname)
 
         # Ensure object can parse the header block.
@@ -322,11 +340,11 @@ class ReadFileTests(unittest.TestCase):
         self.assertEqual(rf.header['message'], UnitTestMessageA)
 
         # Ensure items in split log-files can be read correctly.
-        for i in range(0, 15):
+        for i in range(1, 10):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -337,18 +355,18 @@ class ReadFileTests(unittest.TestCase):
         """Test ReadFile() read one split file."""
 
         # Path of a single split log file.
-        fname = os.path.join(SPT_PATH, 'UnitTestMessageA_split_time_001.log')
+        fname = os.path.join(SPT_PATH, 'UnitTestMessageA_001.log')
         rf = ReadFile(fname)
 
         # There is no header block to read. Ensure object returns None.
         self.assertEqual(rf.header, None)
 
         # Ensure items in split log-files can be read correctly.
-        for i in range(5, 10):
+        for i in range(4, 7):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
-            self.assertEqual(int(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -357,7 +375,7 @@ class ReadFileTests(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                             ReadDirectoryTests()
+#                                ReadDirectory()
 # -----------------------------------------------------------------------------
 
 class ReadDirectoryTests(unittest.TestCase):
@@ -365,19 +383,26 @@ class ReadDirectoryTests(unittest.TestCase):
     def test_initialisation(self):
         """Test ReadDirectory() initialisation."""
 
-        min_time = 1.0
-        max_time = 10.0
-
-        # Path to valid log file.
-        dname = os.path.join(_DIRNAME, './dataset')
-        rd = ReadDirectory(dname, min_time=min_time, max_time=max_time)
+        # Path to directory containing log files.
+        rd = ReadDirectory(LOG_PATH)
 
         # Ensure the object correctly identifies available message types.
-        self.assertEqual(rd.messages, [GnssMessage, ImuMessage])
+        self.assertEqual(rd.messages, [UnitTestMessageA, UnitTestMessageB])
+        self.assertEqual(rd.min_time, None)
+        self.assertEqual(rd.max_time, None)
 
-        # Test access to properties.
-        self.assertEqual(min_time, rd.min_time)
-        self.assertEqual(max_time, rd.max_time)
+        # Path to directory containing log files.
+        min_time = 0.1
+        max_time = 1.0
+        rd = ReadDirectory(LOG_PATH, min_time=min_time, max_time=max_time)
+
+        # Ensure the object correctly identifies available message types.
+        self.assertEqual(rd.messages, [UnitTestMessageA, UnitTestMessageB])
+        self.assertEqual(rd.min_time, min_time)
+        self.assertEqual(rd.max_time, max_time)
+
+    def test_bad_init(self):
+        """Test ReadDirectory() catches bad initialisation."""
 
         # Ensure failure if source is not a string.
         with self.assertRaises(TypeError):
@@ -385,44 +410,50 @@ class ReadDirectoryTests(unittest.TestCase):
 
         # Ensure failure on files.
         with self.assertRaises(IOError):
-            fname = os.path.join(dname, './GnssMessage.log')
-            ReadDirectory(fname)
+            ReadDirectory(os.path.join(LOG_PATH, 'UnitTestMessageA.log'))
 
         # Ensure failure on directories that do not exit.
         with self.assertRaises(IOError):
-            missing = os.path.join(_DIRNAME, './missing_dataset')
-            ReadDirectory(missing)
+            ReadDirectory(os.path.join(LOG_PATH, 'missing_dataset'))
 
         # Ensure failure on non-numeric minimum times.
         with self.assertRaises(TypeError):
-            ReadDirectory(dname, min_time='a')
+            ReadDirectory(LOG_PATH, min_time='a')
 
         # Ensure failure on non-numeric maximum times.
         with self.assertRaises(TypeError):
-            ReadDirectory(dname, max_time='a')
+            ReadDirectory(LOG_PATH, max_time='a')
 
         # Ensure failure on smaller max time than min time.
         with self.assertRaises(ValueError):
-            ReadDirectory(dname, min_time=10, max_time=5)
+            ReadDirectory(LOG_PATH, min_time=10, max_time=5)
 
     def test_read_single(self):
         """Test ReadDirectory() read single files."""
 
-        # Path to valid log file.
-        dname = os.path.join(_DIRNAME, './dataset')
-        rd = ReadDirectory(dname)
+        # Read all items in directory.
+        rd = ReadDirectory(LOG_PATH)
 
-        # Ensure IMU items in directory can be read correctly.
-        for i in range(0, 10):
+        # Read first item (UnitTestMessageB) message.
+        message = rd.read()
+        self.assertEqual(message['elapsed_time'], 0)
+        self.assertEqual(message['message']['timestamp'], 0)
+
+        # Read UnitTestMessageA messages.
+        for i in range(1, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
 
-        # Ensure GNSS items in directory can be read correctly.
-        for i in range(1, 11):
+        # Read UnitTestMessageB messages.
+        for i in range(1, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -433,66 +464,103 @@ class ReadDirectoryTests(unittest.TestCase):
         """Test ReadDirectory() read min/max time."""
 
         # Path to valid log file.
-        dname = os.path.join(_DIRNAME, './dataset')
-        rd = ReadDirectory(dname, min_time=0.045, max_time=0.35)
+        rd = ReadDirectory(LOG_PATH, min_time=0.045, max_time=0.35)
 
-        # Ensure time-filtered IMU items in directory can be read correctly.
+        # Read UnitTestMessageA messages.
         for i in range(5, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
 
-        # Ensure time-filtered GNSS items in directory can be read correctly.
+        # Read UnitTestMessageB messages.
         for i in range(1, 4):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
 
         # Ensure None is returned when all data has been read.
+        self.assertFalse(rd.is_data_pending())
         message = rd.read()
         self.assertEqual(message, None)
 
     def test_reset(self):
         """Test ReadDirectory() reset."""
 
-        # Path to valid log file.
-        dname = os.path.join(_DIRNAME, './dataset')
-        rd = ReadDirectory(dname)
+        # Read all items in directory.
+        rd = ReadDirectory(LOG_PATH)
 
-        # Read all IMU items.
-        for i in range(0, 10):
+        # Read first item (UnitTestMessageB) message.
+        message = rd.read()
+        self.assertEqual(message['elapsed_time'], 0)
+        self.assertEqual(message['message']['timestamp'], 0)
+
+        # Read UnitTestMessageA messages.
+        for i in range(1, 10):
+            self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
 
-        # Reset object.
-        self.assertTrue(rd.is_data_pending())
+        # Reset directory reader.
         rd.reset()
 
-        # Re-read all IMU data.
-        for i in range(0, 10):
-            message = rd.read()
-            self.assertEqual(int(100 * message['elapsed_time']), i)
+        # Re-read first item (UnitTestMessageB) message.
+        message = rd.read()
+        self.assertEqual(message['elapsed_time'], 0)
+        self.assertEqual(message['message']['timestamp'], 0)
 
-        self.assertTrue(rd.is_data_pending())
+        # Re-read UnitTestMessageA messages.
+        for i in range(1, 10):
+            self.assertTrue(rd.is_data_pending())
+            message = rd.read()
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+
+        # Read UnitTestMessageB messages.
+        for i in range(1, 10):
+            self.assertTrue(rd.is_data_pending())
+            message = rd.read()
+            self.assertEqual(round(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
+
+        # Ensure None is returned when all data has been read.
+        self.assertFalse(rd.is_data_pending())
+        message = rd.read()
+        self.assertEqual(message, None)
 
     def test_read_split(self):
         """Test ReadDirectory() read split files."""
 
-        # Path to valid log file.
-        dname = os.path.join(_DIRNAME, './dataset_split')
-        rd = ReadDirectory(dname)
+        # Read all split-logs in directory.
+        rd = ReadDirectory(SPT_PATH)
 
-        # Ensure IMU items in directory can be read correctly.
-        for i in range(0, 10):
+        # Read first item (UnitTestMessageB) message.
+        message = rd.read()
+        self.assertEqual(message['elapsed_time'], 0)
+        self.assertEqual(message['message']['timestamp'], 0)
+
+        # Read UnitTestMessageA messages.
+        for i in range(1, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['elapsed_time']), i)
+            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
 
-        # Ensure GNSS items in directory can be read correctly.
-        for i in range(1, 11):
+        # Read UnitTestMessageB messages.
+        for i in range(1, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(int(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i)
+            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
