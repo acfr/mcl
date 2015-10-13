@@ -6,6 +6,7 @@
 """
 import time
 import Queue
+import datetime
 import threading
 import multiprocessing
 from threading import Thread
@@ -308,7 +309,8 @@ class QueuedListener(Event):
 
         {'transmissions': int(),
          'topic': str(),
-         'payload': str()}
+         'payload': str(),
+         'time_received': datetime}
 
     where:
 
@@ -410,6 +412,7 @@ class QueuedListener(Event):
                 # Note: Objects enqueued by the same process will always be in
                 #       the expected order with respect to each other.
                 #
+                data['time_received'] = datetime.datetime.utcnow()
                 queue.put(data)
 
             except:

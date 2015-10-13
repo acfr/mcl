@@ -1,46 +1,41 @@
 import os
+import time
 import shutil
 import unittest
 
 import mcl.message.messages
-from mcl.logging.file import WriteFile
+from mcl.logging.file import FileDump
 from mcl.logging.file import ReadFile
+from mcl.logging.file import WriteFile
 from mcl.logging.file import ReadDirectory
-from mcl.network.abstract import Connection as AbstractConnection
-from mcl.network.abstract import RawListener as AbstractRawListener
-from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
+from mcl.network.udp import Connection as Connection
+from mcl.network.network import MessageBroadcaster
 
 _DIRNAME = os.path.dirname(__file__)
 TMP_PATH = os.path.join(_DIRNAME, 'tmp')
 LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
+TIME_OUT = 1
+
+URL_A = 'ff15::c75d:ce41:ea8e:000a'
+URL_B = 'ff15::c75d:ce41:ea8e:000b'
 
 
 # -----------------------------------------------------------------------------
 #                           Objects for unit-testing
 # -----------------------------------------------------------------------------
 
-class UnitTestConnection(AbstractConnection):
-    mandatory = ('channel', )
-    broadcaster = AbstractRawBroadcaster
-    listener = AbstractRawListener
-
-
 class UnitTestMessageA(mcl.message.messages.Message):
     mandatory = ('data',)
-    connection = UnitTestConnection(channel='A')
+    connection = Connection(URL_A)
 
 
 class UnitTestMessageB(mcl.message.messages.Message):
     mandatory = ('data',)
-    connection = UnitTestConnection(channel='B')
+    connection = Connection(URL_B)
 
 
-# -----------------------------------------------------------------------------
-#                                  WriteFile()
-# -----------------------------------------------------------------------------
-
-class WriteFileTests(unittest.TestCase):
+class SetupTestingDirectory(object):
 
     def setUp(self):
         """Create logging path if it does not exist."""
@@ -64,6 +59,13 @@ class WriteFileTests(unittest.TestCase):
         if os.path.exists(fname):
             os.remove(fname)
 
+
+# -----------------------------------------------------------------------------
+#                                  WriteFile()
+# -----------------------------------------------------------------------------
+
+class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
+
     def test_bad_init(self):
         """Test WriteFile() catches bad initialisation."""
 
@@ -72,10 +74,14 @@ class WriteFileTests(unittest.TestCase):
         # Ensure max_entries is specified properly.
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_entries='a')
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessageA, max_entries=0)
 
         # Ensure max_time is specified properly.
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_time='a')
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessageA, max_time=0)
 
     def test_initialisation(self):
         """Test WriteFile() initialisation with no splitting."""
@@ -566,3 +572,105 @@ class ReadDirectoryTests(unittest.TestCase):
         self.assertFalse(rd.is_data_pending())
         message = rd.read()
         self.assertEqual(message, None)
+
+
+# -----------------------------------------------------------------------------
+#                                  FileDump()
+# -----------------------------------------------------------------------------
+
+class TestFileDump(SetupTestingDirectory, unittest.TestCase):
+
+    def test_init(self):
+        """Test FileDump() initialisation."""
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = FileDump(messages, TMP_PATH)
+
+        # Ensure properties can be accessed.
+        self.assertEqual(dump.messages, messages)
+        self.assertEqual(dump.root_directory, TMP_PATH)
+        self.assertEqual(dump.max_entries, None)
+        self.assertEqual(dump.max_time, None)
+
+        # The directory property is only created once logging has
+        # started. Ensure it is set to None initially.
+        self.assertEqual(dump.directory, None)
+
+    def test_bad_init(self):
+        """Test FileDump() catches bad initialisation."""
+
+        messages = [UnitTestMessageA, UnitTestMessageB]
+
+        # Ensure error is raised if the logging directory does not exist.
+        with self.assertRaises(IOError):
+            FileDump(messages, directory='fail')
+
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(TypeError):
+            FileDump(messages, TMP_PATH, max_entries='a')
+        with self.assertRaises(TypeError):
+            FileDump(messages, TMP_PATH, max_entries=0)
+
+        # Ensure max_time is specified properly.
+        with self.assertRaises(TypeError):
+            FileDump(messages, TMP_PATH, max_time='a')
+        with self.assertRaises(TypeError):
+            FileDump(messages, TMP_PATH, max_time=0)
+
+    def test_start_stop(self):
+        """Test FileDump() start/stop."""
+
+        # Create broadcasters.
+        broadcaster_A = MessageBroadcaster(UnitTestMessageA)
+        broadcaster_B = MessageBroadcaster(UnitTestMessageB)
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = FileDump(messages, TMP_PATH)
+        self.assertEqual(dump.directory, None)
+
+        # Ensure a log directory has NOT been created (Note a README file is
+        # created in the /tmp directory).
+        self.assertEqual(len(os.listdir(TMP_PATH)), 1)
+
+        # Start network dump.
+        self.assertTrue(dump.start())
+        self.assertTrue(dump.is_alive)
+        self.assertFalse(dump.start())
+        self.assertNotEqual(dump.directory, None)
+
+        # Ensure a log directory as been created and it is empty.
+        directory = dump.directory
+        self.assertEqual(len(os.listdir(TMP_PATH)), 2)
+        self.assertEqual(len(os.listdir(directory)), 0)
+
+        # Broadcast messages for logging.
+        broadcaster_A.publish(UnitTestMessageA(data='A'))
+        broadcaster_B.publish(UnitTestMessageB(data='B'))
+
+        # Wait for log files to be created.
+        begin_time = time.time()
+        while len(os.listdir(dump.directory)) < 2:
+            time.sleep(0.1)
+            if time.time() - begin_time > TIME_OUT:
+                break
+
+        # Ensure the log files have been created and are in a logging state.
+        directory = dump.directory
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.tmp') in files)
+
+        # Stop network dump.
+        self.assertTrue(dump.stop())
+        self.assertFalse(dump.is_alive)
+        self.assertFalse(dump.stop())
+        self.assertEqual(dump.directory, None)
+
+        # Ensure the log files have been closed.
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.log') in files)

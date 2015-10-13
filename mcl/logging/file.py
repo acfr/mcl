@@ -402,14 +402,13 @@ class WriteFile(DumpConstants):
         """Write network data to a file.
 
         The :py:meth:`.WriteFile.write` method writes network data to a log
-        file.
-
-        :py:meth:`.WriteFile.write` expects network data to be input as a
+        file. :py:meth:`.WriteFile.write` expects network data to be input as a
         dictionary with the following fields::
 
-            message = {'time_received': datetime.datetime(),
+            message = {'transmissions': int(),
                        'topic': str(),
-                       'payload': str()}
+                       'payload': str(),
+                       'time_received': datetime}
 
         where:
             - `time_received` is the time the network data was received
@@ -1226,46 +1225,42 @@ class ReadDirectory(object):
         self.__next_message = self.__stage_candidates()
 
 
-
-class NetworkDump(object):
+class FileDump(object):
     """Dump network traffic to the screen or files.
 
-    The :py:class:`.NetworkDump` object records network data to the screen
-    and/or log files. These files can be replayed using
-    :py:class:`.NetworkReplay` or read using objects in the
-    :py:mod:`.network_dump_tools` module.
+    The :py:class:`.FileDump` object records network data to log files. These
+    files can be replayed using :py:class:`.NetworkReplay` or read using
+    objects in the :py:mod:`.network_dump_tools` module.
 
-    File write operations are handled by :py:class:`.NetworkDump` and
-    :py:class:`.WriteFile`. The input ``connections`` specifies a list of
-    connections to establish and listen for data. A directory is created in the
-    path specified by the input ``directory`` using the following format::
+    The input ``broadcasts`` specifies a list of connections to establish and
+    listen for data. A directory is created in the path specified by the input
+    ``directory`` using the following format::
 
         <year><month><day>T<hours><minutes><seconds>_<hostname>
 
-    A log file is created for each connection specified in the input
-    ``broadcasts``. For instance if ``broadcasts`` specifies a configuration
-    for receiving ``MessageA`` and ``MessageB`` objects, the following
-    directory tree will be created (almost midnight on December 31st 1999)::
+    A log file is created for each message specified in the input
+    ``messages``. For instance if ``message`` specifies a configuration for
+    receiving ``MessageA`` and ``MessageB`` objects, the following directory
+    tree will be created (almost midnight on December 31st 1999)::
 
-        directory/19991231T235959_loki/
+        directory/19991231T235959_host/
                                       |-MessageA.log
                                       |-MessageB.log
 
     If split logging has been enabled by the number of entries or elapsed time
     (or both) the log files will be appended with an incrementing counter::
 
-        directory/19991231T235959_loki/
-                                       |-MessageA_000.log
-                                       |-MessageA_001.log
-                                       |-MessageB_000.log
-                                       |-MessageB_001.log
-                                       |-MessageB_002.log
-                                       |-MessageB_003.log
+        directory/19991231T235959_host/
+                                      |-MessageA_000.log
+                                      |-MessageA_001.log
+                                      |-MessageB_000.log
+                                      |-MessageB_001.log
+                                      |-MessageB_002.log
+                                      |-MessageB_003.log
 
     Args:
-        broadcasts (list): List of :py:class:`.abstract.Connection` instances
-                           or :py:class`.Message` objects specifying the
-                           network traffic to logged.
+        messages (list): List of :py:class:`.Message` objects specifying the
+                         network traffic to logged.
         directory (str): Path to record a directory of network traffic. If set
                          to :data:`None`, no data will be logged to disk.
         max_entries (int): Maximum number of entries to record per log file
@@ -1277,20 +1272,26 @@ class NetworkDump(object):
                         files will not be split by length of time.
 
     Attributes:
+        messages (list): List of :py:class:`.Message` objects specifying which
+                         network traffic is being logged.
         root_directory (str): Location where new log directories are
                               created. This path returns the input specified by
                               the optional ``directory`` argument.
         directory (str): String specifying the directory where data is being
                          recorded. This attribute is set to none ``None`` if
-                         the data is NOT being logged to file (screen dump
-                         only) OR the logger is in a stopped state. If the
-                         logger is recording data, this attribute is returned
-                         as a full path to a newly created directory in the
-                         specified ``directory`` input using the following the
-                         format:
+                         the data is NOT being logged to file (stopped
+                         state). If the logger is recording data, this
+                         attribute is returned as a full path to a newly
+                         created directory in the specified ``directory`` input
+                         using the following the format:
                              <year><month><day>T<hours><minutes><seconds>_<hostname>
-        connections (tuple): Tuple of :py:class:`.abstract.Connection` objects
-                             specifying which network traffic is being logged.
+        max_entries (int): Maximum number of entries to record per log file
+                           before writing to a new dump file. If set to None,
+                           the log files will not be split by number of
+                           entries.
+        max_time (int): Maximum length of time, in seconds, to log data before
+                        writing to a new dump file. If set to None, the log
+                        files will not be split by length of time.
         is_alive (bool): Returns :data:`True` if the object is dumping network
                          data otherwise :data:`False` is returned.
 
@@ -1300,7 +1301,7 @@ class NetworkDump(object):
 
     """
 
-    def __init__(self, broadcasts, directory, max_entries=None, max_time=None):
+    def __init__(self, messages, directory, max_entries=None, max_time=None):
         """Document the __init__ method at the class level."""
 
         mcl.logging.sys.info(self, 'instanting')
@@ -1309,24 +1310,18 @@ class NetworkDump(object):
         if directory and not os.path.isdir(directory):
             raise IOError("The directory '%s' does not exist." % directory)
 
-        # List of raw broadcasts.
-        self.__message = False
-        if (isinstance(broadcasts, (list, tuple)) and
-            all(isinstance(c, AbstractConnection) for c in broadcasts)):
-            self.__broadcasts = broadcasts
-
         # List of messages.
-        elif (isinstance(broadcasts, (list, tuple)) and
-              all(issubclass(c, Message) for c in broadcasts)):
+        if (isinstance(messages, (list, tuple)) and
+            all(issubclass(c, Message) for c in messages)):
             self.__message = True
-            self.__broadcasts = broadcasts
+            self.__messages = messages
 
         else:
             msg = "The '%s' parameter must be a list/tuple of Connection() "
             msg += "or Message() objects."
-            raise TypeError(msg % 'broadcasts')
+            raise TypeError(msg % 'messages')
 
-        # Store maximum entries per file.
+        # Ensure max_entries is properly specified.
         if ((max_entries is None) or
             (isinstance(max_entries, (int, long)) and max_entries > 0)):
             self.__max_entries = max_entries
@@ -1334,12 +1329,12 @@ class NetworkDump(object):
             msg = "The '%s' parameter must be a non-zero, positive integer."
             raise TypeError(msg % 'max_entries')
 
-        # Store maximum time per file.
+        # Ensure max_time is properly specified.
         if ((max_time is None) or
-            (isinstance(max_time, (int, long)) and max_time > 0)):
+            (isinstance(max_time, (int, long, float)) and max_time > 0)):
             self.__max_time = max_time
         else:
-            msg = "The '%s' parameter must be a non-zero, positive integer."
+            msg = "The '%s' parameter must be a non-zero number."
             raise TypeError(msg % 'max_time')
 
         # Create empty variable for storing the path to the current log
@@ -1361,11 +1356,8 @@ class NetworkDump(object):
             self.__hostname = 'unknown'
 
     @property
-    def connections(self):
-        if self.__message:
-            return [broadcast.connection for broadcast in self.__broadcasts]
-        else:
-            return self.__broadcasts
+    def messages(self):
+        return self.__messages
 
     @property
     def root_directory(self):
@@ -1374,6 +1366,14 @@ class NetworkDump(object):
     @property
     def directory(self):
         return self.__directory
+
+    @property
+    def max_entries(self):
+        return self.__max_entries
+
+    @property
+    def max_time(self):
+        return self.__max_time
 
     @property
     def is_alive(self):
@@ -1410,24 +1410,23 @@ class NetworkDump(object):
 
             # Attach listeners to broadcasts and dump their contents into
             # separate queues.
-            for connection in self.connections:
-                name = connection.message.__name__
+            for message in self.messages:
+                name = message.__name__
                 msg = "starting '%s' services"
                 mcl.logging.sys.info(self, msg, name)
 
                 # Create queued listener.
-                self.__listeners[name] = QueuedListener(connection)
+                self.__listeners[message] = QueuedListener(message.connection)
 
-                # Use temporary variable to keep lines short (rather than
-                # writing directly to 'self.__filedumps[name]').
+                # Create file logger.
                 filename = os.path.join(directory, name)
-                self.__filedumps[name] = WriteFile(filename,
-                                                   connection.message,
-                                                   time_origin=time_origin,
-                                                   max_entries=self.__max_entries,
-                                                   max_time=self.__max_time)
+                self.__filedumps[message] = WriteFile(filename,
+                                                      message,
+                                                      time_origin=time_origin,
+                                                      max_entries=self.__max_entries,
+                                                      max_time=self.__max_time)
 
-                self.__listeners[name].subscribe(self.__filedumps[name].write)
+                self.__listeners[message].subscribe(self.__filedumps[message].write)
 
             mcl.logging.sys.info(self, 'logging')
             self.__is_alive = True
@@ -1450,13 +1449,13 @@ class NetworkDump(object):
             mcl.logging.sys.info(self, 'terminating')
 
             # Request stop for network listeners.
-            for connection in self.connections:
-                self.__listeners[connection].request_close()
+            for message in self.messages:
+                self.__listeners[message].request_close()
 
             # Join network listeners.
-            for connection in self.connections:
-                self.__listeners[connection].close()
-                self.__filedumps[connection].close()
+            for message in self.messages:
+                self.__listeners[message].close()
+                self.__filedumps[message].close()
 
             mcl.logging.sys.info(self, 'logging stopped.')
 
