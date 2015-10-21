@@ -472,10 +472,6 @@ class RawListener(AbstractRawListener):
             except:
                 raise
 
-        # Check 'timeout' on socket read operations in seconds. It is unlikely
-        # a user will need to access this parameter.
-        self.__timeout = 0.1
-
         # Number of messages to buffer.
         self.__buffer_size = 5
 
@@ -525,11 +521,9 @@ class RawListener(AbstractRawListener):
                 self.__sub_socket = socket.socket(addrinfo[0],
                                                   socket.SOCK_DGRAM)
 
-                # Set a timeout on blocking socket operations. Note that if
-                # set, subsequent socket operations will raise a timeout
-                # exception if the timeout period value has elapsed before the
-                # operation has completed.
-                self.__sub_socket.settimeout(self.__timeout)
+                # Set to non-blocking mode. In non-blocking mode, if a recv()
+                # call doesn't find any data, a error exception is raised.
+                self.__sub_socket.setblocking(False)
 
                 # Allow multiple copies of this program on one machine (not
                 # strictly needed).
@@ -581,7 +575,7 @@ class RawListener(AbstractRawListener):
             # Attempt to read data from UDP socket.
             try:
                 frame, sender = self.__sub_socket.recvfrom(PYITS_MTU_MAX)
-            except socket.timeout:
+            except socket.error:
                 continue
 
             # Unpack frame of data.
