@@ -1,7 +1,7 @@
 import unittest
 
-from mcl.network.udp import PYITS_MTU
-from mcl.network.udp import PYITS_UDP_PORT
+from mcl.network.udp import MTU
+from mcl.network.udp import UDP_PORT
 from mcl.network.udp import HEADER_DELIMITER
 
 from mcl.network.udp import Connection
@@ -63,7 +63,7 @@ class ConnectionTests(unittest.TestCase):
 
         # Test default port.
         connection = Connection(URL)
-        self.assertEqual(connection.port, PYITS_UDP_PORT)
+        self.assertEqual(connection.port, UDP_PORT)
 
         # Test instantiation passes with a valid 'port'.
         port = 26062
@@ -121,8 +121,44 @@ class TestPublishSubscribe(PublishSubscribeTests):
     listener = RawListener
     connection = Connection(URL)
 
-    def test_large_data(self):
-        """Test udp send/receive with large data."""
+    def test_MTU_size(self):
+        """Test udp send/receive with data the size of the MTU."""
+
+        # Create a message which the size of the UDP MTU.
+        counter = 1
+        send_string = ''
+        while True:
+            send_string += '%i, ' % counter
+            counter += 1
+            if len(send_string) >= MTU:
+                break
+
+        # Ensure the message is MTU sized.
+        send_string = send_string[:MTU]
+        self.assertEqual(len(send_string), MTU)
+
+        # Create broadcaster and listener.
+        broadcaster = self.broadcaster(self.connection)
+        listener = self.listener(self.connection)
+
+        # Test publish-subscribe functionality on a large message.
+        received_buffer = self.publish_message(broadcaster,
+                                               listener,
+                                               send_string)
+
+        # Close connections.
+        broadcaster.close()
+        listener.close()
+
+        # Ensure the correct number of messages was received.
+        self.assertEqual(listener.counter, 1)
+        self.assertEqual(len(received_buffer), 1)
+
+        # Only ONE message was published, ensure the data was received.
+        self.assertEqual(send_string, received_buffer[0]['payload'])
+
+    def test_larger_MTU(self):
+        """Test udp send/receive with data larger than the MTU."""
 
         # Create a message which is larger then the UDP MTU.
         packets = 5.555
@@ -131,7 +167,7 @@ class TestPublishSubscribe(PublishSubscribeTests):
         while True:
             send_string += '%i, ' % counter
             counter += 1
-            if len(send_string) >= packets * float(PYITS_MTU):
+            if len(send_string) >= packets * float(MTU):
                 break
 
         # Create broadcaster and listener.

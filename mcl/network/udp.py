@@ -88,7 +88,6 @@ Example usage:
 
 """
 
-import math
 import time
 import struct
 import socket
@@ -101,10 +100,10 @@ from mcl.network.abstract import RawListener as AbstractRawListener
 
 # Use a fixed port number for all pyITS messages. Specify maximum transmission
 # unit (MTU) to determine transmission fragmentation.
-PYITS_UDP_PORT = 26000
-PYITS_ALLOWED_MULTICAST_HOPS = 3
-PYITS_MTU = 60000
-PYITS_MTU_MAX = 65000
+UDP_PORT = 26000
+ALLOWED_MULTICAST_HOPS = 3
+MTU = 60000
+MTU_MAX = 65000
 
 
 # We have nominated the header format:
@@ -221,10 +220,19 @@ class RawBroadcaster(AbstractRawBroadcaster):
                 raise
 
         # Create objects for handling UDP broadcasts.
-        self.__sub_socket = None
+        self.__socket = None
         self.__sockaddr = None
-        self.__transmission_counter = 1
+        self.__publish_counter = 1
         self.__is_open = False
+
+        # Set default topic.
+        if self.topic is None:
+            self.__default_topic = ''
+        else:
+            self.__default_topic = self.topic
+            if HEADER_DELIMITER in self.topic:
+                msg = "The input topic '%s' cannot contain the '%s' character."
+                raise ValueError(msg % (self.topic, HEADER_DELIMITER))
 
         # Attempt to connect to UDP interface.
         try:
@@ -242,7 +250,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
     @property
     def counter(self):
-        return self.__transmission_counter - 1
+        return self.__publish_counter - 1
 
     def _open(self):
         """Open connection to UDP broadcast interface.
@@ -261,13 +269,13 @@ class RawBroadcaster(AbstractRawBroadcaster):
             self.__sockaddr = (addrinfo[4][0], self.connection.port)
 
             # Number of hops to allow.
-            self.__sub_socket = socket.socket(addrinfo[0], socket.SOCK_DGRAM)
+            self.__socket = socket.socket(addrinfo[0], socket.SOCK_DGRAM)
 
             # Set Time-to-live (optional).
-            ttl_message = struct.pack('@i', PYITS_ALLOWED_MULTICAST_HOPS)
-            self.__sub_socket.setsockopt(socket.IPPROTO_IPV6,
-                                         socket.IPV6_MULTICAST_HOPS,
-                                         ttl_message)
+            ttl_message = struct.pack('@i', ALLOWED_MULTICAST_HOPS)
+            self.__socket.setsockopt(socket.IPPROTO_IPV6,
+                                     socket.IPV6_MULTICAST_HOPS,
+                                     ttl_message)
 
             self.__is_open = True
             return True
@@ -329,10 +337,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
             # Empty topic.
             if not topic:
-                if self.topic:
-                    topic = self.topic
-                else:
-                    topic = ''
+                topic = self.__default_topic
 
             # Check 'topic' is a string.
             elif not isinstance(topic, basestring):
@@ -343,37 +348,38 @@ class RawBroadcaster(AbstractRawBroadcaster):
                 msg = "The input topic '%s' cannot contain the '%s' character."
                 raise ValueError(msg % (topic, HEADER_DELIMITER))
 
-            # Break the packet up into MTU sized fragments.
-            for packet, packets, fragment in self.__fragment(data):
+            # Calculate number of MTU-sized packets required to send input data
+            # over the network.
+            #
+            # Note: Integer math is used to calculate the number of
+            #       packets. This calculation does not account for the corner
+            #       case the data is the same length as the MTU.
+            data_len = len(data)
+            packets = (data_len / MTU) + 1
 
-                # Create packet header.
-                header = HEADER_FORMAT % (self.__transmission_counter,
-                                          topic, packet, packets)
+            # Send data in single packet.
+            if (packets == 1) or (data_len == MTU):
+                header = HEADER_FORMAT % (self.__publish_counter, topic, 1, 1)
+                self.__socket.sendto(header + data, self.__sockaddr)
 
-                # Send packet (fragment).
-                self.__sub_socket.sendto(header + fragment, self.__sockaddr)
+            # Fragment data into multiple packets.
+            else:
+                for packet in range(packets):
+                    start_ptr = packet * MTU
+                    end_ptr = min(data_len, (packet + 1) * MTU)
+
+                    header = HEADER_FORMAT % (self.__publish_counter,
+                                              topic, packet + 1, packets)
+
+                    self.__socket.sendto(header + data[start_ptr:end_ptr],
+                                         self.__sockaddr)
 
             # Record number of full messages sent (not number of fragments).
-            self.__transmission_counter += 1
+            self.__publish_counter += 1
 
         else:
             msg = 'Connection must be opened before publishing.'
             raise IOError(msg)
-
-    def __fragment(self, data):
-        """Fragment input data into MTU sized packets."""
-
-        # Calculate number of MTU-sized packets required to send input data
-        # over the network.
-        packets = int(math.ceil(float(len(data)) / PYITS_MTU))
-        data_len = len(data)
-
-        # Issue fragments of data as a generator function.
-        for i in range(packets):
-            start_ptr = i * PYITS_MTU
-            end_ptr = min(data_len, (i + 1) * PYITS_MTU)
-
-            yield (i + 1, packets, data[start_ptr:end_ptr])
 
     def close(self):
         """Close connection to UDP broadcast interface.
@@ -386,7 +392,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
         """
 
         if self.is_open:
-            self.__sub_socket.close()
+            self.__socket.close()
             self.__is_open = False
             return True
         else:
@@ -574,7 +580,7 @@ class RawListener(AbstractRawListener):
 
             # Attempt to read data from UDP socket.
             try:
-                frame, sender = self.__sub_socket.recvfrom(PYITS_MTU_MAX)
+                frame, sender = self.__sub_socket.recvfrom(MTU_MAX)
             except socket.error:
                 continue
 
@@ -751,11 +757,11 @@ class Connection(AbstractConnection):
     """
 
     mandatory = ('url',)
-    optional = {'port': PYITS_UDP_PORT}
+    optional = {'port': UDP_PORT}
     broadcaster = RawBroadcaster
     listener = RawListener
 
-    def __init__(self, url, port=PYITS_UDP_PORT):
+    def __init__(self, url, port=UDP_PORT):
 
         # Check 'url' is a string.
         if not isinstance(url, basestring):
