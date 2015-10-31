@@ -89,8 +89,9 @@ Example usage:
 """
 
 import time
-import struct
+import select
 import socket
+import struct
 import threading
 
 from mcl.network.abstract import Connection as AbstractConnection
@@ -98,12 +99,16 @@ from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
 from mcl.network.abstract import RawListener as AbstractRawListener
 
 
-# Use a fixed port number for all pyITS messages. Specify maximum transmission
+# Use a fixed port number for all UDP messages. Specify maximum transmission
 # unit (MTU) to determine transmission fragmentation.
 UDP_PORT = 26000
 ALLOWED_MULTICAST_HOPS = 3
 MTU = 60000
 MTU_MAX = 65000
+
+# Time in milliseconds to break out of I/O loop. This number determines the
+# responsiveness of RawListeners to stop signals.
+READ_TIMEOUT = 200
 
 
 # We have nominated the header format:
@@ -482,7 +487,7 @@ class RawListener(AbstractRawListener):
         self.__buffer_size = 5
 
         # Create objects for handling received UDP messages.
-        self.__sub_socket = None
+        self.__socket = None
         self.__stop_event = None
         self.__listen_thread = None
         self.__is_open = False
@@ -524,29 +529,31 @@ class RawListener(AbstractRawListener):
                 addrinfo = socket.getaddrinfo(self.connection.url, None)[0]
 
                 # Create socket.
-                self.__sub_socket = socket.socket(addrinfo[0],
-                                                  socket.SOCK_DGRAM)
+                self.__socket = socket.socket(addrinfo[0], socket.SOCK_DGRAM)
 
                 # Set to non-blocking mode. In non-blocking mode, if a recv()
                 # call doesn't find any data, a error exception is raised.
-                self.__sub_socket.setblocking(False)
+                self.__socket.setblocking(False)
 
                 # Allow multiple copies of this program on one machine (not
                 # strictly needed).
-                self.__sub_socket.setsockopt(socket.SOL_SOCKET,
-                                             socket.SO_REUSEADDR,
-                                             1)
+                self.__socket.setsockopt(socket.SOL_SOCKET,
+                                         socket.SO_REUSEADDR, 1)
 
                 # Join group.
                 group_name = socket.inet_pton(addrinfo[0], addrinfo[4][0])
                 group_addr = group_name + struct.pack('@I', 0)
-                self.__sub_socket.setsockopt(socket.IPPROTO_IPV6,
-                                             socket.IPV6_JOIN_GROUP,
-                                             group_addr)
+                self.__socket.setsockopt(socket.IPPROTO_IPV6,
+                                         socket.IPV6_JOIN_GROUP,
+                                         group_addr)
 
-                # Bind it to the port.
-                self.__sub_socket.bind((self.connection.url,
-                                        self.connection.port))
+                # Bind socket to the address/port.
+                self.__socket.bind((self.connection.url, self.connection.port))
+
+                # Register the socket with the select poller so that incoming
+                # data triggers an event.
+                self.__poller = select.poll()
+                self.__poller.register(self.__socket, select.POLLIN)
 
             # Could not create socket. Raise return failure.
             except:
@@ -578,10 +585,11 @@ class RawListener(AbstractRawListener):
         # Poll UDP socket and publish data.
         while not self.__stop_event.is_set():
 
-            # Attempt to read data from UDP socket.
-            try:
-                frame, sender = self.__sub_socket.recvfrom(MTU_MAX)
-            except socket.error:
+            # Wait for a data event in the socket.
+            events = self.__poller.poll(READ_TIMEOUT)
+            if events and events[0][1] & select.POLLIN:
+                frame, sender = self.__socket.recvfrom(MTU_MAX)
+            else:
                 continue
 
             # Unpack frame of data.
@@ -712,7 +720,7 @@ class RawListener(AbstractRawListener):
                 del receive_buffer[frame_identifier]
 
         # Close socket on exiting thread.
-        self.__sub_socket.close()
+        self.__socket.close()
 
     def close(self):
         """Close connection to UDP receive interface.
@@ -731,7 +739,7 @@ class RawListener(AbstractRawListener):
             self.__listen_thread.join()
 
             # Close socket.
-            self.__sub_socket.close()
+            self.__socket.close()
 
             self.__is_open = False
             return True
