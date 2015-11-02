@@ -158,14 +158,11 @@ class MessageBroadcaster(object):
 
             """
 
-            def publish(self, message, topic=None):
+            def publish(self, message):
                 """Send an MCL message over the network.
 
                 Args:
                     message (:py:class:`.Message`): MCL message object.
-                    topic (str): Broadcast message with an associated
-                                 topic. This option will temporarily override
-                                 the topic specified during instantiation.
 
                 Raises:
                     TypeError: If the input `topic` is not a string. Or the
@@ -188,8 +185,7 @@ class MessageBroadcaster(object):
                     raise TypeError('Could not encode input object')
 
                 # Publish serialised data.
-                super(MessageBroadcaster, self).publish(packed_data,
-                                                        topic=topic)
+                super(MessageBroadcaster, self).publish(packed_data)
 
         return MessageBroadcaster(message.connection, topic=topic)
 

@@ -474,15 +474,12 @@ class RawBroadcaster(object):
         pass
 
     @abstractmethod
-    def publish(self, data, topic=None):
+    def publish(self, data):
         """Virtual: Send data over network interface.
 
         Args:
             data (str): Array of characters to publish over the network
                         interface.
-            topic (str): Broadcast data with an associated topic. This option
-                         will temporarily override the topic specified during
-                         instantiation.
         """
         pass
 

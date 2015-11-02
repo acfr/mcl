@@ -226,9 +226,9 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
         # Set default topic.
         if self.topic is None:
-            self.__default_topic = ''
+            self.__dtopic = ''
         else:
-            self.__default_topic = self.topic
+            self.__dtopic = self.topic
 
         # Attempt to connect to UDP interface.
         try:
@@ -274,7 +274,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
         else:
             return False
 
-    def publish(self, data, topic=None):
+    def publish(self, data):
         """Send data over UDP interface.
 
         Large data is fragmented into smaller MTU sized packets. The protocol
@@ -282,14 +282,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
         Args:
             data (str): Array of characters to broadcast over UDP.
-            topic (str): Broadcast data with an associated topic. This option
-                         will temporarily override the topic specified during
-                         instantiation.
 
-        Raises:
-            TypeError: If the input `topic` is not a string.
-            ValueError: If the input `topic` contains the header delimiter
-                        character.
 
         """
 
@@ -318,19 +311,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
         #           packet is a member of a sequence of M packets.
         #
         if self.is_open:
-
-            # Ensure data is a string. Non-string data must be serialised
-            # before transmission.
-            if not data or not isinstance(data, basestring):
-                raise TypeError('Data must be a non-empty string.')
-
-            # Empty topic.
-            if not topic:
-                topic = self.__default_topic
-
-            # Check 'topic' is a string.
-            elif not isinstance(topic, basestring):
-                raise TypeError("Topic for Broadcaster must be a string.")
 
             # Calculate number of MTU-sized packets required to send input data
             # over the network.
