@@ -461,10 +461,6 @@ class RawBroadcaster(object):
     def is_open(self):
         pass
 
-    @abstractproperty
-    def counter(self):
-        pass
-
     @abstractmethod
     def _open(self):
         """Virtual: Open connection to network interface.
@@ -573,10 +569,6 @@ class RawListener(Event):
 
     @abstractproperty
     def is_open(self):
-        pass
-
-    @abstractproperty
-    def counter(self):
         pass
 
     @abstractmethod

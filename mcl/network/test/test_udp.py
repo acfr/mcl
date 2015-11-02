@@ -2,7 +2,6 @@ import unittest
 
 from mcl.network.udp import MTU
 from mcl.network.udp import UDP_PORT
-from mcl.network.udp import HEADER_DELIMITER
 
 from mcl.network.udp import Connection
 from mcl.network.udp import RawBroadcaster
@@ -91,17 +90,6 @@ class TestBroadcaster(BroadcasterTests):
     broadcaster = RawBroadcaster
     connection = Connection(URL)
 
-    def test_topic_at_publish(self):
-        """Test udp RawBroadcaster() bad topic delimiter."""
-
-        # Create broadcaster and listener.
-        broadcaster = self.broadcaster(self.connection)
-
-        # Ensure non-string topics are caught.
-        with self.assertRaises(ValueError):
-            bad_topic = HEADER_DELIMITER.join(['A', 'B'])
-            broadcaster.publish('bad topic', topic=bad_topic)
-
 
 # -----------------------------------------------------------------------------
 #                                  Listener()
@@ -151,7 +139,6 @@ class TestPublishSubscribe(PublishSubscribeTests):
         listener.close()
 
         # Ensure the correct number of messages was received.
-        self.assertEqual(listener.counter, 1)
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.
@@ -184,7 +171,6 @@ class TestPublishSubscribe(PublishSubscribeTests):
         listener.close()
 
         # Ensure the correct number of messages was received.
-        self.assertEqual(listener.counter, 1)
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.

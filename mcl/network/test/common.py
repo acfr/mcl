@@ -655,11 +655,7 @@ class PublishSubscribeTests(object):
         broadcaster.close()
         listener.close()
 
-        # Ensure sending the message was recorded.
-        self.assertGreaterEqual(broadcaster.counter, len(received_buffer))
-
         # Ensure the correct number of messages was received.
-        self.assertEqual(listener.counter, 1)
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.

@@ -92,6 +92,7 @@ import time
 import select
 import socket
 import struct
+import msgpack
 import threading
 
 from mcl.network.abstract import Connection as AbstractConnection
@@ -113,7 +114,7 @@ READ_TIMEOUT = 200
 
 # We have nominated the header format:
 #
-#     (transmission counter, topic, packet, number of packets)
+#     (topic, packet, number of packets)
 #
 # If the header is packed using the 'struct' package, we need to decide how
 # much memory each variable should be assigned.
@@ -156,11 +157,6 @@ READ_TIMEOUT = 200
 # contain more complex, human-readable variables (strings).
 
 
-HEADER_DELIMITER = ','
-HEADER_FORMAT = HEADER_DELIMITER.join(['%i', '%s', '%i', '%i'])
-HEADER_FORMAT += HEADER_DELIMITER
-
-
 class RawBroadcaster(AbstractRawBroadcaster):
     """Send data over the network using a UDP socket.
 
@@ -201,7 +197,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
         topic (str): String containing the topic :py:class:`.RawBroadcaster`
                      will attach to broadcasts.
         is_open (bool): Return whether the UDP socket is open.
-        counter (int): Number of broadcasts issued.
 
     Raises:
         TypeError: If any of the inputs are ill-specified.
@@ -227,7 +222,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
         # Create objects for handling UDP broadcasts.
         self.__socket = None
         self.__sockaddr = None
-        self.__publish_counter = 1
         self.__is_open = False
 
         # Set default topic.
@@ -235,9 +229,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
             self.__default_topic = ''
         else:
             self.__default_topic = self.topic
-            if HEADER_DELIMITER in self.topic:
-                msg = "The input topic '%s' cannot contain the '%s' character."
-                raise ValueError(msg % (self.topic, HEADER_DELIMITER))
 
         # Attempt to connect to UDP interface.
         try:
@@ -252,10 +243,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
     @property
     def is_open(self):
         return self.__is_open
-
-    @property
-    def counter(self):
-        return self.__publish_counter - 1
 
     def _open(self):
         """Open connection to UDP broadcast interface.
@@ -316,15 +303,12 @@ class RawBroadcaster(AbstractRawBroadcaster):
         #
         #     The header consists of a comma separated string::
         #
-        #         -------------------------------------------------------------
-        #         | transmission counter, topic, packet number, total packets |
-        #         -------------------------------------------------------------
+        #         ---------------------------------------
+        #         | topic, packet number, total packets |
+        #         ---------------------------------------
         #
         #     where:
         #
-        #         - Transmission counter is an integer representing the total
-        #           number of data packets send using
-        #           :py:class:`.RawBroadcaster`.
         #         - Topic is a string representing the topic associated with
         #           the current data packet. This can be used for filtering
         #           broadcasts.
@@ -348,11 +332,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
             elif not isinstance(topic, basestring):
                 raise TypeError("Topic for Broadcaster must be a string.")
 
-            # Check 'topic' does not contain the header delimiter.
-            elif HEADER_DELIMITER in topic:
-                msg = "The input topic '%s' cannot contain the '%s' character."
-                raise ValueError(msg % (topic, HEADER_DELIMITER))
-
             # Calculate number of MTU-sized packets required to send input data
             # over the network.
             #
@@ -364,23 +343,19 @@ class RawBroadcaster(AbstractRawBroadcaster):
 
             # Send data in single packet.
             if (packets == 1) or (data_len == MTU):
-                header = HEADER_FORMAT % (self.__publish_counter, topic, 1, 1)
-                self.__socket.sendto(header + data, self.__sockaddr)
+                self.__socket.sendto(msgpack.dumps((self.__dtopic, 1, 1, data)),
+                                     self.__sockaddr)
 
             # Fragment data into multiple packets.
             else:
                 for packet in range(packets):
                     start_ptr = packet * MTU
                     end_ptr = min(data_len, (packet + 1) * MTU)
-
-                    header = HEADER_FORMAT % (self.__publish_counter,
-                                              topic, packet + 1, packets)
-
-                    self.__socket.sendto(header + data[start_ptr:end_ptr],
+                    self.__socket.sendto(msgpack.dumps((self.__dtopic,
+                                                        packet + 1,
+                                                        packets,
+                                                        data[start_ptr:end_ptr])),
                                          self.__sockaddr)
-
-            # Record number of full messages sent (not number of fragments).
-            self.__publish_counter += 1
 
         else:
             msg = 'Connection must be opened before publishing.'
@@ -463,7 +438,6 @@ class RawListener(AbstractRawListener):
         topics (list): List of strings containing the topics
                        :py:class:`.RawListener` will receive and process.
         is_open (bool): Return whether the UDP socket is open.
-        counter (int): Number of broadcasts received.
 
     """
 
@@ -491,8 +465,6 @@ class RawListener(AbstractRawListener):
         self.__stop_event = None
         self.__listen_thread = None
         self.__is_open = False
-        self.__counter_lock = threading.Lock()
-        self.__counter = 0
 
         # Attempt to connect to UDP interface.
         try:
@@ -507,11 +479,6 @@ class RawListener(AbstractRawListener):
     @property
     def is_open(self):
         return self.__is_open
-
-    @property
-    def counter(self):
-        with self.__counter_lock:
-            return self.__counter
 
     def _open(self):
         """Open connection to UDP receive interface.
@@ -594,11 +561,7 @@ class RawListener(AbstractRawListener):
 
             # Unpack frame of data.
             try:
-                split = frame.split(HEADER_DELIMITER, 4)
-                (transmissions, topic, packet, packets, payload) = split[:]
-                transmissions = int(transmissions)
-                packet = int(packet)
-                packets = int(packets)
+                topic, packet, packets, payload = msgpack.loads(frame)
 
                 if topic == '':
                     topic = None
@@ -621,10 +584,7 @@ class RawListener(AbstractRawListener):
 
             # Data fits into one frame. Publish data immediately.
             if packets == 1:
-                with self.__counter_lock:
-                    self.__counter += 1
-                self.__trigger__({'transmissions': transmissions,
-                                  'topic': topic,
+                self.__trigger__({'topic': topic,
                                   'payload': payload})
                 continue
 
@@ -666,35 +626,14 @@ class RawListener(AbstractRawListener):
             #        frames are recombined and published.
 
             # Assign a unique identifier to the sender of the data frame.
-            frame_identifier = (sender[0], transmissions, packets, topic)
+            # frame_identifier = (sender[0], transmissions, packets, topic)
+            frame_identifier = (sender[0], packets, topic)
 
             # The unique identifier does not exist in the buffer. Allocate
             # space in the buffer.
             if frame_identifier not in receive_buffer:
                 array = [None] * packets
-
-                # There is space in the dictionary, reserve memory for
-                # incoming packets.
-                if len(receive_buffer) <= self.__buffer_size:
-                    receive_buffer[frame_identifier] = array
-
-                # The dictionary is full. Find the earliest sequence of
-                # packets and overwrite them.
-                else:
-                    remove = None
-                    min_transmission = transmissions
-                    for key in receive_buffer:
-                        if key[1] < min_transmission:
-                            min_transmission = key[1]
-                            remove = key
-
-                    # Remove the earliest transmission if it was found.
-                    if remove:
-                        del receive_buffer[remove]
-                    else:
-                        receive_buffer.popitem()
-
-                    receive_buffer[frame_identifier] = array
+                receive_buffer[frame_identifier] = array
 
             # The unique identifier exists in the buffer and new frame is
             # overwriting an existing fragment. Re-allocate space on the stale
@@ -710,10 +649,7 @@ class RawListener(AbstractRawListener):
 
                 # Combine fragments into one payload and publish.
                 payload = ''.join(receive_buffer[frame_identifier])
-                with self.__counter_lock:
-                    self.__counter += 1
-                self.__trigger__({'transmissions': transmissions,
-                                  'topic': topic,
+                self.__trigger__({'topic': topic,
                                   'payload': payload})
 
                 # Free space in buffer.
