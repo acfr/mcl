@@ -49,12 +49,9 @@ import subprocess
 
 import mcl.logging.sys
 from mcl import MCL_ROOT
+import mcl.message.messages
 from mcl.message.messages import Message
 from mcl.network.network import QueuedListener
-from mcl.message.messages import get_message_objects
-from mcl.network.abstract import Connection as AbstractConnection
-
-import mcl.message.messages
 from mcl.message.messages import get_message_objects
 
 
