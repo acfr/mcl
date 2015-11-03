@@ -268,6 +268,11 @@ class ReadFileTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ReadFile(fname, min_time=10, max_time=5)
 
+        # Ensure initialisation fails on non-boolean or string input for
+        # message.
+        with self.assertRaises(TypeError):
+            ReadFile(fname, message=dict())
+
     def test_read_single(self):
         """Test ReadFile() read single file."""
 
@@ -389,21 +394,23 @@ class ReadDirectoryTests(unittest.TestCase):
     def test_initialisation(self):
         """Test ReadDirectory() initialisation."""
 
-        # Path to directory containing log files.
+        # Ensure the object does not identify available message types.
         rd = ReadDirectory(LOG_PATH)
+        self.assertEqual(rd.messages, None)
+        self.assertEqual(rd.min_time, None)
+        self.assertEqual(rd.max_time, None)
 
         # Ensure the object correctly identifies available message types.
+        rd = ReadDirectory(LOG_PATH, message=True)
         self.assertEqual(rd.messages, [UnitTestMessageA, UnitTestMessageB])
         self.assertEqual(rd.min_time, None)
         self.assertEqual(rd.max_time, None)
 
-        # Path to directory containing log files.
+        # Ensure the object correctly identifies time range.
         min_time = 0.1
         max_time = 1.0
         rd = ReadDirectory(LOG_PATH, min_time=min_time, max_time=max_time)
-
-        # Ensure the object correctly identifies available message types.
-        self.assertEqual(rd.messages, [UnitTestMessageA, UnitTestMessageB])
+        self.assertEqual(rd.messages, None)
         self.assertEqual(rd.min_time, min_time)
         self.assertEqual(rd.max_time, max_time)
 
@@ -434,16 +441,22 @@ class ReadDirectoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ReadDirectory(LOG_PATH, min_time=10, max_time=5)
 
+        # Ensure initialisation fails on non-boolean input for message.
+        with self.assertRaises(TypeError):
+            ReadDirectory(LOG_PATH, message='fail')
+
     def test_read_single(self):
         """Test ReadDirectory() read single files."""
 
         # Read all items in directory.
         rd = ReadDirectory(LOG_PATH)
+        rd_msg = ReadDirectory(LOG_PATH, message=True)
 
         # Read first item (UnitTestMessageB) message.
         message = rd.read()
         self.assertEqual(message['elapsed_time'], 0)
         self.assertEqual(message['message']['timestamp'], 0)
+        self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageB))
 
         # Read UnitTestMessageA messages.
         for i in range(1, 10):
@@ -451,7 +464,8 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
             self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
+            self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageA))
 
         # Read UnitTestMessageB messages.
         for i in range(1, 10):
@@ -459,7 +473,8 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i)
             self.assertEqual(round(10 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
+            self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageB))
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -478,7 +493,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
             self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(1, 4):
@@ -486,7 +501,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i)
             self.assertEqual(round(10 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -510,7 +525,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
             self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Reset directory reader.
         rd.reset()
@@ -526,7 +541,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
             self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(1, 10):
@@ -534,7 +549,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i)
             self.assertEqual(round(10 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -558,7 +573,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
             self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageA))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(1, 10):
@@ -566,7 +581,7 @@ class ReadDirectoryTests(unittest.TestCase):
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i)
             self.assertEqual(round(10 * message['message']['timestamp']), i)
-            self.assertTrue(isinstance(message['message'], UnitTestMessageB))
+            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())

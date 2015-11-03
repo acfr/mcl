@@ -523,10 +523,16 @@ class ReadFile(DumpConstants):
                         (e.g. 'data/GnssMessage_000.log').
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
-        message_type (str): Force reader to unpack messages as a specific MCL
-                            message type. This option can be useful for reading
-                            unnamed messages or debugging log files. Use with
-                            caution.
+        message (bool or str): If set to ``True`` messages will automatically
+                        be decoded into the MCL message type stored in the log
+                        file. If set to ``False`` (default), message data is
+                        returned as a dictionary. To force the reader to unpack
+                        messages as a specific MCL message type, set this field
+                        to the string name of the message type. This option can
+                        be useful for reading unnamed messages or debugging log
+                        files. Use with caution. Note: to read data as MCL
+                        messages, the messages must be loaded into the
+                        namespace.
 
     Attributes:
         header (dict): Dictionary containing the contents of the log file
@@ -541,8 +547,7 @@ class ReadFile(DumpConstants):
 
     """
 
-    def __init__(self, filename, min_time=None, max_time=None,
-                 message_type=None):
+    def __init__(self, filename, min_time=None, max_time=None, message=False):
         """Document the __init__ method at the class level."""
 
         # Variables for monitoring file reads.
@@ -583,7 +588,11 @@ class ReadFile(DumpConstants):
             raise ValueError(msg)
 
         # Force message type.
-        self.__message_type = message_type
+        if isinstance(message, bool) or isinstance(message, basestring):
+            self.__message = message
+        else:
+            msg = "'message' must be a boolean or string."
+            raise TypeError(msg)
 
         # If file exists, use single file mode.
         if os.path.exists(self.__filename):
@@ -757,24 +766,30 @@ class ReadFile(DumpConstants):
 
                 # Convert hex encoded, msgpacked payload into a dictionary. Use
                 # contents of dictionary to create a message object.
-                dct = msgpack.loads(payload.decode('hex'))
+                message = msgpack.loads(payload.decode('hex'))
 
-                # Cannot process messages if the message type is not stored in
-                # the dictionary or specified.
-                if (not self.__message_type) and ('name' not in dct.keys()):
-                    msg = 'Cannot format unnamed dictionary. Ensure data is '
-                    msg += "logged with the field 'name' populated."
-                    message = Exception(msg)
-                    break
+                # Convert data into MCL message.
+                if self.__message:
 
-                # Force message type.
-                elif self.__message_type is not None:
-                    dct['name'] = self.__message_type
+                    # Force a message type.
+                    if isinstance(self.__message, basestring):
+                        message['name'] = self.__message
+
+                    # Cannot process messages if the message type is not stored
+                    # in the dictionary or specified.
+                    elif 'name' not in message.keys():
+                        msg = 'Cannot format unnamed dictionary. Ensure data '
+                        msg += "is logged with the field 'name' populated."
+                        message = Exception(msg)
+                        break
+
+                    # Convert dictionary data into an MCL message type.
+                    message = get_message_objects(message['name'])(message)
 
                 # Package up data in a dictionary
                 message = {'elapsed_time': elapsed_time,
                            'topic': topic[1:-1],
-                           'message': get_message_objects(dct['name'])(dct)}
+                           'message': message}
 
                 # Filter out messages before requested period.
                 if self.__min_time and elapsed_time < self.__min_time:
@@ -880,9 +895,12 @@ class ReadFile(DumpConstants):
         #     >>> <Message>
         #
         # Remove comment character and '>>>' bullet point.
-        line = line.replace(self.COMMENT_CHARACTER, '')
-        message_name = line.replace(self.BROADCAST_MARKER, '').strip()
-        message = get_message_objects(message_name)
+        if self.__message:
+            line = line.replace(self.COMMENT_CHARACTER, '')
+            message_name = line.replace(self.BROADCAST_MARKER, '').strip()
+            message = get_message_objects(message_name)
+        else:
+            message = None
 
         # Find end of header block.
         while line.strip() != self.COMMENT_BLOCK:
@@ -993,6 +1011,12 @@ class ReadDirectory(object):
         source (str): Path to directory containing log files.
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
+        message (bool): If set to ``True`` messages will automatically
+                        be decoded into the MCL message type stored in the log
+                        file. If set to ``False`` (default), message data is
+                        returned as a dictionary. Note: to read data as MCL
+                        messages, the messages must be loaded into the
+                        namespace.
 
     Attributes:
         messages (list): List of :py:class:`.Message` object stored in the
@@ -1007,7 +1031,7 @@ class ReadDirectory(object):
 
     """
 
-    def __init__(self, source, min_time=None, max_time=None):
+    def __init__(self, source, min_time=None, max_time=None, message=False):
         """Document the __init__ method at the class level."""
 
         # Ensure source is specified as a string.
@@ -1020,6 +1044,13 @@ class ReadDirectory(object):
         if not os.path.isdir(source):
             msg = "The input source '%s' must be a file or directory."
             raise IOError(msg % source)
+
+        # Force message type.
+        if isinstance(message, bool):
+            self.__message = message
+        else:
+            msg = "'message' must be a boolean."
+            raise TypeError(msg)
 
         # Get all files in directory.
         time_origin = None
@@ -1044,7 +1075,8 @@ class ReadDirectory(object):
                     try:
                         dump = ReadFile(item,
                                         min_time=min_time,
-                                        max_time=max_time)
+                                        max_time=max_time,
+                                        message=self.__message)
                         self.__log_files.append(item)
                         self.__dumps.append(dump)
                     except:
@@ -1064,7 +1096,8 @@ class ReadDirectory(object):
                         raise ValueError(msg)
 
                     # Store message objects recorded in each log file.
-                    self.__messages.append(dump.header['message'])
+                    if self.__message:
+                        self.__messages.append(dump.header['message'])
 
         # Store max/min time.
         self.__min_time = min_time
@@ -1080,7 +1113,10 @@ class ReadDirectory(object):
 
     @property
     def messages(self):
-        return self.__messages
+        if self.__message:
+            return self.__messages
+        else:
+            return None
 
     @property
     def min_time(self):
@@ -1223,7 +1259,7 @@ class ReadDirectory(object):
 
 
 class FileDump(object):
-    """Dump network traffic to the screen or files.
+    """Dump network traffic to files.
 
     The :py:class:`.FileDump` object records network data to log files. These
     files can be replayed using :py:class:`.NetworkReplay` or read using
