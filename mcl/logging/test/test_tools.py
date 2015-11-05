@@ -15,7 +15,7 @@ SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 # -----------------------------------------------------------------------------
 #                            Contents of log files
 # -----------------------------------------------------------------------------
-log_data = [{'data': 0.0,  'name': 'UnitTestMessageB', 'timestamp': 0.0},
+log_data = [{'data': 0.00, 'name': 'UnitTestMessageA', 'timestamp': 0.00},
             {'data': 0.01, 'name': 'UnitTestMessageA', 'timestamp': 0.01},
             {'data': 0.02, 'name': 'UnitTestMessageA', 'timestamp': 0.02},
             {'data': 0.03, 'name': 'UnitTestMessageA', 'timestamp': 0.03},
@@ -33,7 +33,8 @@ log_data = [{'data': 0.0,  'name': 'UnitTestMessageB', 'timestamp': 0.0},
             {'data': 0.6,  'name': 'UnitTestMessageB', 'timestamp': 0.6},
             {'data': 0.7,  'name': 'UnitTestMessageB', 'timestamp': 0.7},
             {'data': 0.8,  'name': 'UnitTestMessageB', 'timestamp': 0.8},
-            {'data': 0.9,  'name': 'UnitTestMessageB', 'timestamp': 0.9}]
+            {'data': 0.9,  'name': 'UnitTestMessageB', 'timestamp': 0.9},
+            {'data': 1.0,  'name': 'UnitTestMessageB', 'timestamp': 1.0}]
 
 
 # -----------------------------------------------------------------------------
@@ -60,11 +61,10 @@ class DumpListTests(unittest.TestCase):
 
         # Load logged data into a list.
         min_time = 0.005
-        max_time = 0.15
+        max_time = 0.095
         lst = dump_to_list(LOG_PATH, min_time=min_time, max_time=max_time)
 
         # Ensure time range of data is valid.
-        self.assertEqual(len(lst), 10)
         for i, item in enumerate(lst):
             self.assertAlmostEqual(item['timestamp'],
                                    log_data[i + 1]['timestamp'])
@@ -101,8 +101,8 @@ class DumpArrayTests(unittest.TestCase):
 
         # Load logged data into a list.
         pth = os.path.join(LOG_PATH, 'UnitTestMessageB.log')
-        min_time = 0.05
-        max_time = 0.85
+        min_time = 0.15
+        max_time = 0.95
         arr = dump_to_array(pth, 'timestamp',
                             min_time=min_time,
                             max_time=max_time)

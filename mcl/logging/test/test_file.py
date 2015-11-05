@@ -289,7 +289,7 @@ class ReadFileTests(unittest.TestCase):
         rf = ReadFile(fname)
 
         # Ensure items in file can be read correctly.
-        for i in range(1, 10):
+        for i in range(10):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -332,20 +332,15 @@ class ReadFileTests(unittest.TestCase):
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
         rf = ReadFile(fname)
 
-        # Read first five items.
-        for i in range(1, 6):
-            message = rf.read()
-            self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+        # Read first few items.
+        for j in range(2):
+            for i in range(10):
+                message = rf.read()
+                self.assertEqual(round(100 * message['elapsed_time']), i)
+                self.assertEqual(round(100 * message['message']['timestamp']), i)
 
-        # Reset object.
-        rf.reset()
-
-        # Re-read all data.
-        for i in range(1, 10):
-            message = rf.read()
-            self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            # Reset object (ensure data is read from beginning on next loop).
+            rf.reset()
 
     def test_read_split(self):
         """Test ReadFile() read split files."""
@@ -359,7 +354,7 @@ class ReadFileTests(unittest.TestCase):
         self.assertEqual(rf.header['message'], UnitTestMessageA)
 
         # Ensure items in split log-files can be read correctly.
-        for i in range(1, 10):
+        for i in range(10):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -381,7 +376,7 @@ class ReadFileTests(unittest.TestCase):
         self.assertEqual(rf.header, None)
 
         # Ensure items in split log-files can be read correctly.
-        for i in range(4, 7):
+        for i in range(3, 6):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -460,14 +455,8 @@ class ReadDirectoryTests(unittest.TestCase):
         rd = ReadDirectory(LOG_PATH)
         rd_msg = ReadDirectory(LOG_PATH, message=True)
 
-        # Read first item (UnitTestMessageB) message.
-        message = rd.read()
-        self.assertEqual(message['elapsed_time'], 0)
-        self.assertEqual(message['message']['timestamp'], 0)
-        self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageB))
-
         # Read UnitTestMessageA messages.
-        for i in range(1, 10):
+        for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -476,11 +465,11 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageA))
 
         # Read UnitTestMessageB messages.
-        for i in range(1, 10):
+        for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(round(10 * message['elapsed_time']), i)
-            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i + 1)
+            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
             self.assertTrue(message['message']['name'], 'UnitTestMessageB')
             self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageB))
 
@@ -522,13 +511,8 @@ class ReadDirectoryTests(unittest.TestCase):
         # Read all items in directory.
         rd = ReadDirectory(LOG_PATH)
 
-        # Read first item (UnitTestMessageB) message.
-        message = rd.read()
-        self.assertEqual(message['elapsed_time'], 0)
-        self.assertEqual(message['message']['timestamp'], 0)
-
         # Read UnitTestMessageA messages.
-        for i in range(1, 10):
+        for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -538,13 +522,8 @@ class ReadDirectoryTests(unittest.TestCase):
         # Reset directory reader.
         rd.reset()
 
-        # Re-read first item (UnitTestMessageB) message.
-        message = rd.read()
-        self.assertEqual(message['elapsed_time'], 0)
-        self.assertEqual(message['message']['timestamp'], 0)
-
         # Re-read UnitTestMessageA messages.
-        for i in range(1, 10):
+        for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -552,11 +531,11 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
-        for i in range(1, 10):
+        for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(round(10 * message['elapsed_time']), i)
-            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i + 1)
+            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
             self.assertTrue(message['message']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
@@ -570,13 +549,8 @@ class ReadDirectoryTests(unittest.TestCase):
         # Read all split-logs in directory.
         rd = ReadDirectory(SPT_PATH)
 
-        # Read first item (UnitTestMessageB) message.
-        message = rd.read()
-        self.assertEqual(message['elapsed_time'], 0)
-        self.assertEqual(message['message']['timestamp'], 0)
-
         # Read UnitTestMessageA messages.
-        for i in range(1, 10):
+        for i in range(10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
@@ -584,11 +558,11 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(message['message']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
-        for i in range(1, 10):
+        for i in range(10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
-            self.assertEqual(round(10 * message['elapsed_time']), i)
-            self.assertEqual(round(10 * message['message']['timestamp']), i)
+            self.assertEqual(round(10 * message['elapsed_time']), i + 1)
+            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
             self.assertTrue(message['message']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
