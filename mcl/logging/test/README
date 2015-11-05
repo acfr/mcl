@@ -1,0 +1,25 @@
+The data stored in the test log files are contain two message types. A high
+frequency message (UnitTestMessageA) and a lower frequency message
+(UnitTestMessageB). There are 10 of each message. The messages both have a
+mandatory 'data' field. In these log files, the data fields have been populated
+with the timestamp data.
+
+[{'data': 0.0,  'name': 'UnitTestMessageB', 'timestamp': 0.0},
+ {'data': 0.01, 'name': 'UnitTestMessageA', 'timestamp': 0.01},
+ {'data': 0.02, 'name': 'UnitTestMessageA', 'timestamp': 0.02},
+ {'data': 0.03, 'name': 'UnitTestMessageA', 'timestamp': 0.03},
+ {'data': 0.04, 'name': 'UnitTestMessageA', 'timestamp': 0.04},
+ {'data': 0.05, 'name': 'UnitTestMessageA', 'timestamp': 0.05},
+ {'data': 0.06, 'name': 'UnitTestMessageA', 'timestamp': 0.06},
+ {'data': 0.07, 'name': 'UnitTestMessageA', 'timestamp': 0.07},
+ {'data': 0.08, 'name': 'UnitTestMessageA', 'timestamp': 0.08},
+ {'data': 0.09, 'name': 'UnitTestMessageA', 'timestamp': 0.09},
+ {'data': 0.1,  'name': 'UnitTestMessageB', 'timestamp': 0.1},
+ {'data': 0.2,  'name': 'UnitTestMessageB', 'timestamp': 0.2},
+ {'data': 0.3,  'name': 'UnitTestMessageB', 'timestamp': 0.3},
+ {'data': 0.4,  'name': 'UnitTestMessageB', 'timestamp': 0.4},
+ {'data': 0.5,  'name': 'UnitTestMessageB', 'timestamp': 0.5},
+ {'data': 0.6,  'name': 'UnitTestMessageB', 'timestamp': 0.6},
+ {'data': 0.7,  'name': 'UnitTestMessageB', 'timestamp': 0.7},
+ {'data': 0.8,  'name': 'UnitTestMessageB', 'timestamp': 0.8},
+ {'data': 0.9,  'name': 'UnitTestMessageB', 'timestamp': 0.9}]

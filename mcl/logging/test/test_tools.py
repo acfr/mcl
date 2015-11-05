@@ -12,25 +12,25 @@ SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 # -----------------------------------------------------------------------------
 #                            Contents of log files
 # -----------------------------------------------------------------------------
-log_data = [{'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.0},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.01},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.02},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.03},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.04},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.05},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.06},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.07},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.08},
-            {'data': None, 'name': 'UnitTestMessageA', 'timestamp': 0.09},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.1},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.2},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.3},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.4},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.5},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.6},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.7},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.8},
-            {'data': None, 'name': 'UnitTestMessageB', 'timestamp': 0.9}]
+log_data = [{'data': 0.0,  'name': 'UnitTestMessageB', 'timestamp': 0.0},
+            {'data': 0.01, 'name': 'UnitTestMessageA', 'timestamp': 0.01},
+            {'data': 0.02, 'name': 'UnitTestMessageA', 'timestamp': 0.02},
+            {'data': 0.03, 'name': 'UnitTestMessageA', 'timestamp': 0.03},
+            {'data': 0.04, 'name': 'UnitTestMessageA', 'timestamp': 0.04},
+            {'data': 0.05, 'name': 'UnitTestMessageA', 'timestamp': 0.05},
+            {'data': 0.06, 'name': 'UnitTestMessageA', 'timestamp': 0.06},
+            {'data': 0.07, 'name': 'UnitTestMessageA', 'timestamp': 0.07},
+            {'data': 0.08, 'name': 'UnitTestMessageA', 'timestamp': 0.08},
+            {'data': 0.09, 'name': 'UnitTestMessageA', 'timestamp': 0.09},
+            {'data': 0.1,  'name': 'UnitTestMessageB', 'timestamp': 0.1},
+            {'data': 0.2,  'name': 'UnitTestMessageB', 'timestamp': 0.2},
+            {'data': 0.3,  'name': 'UnitTestMessageB', 'timestamp': 0.3},
+            {'data': 0.4,  'name': 'UnitTestMessageB', 'timestamp': 0.4},
+            {'data': 0.5,  'name': 'UnitTestMessageB', 'timestamp': 0.5},
+            {'data': 0.6,  'name': 'UnitTestMessageB', 'timestamp': 0.6},
+            {'data': 0.7,  'name': 'UnitTestMessageB', 'timestamp': 0.7},
+            {'data': 0.8,  'name': 'UnitTestMessageB', 'timestamp': 0.8},
+            {'data': 0.9,  'name': 'UnitTestMessageB', 'timestamp': 0.9}]
 
 
 # -----------------------------------------------------------------------------
@@ -48,7 +48,7 @@ class DumpsListTests(unittest.TestCase):
         # Ensure loaded data is valid.
         self.assertEqual(len(lst), len(log_data))
         for i, item in enumerate(lst):
-            self.assertEqual(item['data'], log_data[i]['data'])
+            self.assertAlmostEqual(item['data'], log_data[i]['data'])
             self.assertEqual(item['name'], log_data[i]['name'])
             self.assertAlmostEqual(item['timestamp'], log_data[i]['timestamp'])
 
@@ -81,13 +81,14 @@ class DumpsArrayTests(unittest.TestCase):
 
         # Load logged data into a list.
         pth = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        arr = dumps_to_array(pth, 'timestamp')
+        arr = dumps_to_array(pth, ['data', 'timestamp'])
 
         # Ensure loaded data is valid.
         self.assertEqual(arr.ndim, 2)
         self.assertEqual(len(arr), len(data))
         for i, item in enumerate(data):
-            self.assertAlmostEqual(arr[i, 0], item['timestamp'])
+            self.assertAlmostEqual(arr[i, 0], item['data'])
+            self.assertAlmostEqual(arr[i, 1], item['timestamp'])
 
     def test_load_time(self):
         """Test dumps_to_array() can load a time range of data."""
