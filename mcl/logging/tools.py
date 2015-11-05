@@ -15,10 +15,10 @@ from mcl.logging.file import ReadFile
 from mcl.logging.file import ReadDirectory
 
 
-def dumps_to_list(source, min_time=None, max_time=None, message=False):
+def dump_to_list(source, min_time=None, max_time=None, message=False):
     """Load message dumps into a list.
 
-    The :py:func:`.dumps_to_list` function parses a network dump file or
+    The :py:func:`.dump_to_list` function parses a network dump file or
     directory of network dump files into a list. Note, the following fields are
     added to each object:
 
@@ -122,10 +122,10 @@ def dumps_to_list(source, min_time=None, max_time=None, message=False):
     return messages
 
 
-def dumps_to_array(source, keys, min_time=None, max_time=None):
+def dump_to_array(source, keys, min_time=None, max_time=None):
     """Load message dump into a numpy array.
 
-    The :py:func:`.dumps_to_array` function parses a network dump file or
+    The :py:func:`.dump_to_array` function parses a network dump file or
     directory of network dump files into a numpy array. To parse data into a
     numpy array, the following conditions must be met:
 
@@ -161,9 +161,9 @@ def dumps_to_array(source, keys, min_time=None, max_time=None):
 
     # Load message dumps into a list.
     try:
-        message_list = dumps_to_list(source,
-                                     min_time=min_time,
-                                     max_time=max_time)
+        message_list = dump_to_list(source,
+                                    min_time=min_time,
+                                    max_time=max_time)
     except:
         raise
 
@@ -220,11 +220,6 @@ def dump_to_csv(source, csvfile, keys, min_time=None, max_time=None):
 
     """
 
-    # Ensure 'source' is not a directory.
-    if os.path.isdir(source):
-        msg = "The source input '%s' must not be a directory."
-        raise IOError(msg % source)
-
     # Default formatting of keys is a list of strings.
     if isinstance(keys, basestring):
         keys = [keys, ]
@@ -233,9 +228,9 @@ def dump_to_csv(source, csvfile, keys, min_time=None, max_time=None):
 
     # Load message dumps into a list.
     try:
-        message_list = dumps_to_list(source,
-                                     min_time=min_time,
-                                     max_time=max_time)
+        message_list = dump_to_list(source,
+                                    min_time=min_time,
+                                    max_time=max_time)
     except:
         raise
 

@@ -1,10 +1,13 @@
 import os
+import shutil
 import unittest
 
-from mcl.logging.tools import dumps_to_list
-from mcl.logging.tools import dumps_to_array
+from mcl.logging.tools import dump_to_csv
+from mcl.logging.tools import dump_to_list
+from mcl.logging.tools import dump_to_array
 
 _DIRNAME = os.path.dirname(__file__)
+TMP_PATH = os.path.join(_DIRNAME, 'tmp')
 LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 
@@ -34,16 +37,16 @@ log_data = [{'data': 0.0,  'name': 'UnitTestMessageB', 'timestamp': 0.0},
 
 
 # -----------------------------------------------------------------------------
-#                                dumps_to_list()
+#                                dump_to_list()
 # -----------------------------------------------------------------------------
 
-class DumpsListTests(unittest.TestCase):
+class DumpListTests(unittest.TestCase):
 
     def test_load(self):
-        """Test dumps_to_list() can load data."""
+        """Test dump_to_list() can load data."""
 
         # Load logged data into a list.
-        lst = dumps_to_list(LOG_PATH)
+        lst = dump_to_list(LOG_PATH)
 
         # Ensure loaded data is valid.
         self.assertEqual(len(lst), len(log_data))
@@ -53,12 +56,12 @@ class DumpsListTests(unittest.TestCase):
             self.assertAlmostEqual(item['timestamp'], log_data[i]['timestamp'])
 
     def test_load_time(self):
-        """Test dumps_to_list() can load a time range of data."""
+        """Test dump_to_list() can load a time range of data."""
 
         # Load logged data into a list.
         min_time = 0.005
         max_time = 0.15
-        lst = dumps_to_list(LOG_PATH, min_time=min_time, max_time=max_time)
+        lst = dump_to_list(LOG_PATH, min_time=min_time, max_time=max_time)
 
         # Ensure time range of data is valid.
         self.assertEqual(len(lst), 10)
@@ -68,20 +71,20 @@ class DumpsListTests(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                               dumps_to_array()
+#                               dump_to_array()
 # -----------------------------------------------------------------------------
 
-class DumpsArrayTests(unittest.TestCase):
+class DumpArrayTests(unittest.TestCase):
 
     def test_load(self):
-        """Test dumps_to_array() can load data."""
+        """Test dump_to_array() can load data."""
 
         # Load UnitTestMessageA.
         data = [msg for msg in log_data if msg['name'] == 'UnitTestMessageA']
 
         # Load logged data into a list.
         pth = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        arr = dumps_to_array(pth, ['data', 'timestamp'])
+        arr = dump_to_array(pth, ['data', 'timestamp'])
 
         # Ensure loaded data is valid.
         self.assertEqual(arr.ndim, 2)
@@ -91,7 +94,7 @@ class DumpsArrayTests(unittest.TestCase):
             self.assertAlmostEqual(arr[i, 1], item['timestamp'])
 
     def test_load_time(self):
-        """Test dumps_to_array() can load a time range of data."""
+        """Test dump_to_array() can load a time range of data."""
 
         # Load UnitTestMessageB.
         data = [msg for msg in log_data if msg['name'] == 'UnitTestMessageB']
@@ -100,12 +103,47 @@ class DumpsArrayTests(unittest.TestCase):
         pth = os.path.join(LOG_PATH, 'UnitTestMessageB.log')
         min_time = 0.05
         max_time = 0.85
-        arr = dumps_to_array(pth, 'timestamp',
-                             min_time=min_time,
-                             max_time=max_time)
+        arr = dump_to_array(pth, 'timestamp',
+                            min_time=min_time,
+                            max_time=max_time)
 
         # Ensure loaded data is valid.
         self.assertEqual(arr.ndim, 2)
         self.assertEqual(len(arr), 8)
         for i, item in enumerate(arr):
             self.assertAlmostEqual(arr[i], data[i + 1]['timestamp'])
+
+
+# -----------------------------------------------------------------------------
+#                                 dump_to_csv()
+# -----------------------------------------------------------------------------
+
+class DumpCSVTests(unittest.TestCase):
+
+    def test_dump(self):
+        """Test dump_to_csv() can write data to CSV file."""
+
+        # Create paths to files.
+        log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+        csv_file = os.path.join(TMP_PATH, 'data.csv')
+
+        # Make temporary directory for CSV data.
+        if not os.path.exists(TMP_PATH):
+            os.makedirs(TMP_PATH)
+
+        # Dump data to CSV file.
+        keys = ['name', 'data', 'timestamp']
+        dump_to_csv(log_file, csv_file, keys)
+
+        # Read data from CSV file and reference.
+        with open(csv_file, 'r') as f:
+            write_data = f.read()
+        with open(os.path.join(LOG_PATH, 'UnitTestMessageA.csv'), 'r') as f:
+            expected_data = f.read()
+
+        # Ensure CSV data is in the expected format.
+        self.assertEqual(write_data, expected_data)
+
+        # Remove temporary directory.
+        if os.path.exists(TMP_PATH):
+            shutil.rmtree(TMP_PATH)
