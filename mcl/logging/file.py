@@ -391,8 +391,9 @@ class WriteFile(DumpConstants):
         file_str = '%s    %s    '
         file_str = file_str % (time_str, topic_str)
 
-        # Encode payload as hex to remove non printing characters.
-        file_str += msg.encode('hex') + '\n'
+        # Encode payload as hex-msgpack string to remove non printing
+        # characters.
+        file_str += msgpack.dumps(msg).encode('hex') + '\n'
         return file_str
 
     def write(self, message):

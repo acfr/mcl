@@ -141,12 +141,8 @@ class MessageBroadcaster(object):
 
             The :py:class:`.MessageBroadcaster` object provides an interface
             for broadcasting MCL :py:class:`.Message` objects over a
-            network. Before transmission, :py:class:`.MessageBroadcaster`
-            serialises the contents of the message into a byte string using
-            Message pack.
-
-            :py:class:`.MessageBroadcaster` establishes a network connection
-            using the information contained within the input
+            network. :py:class:`.MessageBroadcaster` establishes a network
+            connection using the information contained within the input
             :py:class:`.Message` type.
 
             For a list of available methods and attributes, see
@@ -165,11 +161,8 @@ class MessageBroadcaster(object):
                     message (:py:class:`.Message`): MCL message object.
 
                 Raises:
-                    TypeError: If the input `topic` is not a string. Or the
-                        input message type differs from the message specified
-                        during instantiation.
-                    ValueError: If the input `topic` contains the header
-                                delimiter character.
+                    TypeError: If the input message type differs from the
+                        message specified during instantiation.
 
                 """
 
@@ -178,14 +171,8 @@ class MessageBroadcaster(object):
                     error_msg = "'msg' must reference a %s() instance."
                     raise TypeError(error_msg % message_type.__name__)
 
-                # Attempt to serialise input data.
-                try:
-                    packed_data = message.encode()
-                except:
-                    raise TypeError('Could not encode input object')
-
-                # Publish serialised data.
-                super(MessageBroadcaster, self).publish(packed_data)
+                # Publish data.
+                super(MessageBroadcaster, self).publish(message)
 
         return MessageBroadcaster(message.connection, topic=topic)
 
@@ -197,9 +184,7 @@ class MessageListener(object):
     objects for receiving MCL :py:class:`.Message` objects over a network. The
     returned object inherits from the :py:class:`.RawListener` class. When data
     is received, it is decoded into a :py:class:`.Message` object before an
-    event is raised to forward the received data to subscribed
-    callbacks. `Message pack <http://msgpack.org/index.html>`_ is used to
-    decode the received data.
+    event is raised to forward the received data to subscribed callbacks.
 
     For a list of available methods and attributes in the returned object, see
     :py:class:`.RawListener`.
@@ -227,12 +212,9 @@ class MessageListener(object):
             """Receive messages over a network interface.
 
             The :py:class:`.MessageListener` object provides an interface for
-            receiving MCL :py:class:`.Message` objects over a network. After
-            receiving data, :py:class:`.MessageListener` decodes the contents
-            data into a :py:class:`.Message` object using Message pack.
-
-            :py:class:`.MessageListener` establishes a network connection
-            using the information contained within the input
+            receiving MCL :py:class:`.Message` objects over a
+            network. :py:class:`.MessageListener` establishes a network
+            connection using the information contained within the input
             :py:class:`.Message` type.
 
             For a list of available methods and attributes, see

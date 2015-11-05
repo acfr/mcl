@@ -1,6 +1,7 @@
 import os
 import time
 import shutil
+import msgpack
 import unittest
 
 import mcl.message.messages
@@ -145,7 +146,7 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         # Package up message object.
         message = {'time_received': None,
                    'topic': 'test',
-                   'payload': test_message.encode()}
+                   'payload': test_message}
 
         # Create logging object.
         wf = WriteFile(prefix, UnitTestMessageA)
@@ -168,7 +169,8 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         time, topic, payload = lines[-1].split()
         self.assertEqual(float(time), 0.0)
         self.assertEqual(topic, "'" + message['topic'] + "'")
-        self.assertEqual(payload.decode('hex'), message['payload'])
+        self.assertEqual(msgpack.loads(payload.decode('hex')),
+                         message['payload'])
 
         # Clean up after testing.
         self.delete_if_exists(tmp)
@@ -194,7 +196,7 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         # Package up message object.
         message = {'time_received': None,
                    'topic': 'test',
-                   'payload': test_message.encode()}
+                   'payload': test_message}
 
         # Create logging object.
         wf = WriteFile(prefix, UnitTestMessageA, max_entries=2)
@@ -219,7 +221,8 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
                 lines = f.readlines()
             time, topic, payload = lines[-1].split()
             self.assertEqual(topic, "'" + message['topic'] + "'")
-            self.assertEqual(payload.decode('hex'), message['payload'])
+            self.assertEqual(msgpack.loads(payload.decode('hex')),
+                             message['payload'])
 
         # Clean up after testing.
         for fname in [tmp0, tmp1, log0, log1]:
@@ -237,13 +240,18 @@ class ReadFileTests(unittest.TestCase):
 
         # Create file reader object.
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        rf = ReadFile(fname)
 
-        # Test access to properties.
+        # Create file reader for loading data into dictionaries
+        rf = ReadFile(fname)
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
+        self.assertNotEqual(rf.header, None)
+        self.assertEqual(rf.header['message'], None)
 
-        # Ensure object can parse the header block.
+        # Create file reader for loading data into message objects.
+        rf = ReadFile(fname, message=True)
+        self.assertEqual(rf.min_time, None)
+        self.assertEqual(rf.max_time, None)
         self.assertNotEqual(rf.header, None)
         self.assertEqual(rf.header['message'], UnitTestMessageA)
 
@@ -344,7 +352,7 @@ class ReadFileTests(unittest.TestCase):
 
         # Prefix of split log files.
         fname = os.path.join(SPT_PATH, 'UnitTestMessageA')
-        rf = ReadFile(fname)
+        rf = ReadFile(fname, message=True)
 
         # Ensure object can parse the header block.
         self.assertNotEqual(rf.header, None)
