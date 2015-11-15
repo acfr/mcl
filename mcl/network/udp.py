@@ -535,9 +535,26 @@ class RawListener(AbstractRawListener):
             # Wait for a data event in the socket.
             events = self.__poller.poll(READ_TIMEOUT)
             if events and events[0][1] & select.POLLIN:
-                frame, sender = self.__socket.recvfrom(MTU_MAX)
+
+                # Read multiple packets from the socket.
+                socket_data = list()
+                while True:
+                    try:
+                        socket_data.append(self.__socket.recvfrom(MTU_MAX))
+                    except:
+                        break
+
+                self.__remarshal(socket_data, receive_buffer)
+
             else:
                 continue
+
+        # Close socket on exiting thread.
+        self.__socket.close()
+
+    def __remarshal(self, socket_data, receive_buffer):
+
+        for frame, sender in socket_data:
 
             # Unpack frame of data.
             try:
@@ -634,9 +651,6 @@ class RawListener(AbstractRawListener):
 
                 # Free space in buffer.
                 del receive_buffer[frame_identifier]
-
-        # Close socket on exiting thread.
-        self.__socket.close()
 
     def close(self):
         """Close connection to UDP receive interface.
