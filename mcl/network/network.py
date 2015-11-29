@@ -16,7 +16,6 @@ import mcl.logging.sys
 import mcl.message.messages
 from mcl.event.event import Event
 from mcl.message.messages import Message
-from mcl.event.event import _HideTriggerMeta
 from mcl.network.abstract import Connection as AbstractConnection
 
 # Time to wait for threads and processes to start/stop. This parameter could be
@@ -303,9 +302,6 @@ class QueuedListener(Event):
         connection (:py:class:`.Connection`): MCL connection object.
 
     """
-
-    # Rename the 'trigger' method to '__trigger__' so it is more 'private'.
-    __metaclass__ = _HideTriggerMeta
 
     def __init__(self, connection):
         """Document the __init__ method at the class level."""

@@ -19,8 +19,6 @@ import abc
 from abc import abstractmethod
 from abc import abstractproperty
 from mcl.event.event import Event
-from mcl.event.event import _HideTriggerMeta
-
 
 import textwrap
 import sys as _sys
@@ -529,9 +527,6 @@ class RawListener(Event):
         TypeError: If any of the inputs are ill-specified.
 
     """
-
-    # Rename the 'trigger' method to '__trigger__' so it is more 'private'.
-    __metaclass__ = _HideTriggerMeta
 
     def __init__(self, connection, topics=None):
         """Document the __init__ method at the class level."""

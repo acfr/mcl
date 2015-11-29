@@ -212,7 +212,7 @@ class EventTests(object):
         test_data = 'test data'
         event = Event(callback=self.handler)
         event.subscribe(callback)
-        event.trigger(test_data)
+        event.__trigger__(test_data)
         time.sleep(THREAD_DELAY)
 
         # Ensure data was issued to callback function.
@@ -235,7 +235,7 @@ class EventTests(object):
         # Trigger events and send data to callback functions.
         num_triggers = 5
         for i in range(num_triggers):
-            event.trigger(i)
+            event.__trigger__(i)
             time.sleep(THREAD_DELAY)
 
         # Ensure data was issued to callback function.
@@ -263,7 +263,7 @@ class EventTests(object):
         self.assertEqual(event.num_subscriptions(), 2)
 
         # Trigger event.
-        event.trigger(test_data)
+        event.__trigger__(test_data)
         time.sleep(THREAD_DELAY)
 
         # Ensure data was issued to all callback functions.
@@ -289,7 +289,7 @@ class EventTests(object):
         self.assertTrue(event.is_subscribed(unsubscriber))
 
         # Run the test in a thread so it can be terminated it if it blocks.
-        thread = threading.Thread(target=event.trigger)
+        thread = threading.Thread(target=event.__trigger__)
         thread.daemon = True
         thread.start()
         thread.join(TIME_OUT)
@@ -315,7 +315,7 @@ class EventTests(object):
         self.assertTrue(event.is_subscribed(subscriber))
 
         # Run the test in a thread so we can easily terminate it if it blocks
-        thread = threading.Thread(target=event.trigger)
+        thread = threading.Thread(target=event.__trigger__)
         thread.daemon = True
         thread.start()
         thread.join(TIME_OUT)
