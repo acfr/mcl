@@ -173,9 +173,8 @@ class BroadcasterTests(object):
         # Test publish succeeds if the input is a string.
         broadcaster.publish('test')
 
-        # Test publish fails if the input is not a string.
-        with self.assertRaises(TypeError):
-            broadcaster.publish(42)
+        # Test publish succeeds if the input is a serialisable non-string.
+        broadcaster.publish(42)
 
         # Ensure attempts to publish on a closed connection raised an
         # exception.

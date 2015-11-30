@@ -6,54 +6,6 @@ This module provides an interface between UDP sockets and
 disadvantages of UDP. That is, there is no guarantee of delivery, ordering, or
 duplicate protection.
 
-Example usage:
-
-.. testcode::
-
-    import os
-    import time
-    from mcl.network.udp import RawBroadcaster
-    from mcl.network.udp import RawListener
-
-    # Create RawBroadcaster object to send data over the network using a
-    # UDP connection with no topic.
-    broadcaster = RawBroadcaster('ff15::1')
-
-    # Create RawListener object to receive data sent over the network with a
-    # topic of 'A', using a UDP connection.
-    listener = RawListener('ff15::1', topics='A')
-
-    # Subscribe callback to print data sent over the network.
-    listener.subscribe(lambda data: os.sys.stdout.write(data[1:]))
-
-    # Publish data with empty topic. The listener is waiting for messages with
-    # an 'A' topic and will not receive this message.
-    broadcaster.publish('No topic')
-
-    # Publish data with a specified topic of 'A'. The listener will receive
-    # this message.
-    #
-    # NOTE: Since UDP is used as the underlying interface, there is no
-    #       guarantee of delivery. Issue multiple broadcasts until at least one
-    #       is received.
-    #
-    timeout = 0
-    while listener.counter < 1:
-        broadcaster.publish('topic A', topic='A')
-        time.sleep(0.1)
-        timeout += 1
-        if timeout >= 10:
-            break
-
-    # Close UDP connections.
-    broadcaster.close()
-    listener.close()
-
-.. testoutput::
-    :hide:
-
-    ('A', 'topic A')
-
 .. warning::
 
     A bug introduced into the `linux kernel
@@ -112,51 +64,6 @@ MTU_MAX = 65000
 READ_TIMEOUT = 200
 
 
-# We have nominated the header format:
-#
-#     (topic, packet, number of packets)
-#
-# If the header is packed using the 'struct' package, we need to decide how
-# much memory each variable should be assigned.
-#
-# Calculations for the size of the transmission counter:
-#     2 Bytes:      65535 / (100Hz * 60)               = 10 minutes @ 100Hz
-#     4 Bytes: 4294967295 / (100Hz * 60 * 60 * 24 * 7) = 71 weeks   @ 100Hz
-#
-# Calculations for the size of the maximum number of packets:
-#     1 Bytes: (65000b / 1048576) x   255 =   15Mib
-#     2 Bytes: (65000b / 1048576) x 65535 = 4062Mib
-#
-# Using a 4 byte transmission counter, a single byte to represent topics and a
-# 2 byte packet size, the following header format:
-#
-#    BINARY_FORMAT = '@IBHH'
-#    HEADER_LENGTH = struct.calcsize(BINARY_FORMAT)
-#
-# will allow 71 weeks of logging at 100Hz with 255 topics and a maximum data
-# size (sent fragmented) of ~4GiB before overflow.
-#
-# Alternatively, a non-binary encoded header can be used allowing for variable
-# length strings in the header. How bad/inefficient is this?
-#
-# In the case where we log data @ 100Hz for 1hr, transferring 6kb data packets
-# on the default topic:
-#
-#     100 * 60 * 60 * 1 = 360000
-#       6 * 1024 / 6500 = 1
-#
-#     length of struct header (b): len(40:7e:05:00:00:00:01:00:01:00) = 10
-#     length of string header (b):          len('360000,0,1,1,')      = 13
-#     Difference in data transferred (Mb):  360000 * 1 * 3 / 1048576  = 1.03
-#
-# The difference in header size is NEGLIGIBLE when traded-off against the
-# advantages of permitting a text encoded header. Since the header is
-# represented by characters, fixed memory does not need to be assigned to the
-# transmission counter and packet counters. The number of characters can grow
-# to suit the size of the variables being transmitted. Similarly the topic can
-# contain more complex, human-readable variables (strings).
-
-
 class RawBroadcaster(AbstractRawBroadcaster):
     """Send data over the network using a UDP socket.
 
@@ -164,29 +71,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
     UDP socket. The object marshalls broadcasts and ensures large items will be
     fragmented into smaller sub-packets which obey the network maximum
     transmission unit (MTU) constraints.
-
-    The payload is represented as a string. The :py:class:`.RawBroadcaster`
-    object does not assume any encoding on the string. To send binary data over
-    the network, it must be serialised before issuing a call to
-    :py:meth:`.publish`.
-
-    Example usage:
-
-    .. testcode::
-
-        from mcl.network.udp import Connection
-        from mcl.network.udp import RawBroadcaster
-
-        # Create RawBroadcaster object to send data over the network using a
-        # UDP connection.
-        connection = Connection('ff15::1', port=26062)
-        broadcaster = RawBroadcaster(connection, topic='test')
-
-        # Publish data.
-        broadcaster.publish('test data')
-
-        # Close connection to UDP.
-        broadcaster.close()
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
@@ -223,12 +107,6 @@ class RawBroadcaster(AbstractRawBroadcaster):
         self.__socket = None
         self.__sockaddr = None
         self.__is_open = False
-
-        # Set default topic.
-        if self.topic is None:
-            self.__dtopic = ''
-        else:
-            self.__dtopic = self.topic
 
         # Attempt to connect to UDP interface.
         try:
@@ -283,60 +161,72 @@ class RawBroadcaster(AbstractRawBroadcaster):
         Args:
             data (str): Array of characters to broadcast over UDP.
 
-
         """
 
         # Note:
         #
-        #     Data packets are published using a header-payload protocol::
+        #     Data is published as a msgpack-serialised tuple using the
+        #     following protocol::
         #
-        #         --------------------
-        #         | header | payload |
-        #         --------------------
-        #
-        #     The header consists of a comma separated string::
-        #
-        #         ---------------------------------------
-        #         | topic, packet number, total packets |
-        #         ---------------------------------------
+        #         (topic, payload)
         #
         #     where:
         #
         #         - Topic is a string representing the topic associated with
         #           the current data packet. This can be used for filtering
         #           broadcasts.
+        #         - Payload is the transmitted data.
+        #
+        #     If the msgpack-serialised tuple is larger than the MTU, the
+        #     payload is serialised using msgpacked and split into multiple
+        #     fragments. The payload is then transmitted by publishing several
+        #     msgpack-serialised tuples using the following protocol::
+        #
+        #         (topic, packet number, total packets, payload)
+        #
+        #     where:
+        #
         #         - Packet number is an integer indicating that the current
         #           packet is the Nth packet out of M packets in a sequence.
         #         - Total packets is an integer indicating that the current
         #           packet is a member of a sequence of M packets.
         #
+        #     Note that payload is a fragment of the serialised data. To
+        #     remarshall the payload, the fragments must be joined in the
+        #     correct order and unpacked.
+        #
         if self.is_open:
 
-            # Calculate number of MTU-sized packets required to send input data
-            # over the network.
-            #
-            # Note: Integer math is used to calculate the number of
-            #       packets. This calculation does not account for the corner
-            #       case the data is the same length as the MTU.
-            data_len = len(data)
-            packets = (data_len / MTU) + 1
+            # Optimise for 'small' messages - assume data can be sent in a
+            # single packet.
+            packet = msgpack.dumps((self.topic, data))
 
             # Send data in single packet.
-            if (packets == 1) or (data_len == MTU):
-                self.__socket.sendto(msgpack.dumps((self.__dtopic, 1, 1, data)),
-                                     self.__sockaddr)
+            if len(packet) <= MTU:
+                self.__socket.sendto(packet, self.__sockaddr)
 
             # Fragment data into multiple packets.
             else:
+                # Accept inefficiency of double-encoding for 'large' messages.
+                data = msgpack.dumps(data)
+
+                # Calculate number of MTU-sized packets required to send input
+                # data over the network.
+                #
+                # Note: Integer math is used to calculate the number of
+                #       packets. This calculation does not account for the
+                #       corner case the data is the same length as the MTU.
+                data_len = len(data)
+                packets = (data_len / MTU) + 1
+
                 for packet in range(packets):
                     start_ptr = packet * MTU
                     end_ptr = min(data_len, (packet + 1) * MTU)
-                    self.__socket.sendto(msgpack.dumps((self.__dtopic,
-                                                        packet + 1,
-                                                        packets,
-                                                        data[start_ptr:end_ptr])),
-                                         self.__sockaddr)
-
+                    fragment = msgpack.dumps((self.topic,
+                                              packet + 1,
+                                              packets,
+                                              data[start_ptr:end_ptr]))
+                    self.__socket.sendto(fragment, self.__sockaddr)
         else:
             msg = 'Connection must be opened before publishing.'
             raise IOError(msg)
@@ -372,14 +262,11 @@ class RawListener(AbstractRawListener):
     :py:class:`.Event`. When data arrives, it is published to callbacks in the
     following format::
 
-        {'transmissions': int(),
-         'topic': str(),
+        {'topic': str(),
          'payload': str()}
 
     where:
 
-        - ``transmissions`` is an integer representing the total number of data
-          packets sent at the origin.
         - ``topic`` is a string representing the topic associated with the
           current data packet. This can be used for filtering broadcasts.
         - ``payload`` contains the contents of the data transmission as a
@@ -390,23 +277,6 @@ class RawListener(AbstractRawListener):
     for simplifying data handling is to pair a specific data type with a unique
     network address. By adopting this paradigm, handling the data is trivial if
     the network address is known.
-
-    Example usage:
-
-    .. testcode::
-
-        import os
-        from mcl.network.udp import RawListener
-
-        # Create RawListener object to receive data sent over the network using
-        # a UDP connection (will receive all topics).
-        listener = RawListener('ff15::1', port=26062)
-
-        # Subscribe callback to print data sent over the network.
-        listener.subscribe(lambda data: os.sys.stdout.write(data))
-
-        # Close connection to UDP.
-        listener.close()
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
@@ -544,6 +414,7 @@ class RawListener(AbstractRawListener):
                     except:
                         break
 
+                # Remarshal and issue data to callbacks.
                 self.__remarshal(socket_data, receive_buffer)
 
             else:
@@ -558,10 +429,17 @@ class RawListener(AbstractRawListener):
 
             # Unpack frame of data.
             try:
-                topic, packet, packets, payload = msgpack.loads(frame)
+                frame = msgpack.loads(frame)
 
-                if topic == '':
-                    topic = None
+                # Data transmitted in single packets.
+                if len(frame) == 2:
+                    complete = True
+                    topic, payload = frame
+
+                # Data transmitted in multiple packets.
+                else:
+                    complete = False
+                    topic, packet, packets, payload = frame
             except:
                 continue
 
@@ -580,7 +458,7 @@ class RawListener(AbstractRawListener):
                     continue
 
             # Data fits into one frame. Publish data immediately.
-            if packets == 1:
+            if complete:
                 self.__trigger__({'topic': topic,
                                   'payload': payload})
                 continue
@@ -623,7 +501,6 @@ class RawListener(AbstractRawListener):
             #        frames are recombined and published.
 
             # Assign a unique identifier to the sender of the data frame.
-            # frame_identifier = (sender[0], transmissions, packets, topic)
             frame_identifier = (sender[0], packets, topic)
 
             # The unique identifier does not exist in the buffer. Allocate
@@ -646,6 +523,7 @@ class RawListener(AbstractRawListener):
 
                 # Combine fragments into one payload and publish.
                 payload = ''.join(receive_buffer[frame_identifier])
+                payload = msgpack.loads(payload)
                 self.__trigger__({'topic': topic,
                                   'payload': payload})
 
