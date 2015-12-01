@@ -442,40 +442,48 @@ def remove_message_object(name):
         return False
 
 
-def list_messages(names=False):
+def list_messages(include=None, exclude=None):
     """List message objects derived from Message.
 
     Args:
-        name (boolean, **optional**): By default (``False``) a list of message
-            objects derived from :py:class:`.Message` is returned. If set to
-            ``True``, a tuple containing a list of message objects derived from
-            :py:class:`.Message` and list of their names as a string is
-            returned.
+        include (list): list of message object names to include.
+        exclude (list): list of message object names to exclude.
 
     Returns:
-        list or tuple: a list of message objects derived from
-            :py:class:`.Message` is returned. If ``name`` is set to ``True``, a
-            tuple containing a list of message objects derived from
-            :py:class:`.Message` and list of their names as a string is
+        list: a list of message objects derived from :py:class:`.Message` is
             returned.
 
     """
 
-    # Create soft copy of _MESSAGES so that _MESSAGES cannot be altered
-    # directly.
-    messages = [msg for msg in _MESSAGES]
+    # Save includes.
+    if isinstance(include, basestring):
+        include = [include, ]
+    elif include and not hasattr(include, '__iter__'):
+        msg = "'include' must be a string or a list of strings.'"
+        raise TypeError(msg)
 
-    # Get message names.
-    if names:
-        message_names = list()
-        for message in messages:
-            message_names.append(message.__name__)
+    # Save excludes.
+    if isinstance(exclude, basestring):
+        exclude = [exclude, ]
+    elif exclude and not hasattr(exclude, '__iter__'):
+        msg = "'exclude' must be a string or a list of strings.'"
+        raise TypeError(msg)
 
-        return messages, message_names
+    # Filter available messages.
+    messages = list()
+    for message in _MESSAGES:
 
-    # Return message objects.
-    else:
-        return messages
+        # Do not include messages in the black list.
+        if exclude and message.name in exclude:
+            continue
+
+        # Only include messages in the white list (if it exists).
+        if include and message.name not in include:
+            continue
+
+        messages.append(message)
+
+    return messages
 
 
 def get_message_objects(names):

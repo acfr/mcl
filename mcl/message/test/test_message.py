@@ -199,22 +199,36 @@ class ListMessages(ManufactureMessages):
                           self.TestMessageC,
                           self.TestMessageD])
 
-    def test_list_messages_names(self):
-        """Test list_messages() can list known messages and their names."""
+    def test_list_messages_include(self):
+        """Test list_messages() can include only specified messages."""
 
-        messages, names = list_messages(names=True)
+        # Test string input.
+        messages = list_messages(include='TestMessageA')
+        self.assertEqual(messages, [self.TestMessageA])
 
-        self.assertEqual(messages,
-                         [self.TestMessageA,
-                          self.TestMessageB,
-                          self.TestMessageC,
-                          self.TestMessageD])
+        # Test list input.
+        messages = list_messages(include=['TestMessageA', 'TestMessageB'])
+        self.assertEqual(messages, [self.TestMessageA, self.TestMessageB])
 
-        self.assertEqual(names,
-                         ['TestMessageA',
-                          'TestMessageB',
-                          'TestMessageC',
-                          'TestMessageD'])
+    def test_list_messages_exclude(self):
+        """Test list_messages() can exclude specified messages."""
+
+        # Test string input.
+        messages = list_messages(exclude='TestMessageA')
+        self.assertEqual(messages, [self.TestMessageB,
+                                    self.TestMessageC,
+                                    self.TestMessageD])
+
+        # Test list input.
+        messages = list_messages(exclude=['TestMessageA', 'TestMessageB'])
+        self.assertEqual(messages, [self.TestMessageC, self.TestMessageD])
+
+    def test_list_messages_include_exclude(self):
+        """Test list_messages() can include and excluded specified messages."""
+
+        messages = list_messages(include=['TestMessageA', 'TestMessageB'],
+                                 exclude='TestMessageA')
+        self.assertEqual(messages, [self.TestMessageB])
 
 
 # -----------------------------------------------------------------------------
