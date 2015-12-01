@@ -4,14 +4,18 @@
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
+
+import Queue
 import datetime
 import threading
 from mcl.message.messages import Message
-from mcl.network.network import QueuedListener
+from mcl.network.network import RawListener
 from mcl.network.abstract import Connection as AbstractConnection
 
+TIMEOUT = 0.25
 
-def _truncate_columns(columns, column_widths, column_space, screen_width):
+
+def _truncate_columns(columns, column_widths, column_space, line_width):
     """Truncate strings wider than a specified width.
 
     This function allows fixed with columns of text to be created by truncating
@@ -62,53 +66,11 @@ def _truncate_columns(columns, column_widths, column_space, screen_width):
         string += '|'.center(column_space)
 
         # Truncate string to maximum screen width.
-        if len(string) >= screen_width:
-            string = string[:screen_width]
+        if len(string) >= line_width:
+            string = string[:line_width]
             break
 
     return string
-
-
-def _print_data(data, formatting='hex', column_widths=25, column_space=3,
-                screen_width=80, lock=None):
-
-    # Print raw payload.
-    if formatting == 'raw':
-        columns = [data['connection'], data['topic'], data['payload']]
-
-    # Print raw payload as hex encoded.
-    elif formatting == 'hex':
-        columns = [data['connection'], data['topic'],
-                   data['payload'].encode('hex')]
-
-    # Print payload as 'human' readable.
-    elif formatting == 'human':
-        try:
-            # Convert payload to a message and format the timestamp.
-            message = data['message'](data['payload'])
-            timestamp = datetime.datetime.fromtimestamp(message['timestamp'])
-            timestamp = timestamp.strftime('%H:%M:%S.%f')
-
-            # Dump message data into columns.
-            columns = [message['name'], data['topic'], timestamp]
-            columns += [message[key] for key in message.mandatory]
-        except:
-            print 'forcing hex'
-            columns = [data['connection'], data['topic'],
-                       data['payload'].encode('hex')]
-
-    # Format columns and width of line to specification.
-    line = _truncate_columns(columns,
-                             column_widths,
-                             column_space,
-                             screen_width)
-
-    # Print data to screen.
-    if lock:
-        with lock:
-            print line
-    else:
-        print line
 
 
 class ScreenDump(object):
@@ -117,12 +79,13 @@ class ScreenDump(object):
     Args:
         broadcasts (list): List of :py:class:`.abstract.Connection` instances
                            or :py:class`.Message` objects specifying the
-                           network traffic to be displayed.
-        format (str): Method for displaying data on the screen. Format can be
-                      set to 'raw' or 'hex'. If set to 'raw' the byte
-                      stream will be printed directly to the screen with no
-                      processing.  If set to 'hex' the raw byte stream will be
-                      encoded to hexadecimal and then printed to the screen.
+                           network traffic to be displayed. If the list
+                           contains :py:class:`.abstract.Connection` instances
+                           the data payload will be printed to the console
+                           using hex encoding. If the list contains
+                           :py:class`.Message` objects, the data will be
+                           printed to the console using human-readable
+                           formatting.
         connection_width (int): Maximum number of characters that will be
                                 printed in the connection column.
         topic_width (int): Maximum number of characters that will be printed
@@ -130,7 +93,7 @@ class ScreenDump(object):
         column_width (int): Maximum number of characters that will be printed
                             in remaining columns.
         column_space (int): Number of white space characters between columns.
-        screen_width (int): Maximum number of characters that will be printed
+        line_width (int): Maximum number of characters that will be printed
                             on the screen.
 
     Attributes:
@@ -139,12 +102,6 @@ class ScreenDump(object):
                              displayed.
         is_alive (bool): Returns :data:`True` if the object is dumping network
                          data otherwise :data:`False` is returned.
-        formatting (str): Method for displaying data on the screen. Format can
-                          be returned as 'raw', 'hex' or 'human'. If 'raw' is
-                          returned, the byte stream will be printed directly to
-                          the screen with no processing.  If returned as 'hex'
-                          the raw byte stream will be encoded to hexadecimal
-                          and then printed to the screen.
         connection_width (int): Maximum number of characters that will be
                                 printed in the connection column.
         topic_width (int): Maximum number of characters that will be printed
@@ -152,70 +109,13 @@ class ScreenDump(object):
         column_width (int): Maximum number of characters that will be printed
                             in remaining columns.
         column_space (int): Number of white space characters between columns.
-        screen_width (int): Maximum number of characters that will be printed
+        line_width (int): Maximum number of characters that will be printed
                             on the screen.
 
         Raises:
             TypeError: If the any of the inputs are an incorrect type.
 
     """
-
-    def __init__(self, broadcasts, formatting=None, connection_width=30,
-                 topic_width=8, column_width=10, column_space=3,
-                 screen_width=140):
-        """Document the __init__ method at the class level."""
-
-        # List of raw broadcasts.
-        self.__message = False
-        if (isinstance(broadcasts, (list, tuple)) and
-            all(isinstance(c, AbstractConnection) for c in broadcasts)):
-            self.__formatting = 'hex'
-            self.__broadcasts = broadcasts
-
-        # List of messages.
-        elif (isinstance(broadcasts, (list, tuple)) and
-              all(issubclass(c, Message) for c in broadcasts)):
-            self.__message = True
-            self.__formatting = 'human'
-            self.__broadcasts = broadcasts
-
-        else:
-            msg = "The '%s' parameter must be a list/tuple of Connection() "
-            msg += "or Message() objects."
-            raise TypeError(msg % 'broadcasts')
-
-        # List parameters in object.
-        parameters = ['connection_width', 'topic_width', 'column_width',
-                      'column_space', 'screen_width']
-
-        # Validate parameters.
-        for name in parameters:
-            parameter = eval(name)
-            if isinstance(parameter, (int, long)) and parameter > 0:
-                setattr(self, '_%s__%s' % (self.__class__.__name__, name),
-                        parameter)
-            else:
-                msg = "The '%s' parameter must be a non-zero, positive integer."
-                raise TypeError(msg % name)
-
-        # Store formatting option.
-        if formatting:
-            if (isinstance(formatting, basestring) and
-                formatting in ['raw', 'hex']):
-                self.__formatting = formatting
-            else:
-                msg = "The '%s' parameter must be 'raw', 'hex' or 'human'."
-                raise TypeError(msg % 'format')
-
-        # Length of timestamps.
-        self.__timestamp_width = 15
-
-        # Objects for handling network data.
-        self.__listeners = None
-        self.__lock = threading.Lock()
-
-        # Initial state is not running.
-        self.__is_alive = False
 
     @property
     def connections(self):
@@ -227,10 +127,6 @@ class ScreenDump(object):
     @property
     def is_alive(self):
         return self.__is_alive
-
-    @property
-    def format(self):
-        return self.__formatting
 
     @property
     def connection_width(self):
@@ -249,8 +145,155 @@ class ScreenDump(object):
         return self.__column_space
 
     @property
-    def screen_width(self):
-        return self.__screen_width
+    def line_width(self):
+        return self.__line_width
+
+    def __init__(self, broadcasts, connection_width=30, topic_width=8,
+                 column_width=10, column_space=3, line_width=140):
+        """Document the __init__ method at the class level."""
+
+        # List of raw broadcasts.
+        if (isinstance(broadcasts, (list, tuple)) and
+            all(isinstance(c, AbstractConnection) for c in broadcasts)):
+            self.__message = False
+            self.__broadcasts = broadcasts
+            self.__initialise = self.__initialise_raw
+
+        # List of messages.
+        elif (isinstance(broadcasts, (list, tuple)) and
+              all(issubclass(c, Message) for c in broadcasts)):
+            self.__message = True
+            self.__broadcasts = broadcasts
+            self.__initialise = self.__initialise_messages
+
+        else:
+            msg = "The '%s' parameter must be a list/tuple of Connection() "
+            msg += "or Message() objects."
+            raise TypeError(msg % 'broadcasts')
+
+        # List parameters in object.
+        parameters = ['connection_width', 'topic_width', 'column_width',
+                      'column_space', 'line_width']
+
+        # Validate parameters.
+        for name in parameters:
+            parameter = eval(name)
+            if isinstance(parameter, (int, long)) and parameter > 0:
+                setattr(self, '_%s__%s' % (self.__class__.__name__, name),
+                        parameter)
+            else:
+                msg = "The '%s' parameter must be a non-zero, positive integer."
+                raise TypeError(msg % name)
+
+        # Length of timestamps.
+        self.__timestamp_width = 15
+
+        # Objects for handling network data.
+        self.__run_event = None
+        self.__thread = None
+        self.__queue = None
+        self.__listeners = None
+        self.__column_widths = ()
+        self.__format_method = None
+
+        # Initial state is not running.
+        self.__is_alive = False
+
+    def __initialise_messages(self):
+
+        # Listen for messages.
+        self.__listeners = list()
+        for message in self.__broadcasts:
+            listener = RawListener(message.connection)
+
+            def callback(payload, message_type=message):
+                payload['message'] = message_type
+                self.__queue.put(payload)
+
+            listener.subscribe(callback)
+            self.__listeners.append(listener)
+
+        # Specify function for formatting messages.
+        def message_to_list(data):
+            """Convert message data into a list of values to print."""
+
+            message = data['payload']
+            timestamp = datetime.datetime.fromtimestamp(message['timestamp'])
+            timestamp = timestamp.strftime('%H:%M:%S.%f')
+
+            # Dump message data into columns.
+            mandatory = data['message'].mandatory
+            columns = [message['name'], data['topic'], timestamp]
+            columns += [message[key] for key in mandatory]
+
+            return columns
+
+        self.__format_method = message_to_list
+
+        # Specify width of message columns to print to screen.
+        #
+        #     MessageName | topic | timestamp | data_1 | ... | data_N
+        #
+        self.__column_widths = (self.__connection_width,
+                                self.__topic_width,
+                                self.__timestamp_width,
+                                self.__column_width)
+
+    def __initialise_raw(self):
+
+        # Listen for raw data.
+        self.__listeners = list()
+        for connection in self.__broadcasts:
+            listener = RawListener(connection)
+
+            def callback(payload, connection=connection):
+                payload['connection'] = connection
+                self.__queue.put(payload)
+
+            listener.subscribe(callback)
+            self.__listeners.append(listener)
+
+        # Specify function for formatting raw data.
+        def raw_to_list(data):
+            """Convert raw data into a list of values to print."""
+
+            columns = [data['connection'], data['topic'], str(data['payload'])]
+            return columns
+
+        self.__format_method = raw_to_list
+
+        # Specify width of raw data columns to print to screen.
+        #
+        #     Connection | topic | data
+        #
+        width = self.__connection_width + self.__topic_width
+        width += 2 * self.__column_space
+        remaining = max(1, self.__line_width - width)
+        self.__column_widths = (self.__connection_width,
+                                self.__topic_width,
+                                remaining)
+
+    @staticmethod
+    def __dequeue(run_event, queue, format_method, column_widths, line_width):
+        """Light weight thread to read data from queue and print to screen."""
+
+        column_space = 3
+
+        # Read data from the queue and trigger an event.
+        while run_event.is_set():
+            try:
+                data = queue.get(timeout=TIMEOUT)
+            except Queue.Empty:
+                continue
+            except:
+                raise
+
+            # Format columns and width of line to specification.
+            columns = format_method(data)
+            print _truncate_columns(columns,
+                                    column_widths,
+                                    column_space,
+                                    line_width)
 
     def start(self):
         """Start printing network data to the screen.
@@ -264,43 +307,23 @@ class ScreenDump(object):
 
         if not self.is_alive:
 
-            # Specify width of columns for human formatting.
-            if self.__formatting == 'human':
-                column_widths = (self.__connection_width,
-                                 self.__topic_width,
-                                 self.__timestamp_width,
-                                 self.__column_width)
+            # Create threading objects.
+            self.__queue = Queue.Queue()
+            self.__run_event = threading.Event()
+            self.__run_event.set()
 
-            # Specify the width of the final column for other formats.
-            else:
-                width = self.__connection_width + self.__topic_width
-                width += 2 * self.__column_space
-                remaining = max(1, self.__screen_width - width)
-                column_widths = (self.__connection_width,
-                                 self.__topic_width,
-                                 remaining)
+            # Initialise methods/formats for decoding messages/raw data.
+            self.__initialise()
 
-            # Attach listeners to broadcasts and dump their contents into
-            # separate queues.
-            self.__listeners = dict()
-            for i, connection in enumerate(self.connections):
-                self.__listeners[connection] = QueuedListener(connection)
-
-                broadcast_details = {'connection': connection}
-                if self.__message:
-                    broadcast_details['message'] = self.__broadcasts[i]
-
-                # Use closure to publish connection information.
-                def callback(data):
-                    data.update(broadcast_details)
-                    _print_data(data,
-                                formatting=self.__formatting,
-                                column_widths=column_widths,
-                                column_space=3,
-                                screen_width=self.__screen_width,
-                                lock=self.__lock)
-
-                self.__listeners[connection].subscribe(callback)
+            # Start processing received data.
+            self.__thread = threading.Thread(target=self.__dequeue,
+                                             args=(self.__run_event,
+                                                   self.__queue,
+                                                   self.__format_method,
+                                                   self.__column_widths,
+                                                   self.__line_width))
+            self.__thread.daemon = True
+            self.__thread.start()
 
             self.__is_alive = True
             return True
@@ -320,13 +343,12 @@ class ScreenDump(object):
 
         if self.is_alive:
 
-            # Request stop for network listeners.
-            for connection in self.connections:
-                self.__listeners[connection].request_close()
+            # Close network listeners.
+            for listener in self.__listeners:
+                listener.close()
 
-            # Join network listeners.
-            for connection in self.connections:
-                self.__listeners[connection].close()
+            self.__run_event.clear()
+            self.__thread.join()
 
             self.__listeners = None
             self.__is_alive = False
