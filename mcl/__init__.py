@@ -11,14 +11,6 @@ multiple packages within the MCL namespace.
 
 """
 
-# Location of pyITS.
+# Location of MCL.
 import os
 MCL_ROOT = os.path.dirname(__file__)
-
-# Location for logging data.
-LOG_ROOT = '/tmp/'
-if os.path.exists(LOG_ROOT):
-
-    # Write a header to indicate a new section of system messages.
-    import mcl.logging.sys as __sys
-    __sys.LOGGER.info(80 * '-')
