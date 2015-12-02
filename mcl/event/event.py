@@ -9,6 +9,7 @@ import copy
 import inspect
 import threading
 from abc import abstractmethod
+from collections import OrderedDict
 
 QUEUE_TIMEOUT = 0.5
 
@@ -84,9 +85,7 @@ class Event(object):
     The :py:class:`.Event` object allows data to be communicated to callback
     methods via the :py:meth:`.publish` method. Callback methods can
     un/subscribe to the :py:class:`.Event` object via the
-    :py:meth:`.unsubscribe` and :py:meth:`.subscribe` methods. Callback
-    functions must accept only one input argument - the data which is issued by
-    :py:class:`.Event`.
+    :py:meth:`.unsubscribe` and :py:meth:`.subscribe` methods.
 
     Example usage::
 
@@ -117,7 +116,7 @@ class Event(object):
         self.__Callback = callback
 
         # Store callbacks in a dictionary.
-        self.__callbacks = dict()
+        self.__callbacks = OrderedDict()
 
         # Provide lock for accessing callbacks.
         self.__callback_lock = threading.Lock()
@@ -201,6 +200,7 @@ class Event(object):
             int: number of registered callbacks.
 
         """
+
         with self.__callback_lock:
             return len(self.__callbacks)
 
@@ -212,6 +212,7 @@ class Event(object):
             **kwargs (any): key-word arguments to send to callback functions.
 
         """
+
         # Make a copy of the callback list so we avoid deadlocks
         with self.__callback_lock:
             callbacks = copy.copy(self.__callbacks)
