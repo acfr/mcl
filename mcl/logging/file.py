@@ -47,7 +47,6 @@ import datetime
 import textwrap
 import subprocess
 
-import mcl.logging.sys
 from mcl import MCL_ROOT
 import mcl.message.messages
 from mcl.message.messages import Message
@@ -1338,8 +1337,6 @@ class FileDump(object):
     def __init__(self, messages, directory, max_entries=None, max_time=None):
         """Document the __init__ method at the class level."""
 
-        mcl.logging.sys.info(self, 'instanting')
-
         # Ensure directory exists.
         if directory and not os.path.isdir(directory):
             raise IOError("The directory '%s' does not exist." % directory)
@@ -1424,7 +1421,6 @@ class FileDump(object):
         """
 
         if not self.is_alive:
-            mcl.logging.sys.info(self, 'starting logging services')
 
             # Note: The time of initialisation is used in ALL files as the
             #       origin. This is used to help synchronise the timing between
@@ -1446,8 +1442,6 @@ class FileDump(object):
             # separate queues.
             for message in self.messages:
                 name = message.__name__
-                msg = "starting '%s' services"
-                mcl.logging.sys.info(self, msg, name)
 
                 # Create queued listener.
                 self.__listeners[message] = QueuedListener(message.connection)
@@ -1462,7 +1456,6 @@ class FileDump(object):
 
                 self.__listeners[message].subscribe(self.__filedumps[message].write)
 
-            mcl.logging.sys.info(self, 'logging')
             self.__is_alive = True
             return True
         else:
@@ -1480,7 +1473,6 @@ class FileDump(object):
         """
 
         if self.is_alive:
-            mcl.logging.sys.info(self, 'terminating')
 
             # Request stop for network listeners.
             for message in self.messages:
@@ -1490,8 +1482,6 @@ class FileDump(object):
             for message in self.messages:
                 self.__listeners[message].close()
                 self.__filedumps[message].close()
-
-            mcl.logging.sys.info(self, 'logging stopped.')
 
             self.__directory = None
             self.__filedumps = None
