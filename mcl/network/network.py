@@ -12,7 +12,6 @@ import multiprocessing
 from threading import Thread
 from multiprocessing import Process
 
-import mcl.logging.sys
 import mcl.message.messages
 from mcl.event.event import Event
 from mcl.message.messages import Message
@@ -315,9 +314,6 @@ class QueuedListener(Event):
         # Initialise Event() object.
         super(QueuedListener, self).__init__()
 
-        # Log initialisation.
-        mcl.logging.sys.info(self, "%s - instanting", str(self.__connection))
-
         # Create objects for inter-process communication.
         self.__queue = None
         self.__timeout = 0.1
@@ -439,9 +435,6 @@ class QueuedListener(Event):
 
         # Start publishing broadcast-events on a thread.
         if not self.is_alive():
-            mcl.logging.sys.info(self,
-                                 "%s - start request",
-                                 str(self.__connection))
 
             # Reset asynchronous objects.
             self.__queue = multiprocessing.Queue()
@@ -469,7 +462,6 @@ class QueuedListener(Event):
                 if (time.time() - start_wait) > TIMEOUT:
                     msg = '%s - timed out waiting for thread to start.'
                     msg = msg % str(self.__connection)
-                    mcl.logging.sys.exception(self, msg)
                     raise Exception(msg)
                 else:
                     time.sleep(0.01)
@@ -481,13 +473,9 @@ class QueuedListener(Event):
                 if (time.time() - start_wait) > TIMEOUT:
                     msg = '%s - timed out waiting for process to start.'
                     msg = msg % str(self.__connection)
-                    mcl.logging.sys.exception(self, msg)
                     raise Exception(msg)
                 else:
                     time.sleep(0.01)
-
-            # Log successful starting of thread.
-            mcl.logging.sys.info(self, "%s - running", str(self.__connection))
 
             self.__is_alive = True
             return True
@@ -514,8 +502,6 @@ class QueuedListener(Event):
 
         # Stop queuing broadcasts on process.
         if self.is_alive():
-            mcl.logging.sys.info(self, "%s - stop request",
-                                 str(self.__connection))
 
             # Send signal to STOP queue WRITER and READER.
             self.__writer_run_event.clear()
@@ -526,7 +512,6 @@ class QueuedListener(Event):
             if self.__reader.is_alive():
                 msg = "%s - timed out waiting for thread to stop."
                 msg = msg % str(self.__connection)
-                mcl.logging.sys.exception(self, msg)
                 raise Exception(msg)
 
             # Wait for queue WRITER to terminate.
@@ -534,11 +519,7 @@ class QueuedListener(Event):
             if self.__writer.is_alive():
                 msg = "%s - timed out waiting for process to stop."
                 msg = msg % str(self.__connection)
-                mcl.logging.sys.exception(self, msg)
                 raise Exception(msg)
-
-            # Log successful shutdown of thread and process.
-            mcl.logging.sys.info(self, "%s - stopped", str(self.__connection))
 
             # Reset asynchronous objects (Drop data in the queue).
             self.__queue = None
