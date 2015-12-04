@@ -62,6 +62,7 @@ import Queue
 import threading
 import multiprocessing
 from threading import Thread
+from multiprocessing import Process
 
 
 def _set_process_name(name):
@@ -160,6 +161,7 @@ class BufferData(object):
 
         # Initialise process for buffering data.
         self.__run_event = threading.Event()
+        self.__is_data_pending = multiprocessing.Event()
         self.__buffer_worker = None
 
     @property
@@ -180,7 +182,7 @@ class BufferData(object):
 
         """
 
-        return self.__resource.is_data_pending()
+        return self.__is_data_pending.is_set()
 
     def is_alive(self):
         """Return whether data is being buffered.
@@ -223,11 +225,13 @@ class BufferData(object):
 
         if not self.is_alive():
             self.__run_event.set()
-            self.__buffer_worker = Thread(target=self.__buffer_data,
-                                          args=(self.__run_event,
-                                                self.__queue,
-                                                self.__resource,
-                                                self.__verbose,))
+            self.__is_data_pending.set()
+            self.__buffer_worker = Process(target=self.__buffer_data,
+                                           args=(self.__run_event,
+                                                 self.__queue,
+                                                 self.__resource,
+                                                 self.__is_data_pending,
+                                                 self.__verbose,))
             self.__buffer_worker.daemon = True
             self.__buffer_worker.start()
 
@@ -294,10 +298,11 @@ class BufferData(object):
         # Flush items from queue by re-declaring the object and reset file
         # pointers.
         self.__queue = multiprocessing.Queue(self.__length)
+        self.__is_data_pending.clear()
         self.__resource.reset()
 
     @staticmethod
-    def __buffer_data(run_event, queue, resource, verbose):
+    def __buffer_data(run_event, queue, resource, is_data_pending, verbose):
         """Read data until end of files.
 
         The logic in this method :
@@ -333,6 +338,7 @@ class BufferData(object):
                 # (None). This only occurs once the end of the files have been
                 # reached.
                 if not message:
+                    is_data_pending.clear()
                     break
 
                 # Put the candidate message on the queue if a free slot is
