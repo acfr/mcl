@@ -5,9 +5,6 @@
 
 """
 
-import copy
-import threading
-
 
 class Event(object):
     """Class for issuing events and triggering callback functions.
@@ -37,9 +34,6 @@ class Event(object):
         # Store callbacks in a list.
         self.__callbacks = list()
 
-        # Provide lock for accessing callbacks.
-        self.__callback_lock = threading.Lock()
-
     def is_subscribed(self, callback):
         """Return whether a callback is registered with this object.
 
@@ -53,8 +47,7 @@ class Event(object):
 
         """
 
-        with self.__callback_lock:
-            return callback in self.__callbacks
+        return callback in self.__callbacks
 
     def subscribe(self, callback):
         """Subscribe to events.
@@ -81,8 +74,7 @@ class Event(object):
         # Add callback if it does not exist and start processing callback data
         # on a thread.
         if not self.is_subscribed(callback):
-            with self.__callback_lock:
-                self.__callbacks.append(callback)
+            self.__callbacks.append(callback)
             return True
 
         # Do not add the callback if it already exists.
@@ -105,8 +97,7 @@ class Event(object):
 
         # If the callback exists, stop processing data and remove the callback.
         if self.is_subscribed(callback):
-            with self.__callback_lock:
-                self.__callbacks.remove(callback)
+            self.__callbacks.remove(callback)
             return True
 
         # No need to add the callback if it does not exist.
@@ -121,8 +112,7 @@ class Event(object):
 
         """
 
-        with self.__callback_lock:
-            return len(self.__callbacks)
+        return len(self.__callbacks)
 
     def __trigger__(self, *args, **kwargs):
         """Trigger an event and issue data to the callback functions.
@@ -133,9 +123,18 @@ class Event(object):
 
         """
 
-        # Make a copy of the callback list so we avoid deadlocks
-        with self.__callback_lock:
-            callbacks = copy.copy(self.__callbacks)
-
-        for callback in callbacks:
+        # Copy list of callbacks before iterating. This allows the list to be
+        # modified from within a callback method. From the Python tutorial:
+        #
+        #     If you need to modify the sequence you are iterating over while
+        #     inside the loop (for example to duplicate selected items), it is
+        #     recommended that you first make a copy. Iterating over a sequence
+        #     does not implicitly make a copy. The slice notation, [:], makes
+        #     this especially convenient.
+        #
+        # Reference:
+        #
+        #     https://docs.python.org/2/tutorial/controlflow.html#for-statements
+        #
+        for callback in self.__callbacks[:]:
             callback(*args, **kwargs)

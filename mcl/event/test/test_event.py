@@ -126,24 +126,6 @@ class EventTests(unittest.TestCase):
             msg = 'Expected all callback functions to receive data.'
             raise ValueError(msg)
 
-    def test_unsubscribe_from_callback(self):
-        """Test Event() callback functions can unsubscribe themselves."""
-
-        # Create Event().
-        event = Event()
-
-        # Create function which will unsubscribe itself when called.
-        def unsubscriber():
-            event.unsubscribe(unsubscriber)
-
-        # Subscribe the function which will unsubscribe itself when called.
-        event.subscribe(unsubscriber)
-        self.assertTrue(event.is_subscribed(unsubscriber))
-
-        # Trigger event and ensure function unsubscribed itself.
-        event.__trigger__()
-        self.assertFalse(event.is_subscribed(unsubscriber))
-
     def test_subscribe_from_callback(self):
         """Test Event() callback functions can be subscribed from callbacks."""
 
@@ -165,3 +147,21 @@ class EventTests(unittest.TestCase):
         # Trigger event and ensure testing function was subscribed.
         event.__trigger__()
         self.assertTrue(event.is_subscribed(noop))
+
+    def test_unsubscribe_from_callback(self):
+        """Test Event() callback functions can unsubscribe themselves."""
+
+        # Create Event().
+        event = Event()
+
+        # Create function which will unsubscribe itself when called.
+        def unsubscriber():
+            event.unsubscribe(unsubscriber)
+
+        # Subscribe the function which will unsubscribe itself when called.
+        event.subscribe(unsubscriber)
+        self.assertTrue(event.is_subscribed(unsubscriber))
+
+        # Trigger event and ensure function unsubscribed itself.
+        event.__trigger__()
+        self.assertFalse(event.is_subscribed(unsubscriber))
