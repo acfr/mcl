@@ -402,9 +402,8 @@ class WriteFile(DumpConstants):
         file. :py:meth:`.WriteFile.write` expects network data to be input as a
         dictionary with the following fields::
 
-            message = {'transmissions': int(),
-                       'topic': str(),
-                       'payload': str(),
+            message = {'topic': str(),
+                       'payload': object(),
                        'time_received': datetime}
 
         where:
@@ -417,8 +416,7 @@ class WriteFile(DumpConstants):
             message (dict): Network data to be recorded. The network data must
                             be stored as a dictionary with the time the data
                             was received, the topic associated with the
-                            broadcast and the message payload as a MsgPack
-                            encoded string.
+                            broadcast and the message payload.
 
         """
 
