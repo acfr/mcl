@@ -4,76 +4,9 @@
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
 
 """
-import abc
+
 import copy
-import inspect
 import threading
-from abc import abstractmethod
-from collections import OrderedDict
-
-QUEUE_TIMEOUT = 0.5
-
-
-class Callback(object):
-    """Abstract class for representing callback objects."""
-
-    # Ensure abstract methods are redefined in sub-classes.
-    __metaclass__ = abc.ABCMeta
-
-    @abstractmethod
-    def __call__(self, *args, **kwargs):
-        """Virtual: Called when the callback is ''called'' as a function
-
-        Args:
-            *args (any): mandatory arguments to send to callback function.
-            **kwargs (any): key-word arguments to send to callback function.
-
-        """
-        pass
-
-
-class CallbackSequential(Callback):
-    """Object for executing callbacks **sequentially**."""
-
-    def __init__(self, callback):
-        """Document the __init__ method at the class level."""
-
-        self.__callback = callback
-
-    def __call__(self, *args, **kwargs):
-        """Execute callback  when ''called'' as a function.
-
-        Args:
-            *args (any): mandatory arguments to send to callback function.
-            **kwargs (any): key-word arguments to send to callback function.
-
-        """
-
-        self.__callback(*args, **kwargs)
-
-
-class CallbackConcurrent(Callback):
-    """Object for executing callbacks **concurrently** on a new thread."""
-
-    def __init__(self, callback):
-        """Document the __init__ method at the class level."""
-
-        self.__callback = callback
-
-    def __call__(self, *args, **kwargs):
-        """Execute callback on a new thread when ''called'' as a function.
-
-        Args:
-            *args (any): mandatory arguments to send to callback function.
-            **kwargs (any): key-word arguments to send to callback function.
-
-        """
-
-        # Execute callback on a new thread.
-        thread = threading.Thread(target=self.__callback,
-                                  args=args, kwargs=kwargs)
-        thread.daemon = True
-        thread.start()
 
 
 class Event(object):
@@ -96,27 +29,13 @@ class Event(object):
         pub.subscribe(lambda data: os.sys.stdout.write(str(data) + '\\n'))
         pub.publish('Hello world')
 
-
-    Args:
-        callback (:py:class:`.Callback`, optional): Object for handling
-            callbacks.
-
     """
 
-    def __init__(self, callback=CallbackSequential):
+    def __init__(self):
         """Document the __init__ method at the class level."""
 
-        # Check that callback handler has expected properties.
-        if ((not inspect.isclass(Callback)) or
-            (not issubclass(callback, Callback))):
-            msg = "'callback' must be a subclass of Callback()."
-            raise TypeError(msg)
-
-        # Store method for executing and handling callbacks.
-        self.__Callback = callback
-
-        # Store callbacks in a dictionary.
-        self.__callbacks = OrderedDict()
+        # Store callbacks in a list.
+        self.__callbacks = list()
 
         # Provide lock for accessing callbacks.
         self.__callback_lock = threading.Lock()
@@ -133,6 +52,7 @@ class Event(object):
                   registered with this object.
 
         """
+
         with self.__callback_lock:
             return callback in self.__callbacks
 
@@ -162,7 +82,7 @@ class Event(object):
         # on a thread.
         if not self.is_subscribed(callback):
             with self.__callback_lock:
-                self.__callbacks[callback] = self.__Callback(callback)
+                self.__callbacks.append(callback)
             return True
 
         # Do not add the callback if it already exists.
@@ -186,7 +106,7 @@ class Event(object):
         # If the callback exists, stop processing data and remove the callback.
         if self.is_subscribed(callback):
             with self.__callback_lock:
-                del self.__callbacks[callback]
+                self.__callbacks.remove(callback)
             return True
 
         # No need to add the callback if it does not exist.
@@ -218,4 +138,4 @@ class Event(object):
             callbacks = copy.copy(self.__callbacks)
 
         for callback in callbacks:
-            callbacks[callback](*args, **kwargs)
+            callback(*args, **kwargs)
