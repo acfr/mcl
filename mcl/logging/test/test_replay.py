@@ -1,21 +1,43 @@
 import os
 import time
 import unittest
+import mcl.message.messages
 from mcl.logging.file import ReadDirectory
 from mcl.logging.replay import BufferData
+from mcl.network.udp import Connection as Connection
 
 TIMEOUT = 1.0
 _DIRNAME = os.path.dirname(__file__)
 LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 
 
+# -----------------------------------------------------------------------------
+#                           Objects for unit-testing
+# -----------------------------------------------------------------------------
+URL_A = 'ff15::c75d:ce41:ea8e:000a'
+URL_B = 'ff15::c75d:ce41:ea8e:000b'
+
+
+class UnitTestMessageA(mcl.message.messages.Message):
+    mandatory = ('data',)
+    connection = Connection(URL_A)
+
+
+class UnitTestMessageB(mcl.message.messages.Message):
+    mandatory = ('data',)
+    connection = Connection(URL_B)
+
+
+# -----------------------------------------------------------------------------
+#                                 BufferData()
+# -----------------------------------------------------------------------------
 class TestBufferData(unittest.TestCase):
 
     def test_init(self):
         """Test BufferData() instantiation."""
 
         # Create data reader object.
-        reader = ReadDirectory(LOG_PATH)
+        reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         BufferData(reader)
@@ -30,7 +52,7 @@ class TestBufferData(unittest.TestCase):
         """Test BufferData() start/stop."""
 
         # Create data reader object.
-        reader = ReadDirectory(LOG_PATH)
+        reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         buf = BufferData(reader)
@@ -53,7 +75,7 @@ class TestBufferData(unittest.TestCase):
         """Test BufferData() buffering functionality."""
 
         # Create data reader object.
-        reader = ReadDirectory(LOG_PATH)
+        reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         buf = BufferData(reader)
@@ -88,7 +110,7 @@ class TestBufferData(unittest.TestCase):
         """Test BufferData() can read data in chunks and start/stop."""
 
         # Create data reader object.
-        reader = ReadDirectory(LOG_PATH)
+        reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         buf = BufferData(reader, length=10)
@@ -129,7 +151,7 @@ class TestBufferData(unittest.TestCase):
         """Test BufferData() can be reset."""
 
         # Create data reader object.
-        reader = ReadDirectory(LOG_PATH)
+        reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         buf = BufferData(reader, length=10)

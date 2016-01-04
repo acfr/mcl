@@ -61,8 +61,9 @@ import time
 import Queue
 import threading
 import multiprocessing
-from threading import Thread
 from multiprocessing import Process
+from mcl.message.messages import Message
+from mcl.network.network import MessageBroadcaster
 
 
 def _set_process_name(name):
@@ -321,27 +322,43 @@ class BufferData(object):
         proc_name = "Replay buffer."
         _set_process_name(proc_name)
 
+        # Define expected data dictionary keys.
+        keys = ['elapsed_time', 'topic', 'message']
+
         if verbose:
             print "Buffering data..."
 
         try:
-            message = None
+            data = None
             while run_event.is_set():
 
-                # Read a candidate message from the logged data ONLY if no
-                # candidate exists for queuing.
-                if not message:
-                    message = resource.read()
+                # Read candidate data from the logged data ONLY if no candidate
+                # exists for queuing.
+                if not data:
+                    data = resource.read()
 
-                # At this point the only reason the candidate message should be
-                # empty is if the logged data returned an empty message
-                # (None). This only occurs once the end of the files have been
-                # reached.
-                if not message:
-                    is_data_pending.clear()
-                    break
+                    # The only reason candidate data should be falsy (None) is
+                    # if the end of the logged data has been reached.
+                    if data is None:
+                        is_data_pending.clear()
+                        break
 
-                # Put the candidate message on the queue if a free slot is
+                    # Ensure data is a dictionary.
+                    if not isinstance(data, dict):
+                        raise TypeError('Retrieved data must be dictionary.')
+
+                    # Ensure all required fields are present.
+                    for key in keys:
+                        if key not in data:
+                            msg = "'%s' must be a key in the retrieved data."
+                            raise NameError(msg % key)
+
+                    # Ensure payload is an MCL message.
+                    if not issubclass(type(data['message']), Message):
+                        msg = "dict['message'] must be an MCL message."
+                        raise TypeError(msg)
+
+                # Put the candidate data on the queue if a free slot is
                 # immediately available, otherwise raise the Full exception.
                 #
                 # Note: The Queue API does not provide a mechanism for
@@ -351,15 +368,15 @@ class BufferData(object):
                 #       about their return value.
                 #
                 try:
-                    queue.put_nowait(message)
-                    message = None
+                    queue.put_nowait(data)
+                    data = None
 
                 # There was no room on the queue to buffer the candidate
-                # message. Wait for space on the queue to accumulate and
-                # attempt to re-buffer the candidate message.
+                # data. Wait for space on the queue to accumulate and attempt
+                # to re-buffer the candidate data.
                 #
                 # WARNING: If the process is stopped when the queue is full,
-                #          the current message may be dropped here.
+                #          the current data may be dropped here.
                 #
                 except Queue.Full:
                     time.sleep(0.1)
@@ -368,7 +385,240 @@ class BufferData(object):
             pass
 
         if verbose:
-            if not message:
+            if not data:
                 print 'Finished buffering data.'
             else:
                 print 'Buffering stopped.'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class ScheduleBroadcasts(object):
+    """Re-broadcast messages in a queue on a new process.
+
+    The :py:class:`.ScheduleBroadcasts` object reads messages from a
+    multiprocessing queue and rebroadcasts the data in simulated real-time (on
+    a new process). If the hooks options is specified, the messages will not be
+    re-broadcast over the network. Instead they will be replayed through the
+    callbacks specified in the hooks option (on a new thread).
+
+   Args:
+        queue(multiprocessing.Queue): Queue used to load buffer messages.
+        speed (float): Speed multiplier for data replay. Values greater than
+                       1.0 will result in a faster than real-time
+                       playback. Values less than 1.0 will result in a slower
+                       than real-time playback.
+
+    Attributes:
+        queue(multiprocessing.Queue): Queue used to load buffer messages.
+        speed (float): Speed multiplier for data replay. Values greater than
+                       1.0 will result in a faster than real-time
+                       playback. Values less than 1.0 will result in a slower
+                       than real-time playback.
+
+        Raises:
+            TypeError: If the any of the inputs are an incorrect type.
+
+    """
+
+    def __init__(self, queue, speed=1.0):
+        """Document the __init__ method at the class level."""
+
+        # Store inter-process communication objects.
+        self.__run_event = multiprocessing.Event()
+        self.__worker = None
+        self.queue = queue
+
+        # Store broadcast speed.
+        if isinstance(speed, (int, long, float)) and speed > 0:
+            self.__speed = 1.0 / speed
+        else:
+            msg = "The input '%s' must be a number greater than zero."
+            raise TypeError(msg % 'speed')
+
+    @property
+    def queue(self):
+        return self.__queue
+
+    @queue.setter
+    def queue(self, queue):
+        if isinstance(queue, multiprocessing.queues.Queue):
+            self.__queue = queue
+        else:
+            msg = "The input '%s' must be a multiprocessing.Queue() object."
+            raise TypeError(msg % 'queue')
+
+    @property
+    def speed(self):
+        return 1.0 / self.__speed
+
+    def is_alive(self):
+        """Return whether the messages are being broadcast from the queue.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the object is broadcasting
+                           data. Returns :data:`False` if the object is NOT
+                           broadcasting data.
+
+        """
+
+        if not self.__worker:
+            return False
+        else:
+            return self.__worker.is_alive()
+
+    def start(self):
+        """Start scheduling queued broadcasts on a new process.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if started scheduling
+                           broadcasts. If the broadcasts are already being
+                           scheduled, the request is ignored and the method
+                           returns :data:`False`.
+
+        """
+
+        # Spawn process for broadcasting data.
+        if not self.is_alive():
+            self.__run_event.set()
+            self.__is_data_pending.set()
+            self.__worker = Process(target=self.__inject,
+                                    args=(self.__run_event,
+                                          self.__queue,
+                                          self.__speed,))
+            self.__worker.daemon = True
+            self.__worker.start()
+
+            while not self.is_alive():
+                time.sleep(0.01)
+
+            return True
+        else:
+            return False
+
+    def stop(self):
+        """Stop scheduling queued broadcasts.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if scheduled broadcasts were
+                           stopped. If the broadcasts are not being scheduled,
+                           the request is ignored and the method returns
+                           :data:`False`.
+
+        """
+
+        # Time to wait for process to terminate. This parameter could be
+        # exposed to the user as a kwarg. Currently it is viewed as an
+        # unnecessary tuning parameter.
+        timeout = 1.0
+
+        if self.is_alive():
+
+            # Send signal to stop asynchronous object.
+            self.__run_event.clear()
+
+            # Wait for process to join.
+            start_wait = time.time()
+            while self.__worker.is_alive():
+                if (time.time() - start_wait) > timeout:
+                    break
+                else:
+                    time.sleep(0.01)
+
+            self.__worker = None
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def __inject(self, run_event, queue, speed):
+        """Re-broadcast messages in queue.
+
+        This method is run as a separate process and is structured as follows:
+
+        1) Broadcasters are created (given the input connection objects) to
+           publish messages popped off the multiprocessing.Queue
+        2) The first message is loaded.
+
+            --> 3) The message is broadcast.
+            |   4) The next message is loaded (assuming this can be done faster
+            |      than the real/recorded time between data points).
+            |   5) Wait until the next data point is ready for broadcast.
+            --- 6) loop until all data has been read or pause/stop issued.
+
+        """
+
+        # Attempt to set process name.
+        proc_name = "Replay broadcaster"
+        _set_process_name(proc_name)
+
+        # Create dictionary of broadcasters.
+        broadcasters = dict()
+
+        try:
+            # Get first message.
+            message = None
+            while not message and run_event.is_set():
+                try:
+                    message = queue.get(timeout=0.1)
+                    message_time_origin = message['timestamp']
+                except Queue.Empty:
+                    pass
+
+            # Create a list of active broadcasters as required.
+            broadcaster = message.connection.broadcaster
+            if broadcaster not in broadcasters:
+                broadcasters[broadcaster] = MessageBroadcaster(message)
+
+            # Re-broadcast data until there is no data left or the user
+            # terminates the broadcasts.
+            simulation_time_origin = time.time()
+            while run_event.is_set():
+
+                # Publish data at beginning of loop.
+                broadcasters[broadcaster].publish(message)
+
+                # Get data from queue.
+                try:
+                    message = queue.get(timeout=1.0)
+                    message_time = message['timestamp']
+
+                # Queue read timed out. Possibly no more data left in queue.
+                except Queue.Empty:
+                    # Note: queue.empty() can return True when there are items
+                    #       in the queue. Check for a queue length of zero to
+                    #       determine if there is no more buffered data for
+                    #       broadcasting.
+                    if queue.qsize() == 0:
+                        break
+                    else:
+                        continue
+
+                # Create a list of active broadcasters as required.
+                broadcaster = message.connection.broadcaster
+                if broadcaster not in broadcasters:
+                    broadcasters[broadcaster] = MessageBroadcaster(message)
+
+                # Schedule the message to be published in the future based on
+                # the current running time.
+                message_elapsed = message_time - message_time_origin
+                schedule = simulation_time_origin + speed * message_elapsed
+
+                # Burn CPU cycles waiting for the next message to be scheduled.
+                #
+                # Note
+                if time.time() < schedule and run_event.is_set():
+                    pass
+
+        except KeyboardInterrupt:
+            pass
