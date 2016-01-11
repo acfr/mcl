@@ -117,9 +117,6 @@ class BufferData(object):
         reader (obj): Data reader object.
         length (int): Sets the upperbound limit on the number of items that can
                       be placed in the queue.
-        verbose (:class:`bool`): set to :data:`True` to display output to
-                                 screen. Set to :data:`False` to suppress
-                                 output.
 
     Attributes:
         queue(multiprocessing.Queue): Queue used to buffer data loaded from the
@@ -132,7 +129,7 @@ class BufferData(object):
 
     """
 
-    def __init__(self, reader, length=5000, verbose=True):
+    def __init__(self, reader, length=5000):
         """Document the __init__ method at the class level."""
 
         # Ensure the reader object has the necessary methods (pre-emptive
@@ -153,16 +150,12 @@ class BufferData(object):
             msg = "The input '%s' must be an integer greater than zero."
             raise TypeError(msg % 'length')
 
-        # Store verbosity level.
-        if isinstance(verbose, bool):
-            self.__verbose = verbose
-        else:
-            msg = "The input '%s' must be a boolean."
-            raise TypeError(msg % 'verbose')
-
         # Initialise process for buffering data.
         self.__run_event = threading.Event()
+        self.__is_ready = multiprocessing.Event()
         self.__is_data_pending = multiprocessing.Event()
+        self.__is_ready.clear()
+        self.__is_data_pending.set()
         self.__buffer_worker = None
 
     @property
@@ -172,6 +165,26 @@ class BufferData(object):
     @property
     def length(self):
         return self.__length
+
+    def is_ready(self):
+        """Return whether the queue is full or all data has been read.
+
+        This property returns :data:`True` when all data has been read from the
+        source or if the queue is full - whichever condition is reached
+        first. Otherwise :data:`False` is returned. Once set to :data:`True`,
+        the flag will not reset until the :py:meth:`.reset` method is called.
+
+        This property can be used to delay processes that read from the buffer
+        until the buffer is full.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` when all data has been read
+                           from the source or the queue is full otherwise
+                           :data:`False` is returned.
+
+        """
+
+        return self.__is_ready.is_set()
 
     def is_data_pending(self):
         """Return whether data is available for buffering.
@@ -226,13 +239,14 @@ class BufferData(object):
 
         if not self.is_alive():
             self.__run_event.set()
+            self.__is_ready.clear()
             self.__is_data_pending.set()
             self.__buffer_worker = Process(target=self.__buffer_data,
                                            args=(self.__run_event,
                                                  self.__queue,
                                                  self.__resource,
-                                                 self.__is_data_pending,
-                                                 self.__verbose,))
+                                                 self.__is_ready,
+                                                 self.__is_data_pending,))
             self.__buffer_worker.daemon = True
             self.__buffer_worker.start()
 
@@ -279,6 +293,8 @@ class BufferData(object):
                 else:
                     time.sleep(0.01)
 
+            self.__is_ready.clear()
+            self.__is_data_pending.set()
             self.__buffer_worker = None
             return True
         else:
@@ -299,11 +315,15 @@ class BufferData(object):
         # Flush items from queue by re-declaring the object and reset file
         # pointers.
         self.__queue = multiprocessing.Queue(self.__length)
-        self.__is_data_pending.clear()
+        self.__is_ready.clear()
+        self.__is_data_pending.set()
+        self.__buffer_worker = None
+
+        # Reset the reader object.
         self.__resource.reset()
 
     @staticmethod
-    def __buffer_data(run_event, queue, resource, is_data_pending, verbose):
+    def __buffer_data(run_event, queue, resource, is_ready, is_data_pending):
         """Read data until end of files.
 
         The logic in this method :
@@ -335,11 +355,17 @@ class BufferData(object):
                 # Read candidate data from the logged data ONLY if no candidate
                 # exists for queuing.
                 if not data:
+                    # Read data in the form:
+                    #
+                    #     dct = {'elapsed_time: <float>,
+                    #            'topic': <string>,
+                    #            'message': <:py:class:`.Message` object>}
                     data = resource.read()
 
                     # The only reason candidate data should be falsy (None) is
                     # if the end of the logged data has been reached.
                     if data is None:
+                        is_ready.set()
                         is_data_pending.clear()
                         break
 
@@ -379,28 +405,11 @@ class BufferData(object):
                 #          the current data may be dropped here.
                 #
                 except Queue.Full:
+                    is_ready.set()
                     time.sleep(0.1)
 
         except KeyboardInterrupt:
             pass
-
-        if verbose:
-            if not data:
-                print 'Finished buffering data.'
-            else:
-                print 'Buffering stopped.'
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class ScheduleBroadcasts(object):

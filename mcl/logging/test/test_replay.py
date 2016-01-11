@@ -81,6 +81,7 @@ class TestBufferData(unittest.TestCase):
         buf = BufferData(reader)
 
         # Check capacity of buffer/queue.
+        self.assertFalse(buf.is_ready())
         self.assertTrue(buf.is_data_pending)
         self.assertTrue(buf.queue.empty())
         self.assertFalse(buf.queue.full())
@@ -92,6 +93,7 @@ class TestBufferData(unittest.TestCase):
             time.sleep(0.01)
 
         # Check capacity of buffer/queue.
+        self.assertTrue(buf.is_ready())
         self.assertFalse(buf.is_data_pending())
         self.assertFalse(buf.queue.empty())
         self.assertEqual(buf.queue.qsize(), 20)
@@ -106,14 +108,15 @@ class TestBufferData(unittest.TestCase):
             message = buf.queue.get()
             self.assertEqual(int(10 * message['elapsed_time']), i + 1)
 
-    def test_partial(self):
-        """Test BufferData() can read data in chunks and start/stop."""
+    def test_read_blocks(self):
+        """Test BufferData() can read data in blocks and start/stop."""
 
         # Create data reader object.
         reader = ReadDirectory(LOG_PATH, message=True)
 
         # Initialise buffer object.
         buf = BufferData(reader, length=10)
+        self.assertFalse(buf.is_ready())
 
         # Start buffering data and wait until buffer is full.
         buf.start()
@@ -128,6 +131,7 @@ class TestBufferData(unittest.TestCase):
         # remaining data to the queue while the first few elements are being
         # checked here.
         #
+        self.assertTrue(buf.is_ready())
         self.assertEqual(buf.queue.qsize(), 10)
         for i in range(0, 10):
             message = buf.queue.get()
@@ -138,12 +142,13 @@ class TestBufferData(unittest.TestCase):
         while buf.is_alive() and ((time.time() - start_wait) < TIMEOUT):
             time.sleep(0.01)
 
-        # Read remaining GnssMessages from queue.
+        # Read remaining data from queue.
         for i in range(1, 11):
             message = buf.queue.get()
             self.assertEqual(int(10 * message['elapsed_time']), i)
 
         # Check capacity of buffer.
+        self.assertTrue(buf.is_ready())
         self.assertFalse(buf.is_data_pending())
         self.assertEqual(buf.queue.qsize(), 0)
 
