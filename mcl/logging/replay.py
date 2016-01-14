@@ -61,6 +61,7 @@ import time
 import Queue
 import threading
 import multiprocessing
+from threading import Thread
 from multiprocessing import Process
 from mcl.message.messages import Message
 from mcl.network.network import MessageBroadcaster
@@ -345,9 +346,6 @@ class BufferData(object):
         # Define expected data dictionary keys.
         keys = ['elapsed_time', 'topic', 'message']
 
-        if verbose:
-            print "Buffering data..."
-
         try:
             data = None
             while run_event.is_set():
@@ -435,18 +433,20 @@ class ScheduleBroadcasts(object):
                        playback. Values less than 1.0 will result in a slower
                        than real-time playback.
 
-        Raises:
-            TypeError: If the any of the inputs are an incorrect type.
+    Raises:
+        TypeError: If the any of the inputs are an incorrect type.
 
     """
 
     def __init__(self, queue, speed=1.0):
         """Document the __init__ method at the class level."""
 
-        # Store inter-process communication objects.
-        self.__run_event = multiprocessing.Event()
-        self.__worker = None
-        self.queue = queue
+        # Store the queue.
+        if isinstance(queue, multiprocessing.queues.Queue):
+            self.__queue = queue
+        else:
+            msg = "The input '%s' must be a multiprocessing.Queue() object."
+            raise TypeError(msg % 'queue')
 
         # Store broadcast speed.
         if isinstance(speed, (int, long, float)) and speed > 0:
@@ -455,17 +455,13 @@ class ScheduleBroadcasts(object):
             msg = "The input '%s' must be a number greater than zero."
             raise TypeError(msg % 'speed')
 
+        # Store inter-process communication objects.
+        self.__run_event = multiprocessing.Event()
+        self.__worker = None
+
     @property
     def queue(self):
         return self.__queue
-
-    @queue.setter
-    def queue(self, queue):
-        if isinstance(queue, multiprocessing.queues.Queue):
-            self.__queue = queue
-        else:
-            msg = "The input '%s' must be a multiprocessing.Queue() object."
-            raise TypeError(msg % 'queue')
 
     @property
     def speed(self):
@@ -499,9 +495,9 @@ class ScheduleBroadcasts(object):
 
         # Spawn process for broadcasting data.
         if not self.is_alive():
+
             self.__run_event.set()
-            self.__is_data_pending.set()
-            self.__worker = Process(target=self.__inject,
+            self.__worker = Thread(target=self.__inject,
                                     args=(self.__run_event,
                                           self.__queue,
                                           self.__speed,))
@@ -550,7 +546,7 @@ class ScheduleBroadcasts(object):
             return False
 
     @staticmethod
-    def __inject(self, run_event, queue, speed):
+    def __inject(run_event, queue, speed):
         """Re-broadcast messages in queue.
 
         This method is run as a separate process and is structured as follows:
@@ -575,32 +571,35 @@ class ScheduleBroadcasts(object):
         broadcasters = dict()
 
         try:
-            # Get first message.
-            message = None
-            while not message and run_event.is_set():
-                try:
-                    message = queue.get(timeout=0.1)
-                    message_time_origin = message['timestamp']
-                except Queue.Empty:
-                    pass
-
-            # Create a list of active broadcasters as required.
-            broadcaster = message.connection.broadcaster
-            if broadcaster not in broadcasters:
-                broadcasters[broadcaster] = MessageBroadcaster(message)
-
             # Re-broadcast data until there is no data left or the user
             # terminates the broadcasts.
-            simulation_time_origin = time.time()
+            key = None
+            message = None
+            time_origin = time.time()
             while run_event.is_set():
 
                 # Publish data at beginning of loop.
-                broadcasters[broadcaster].publish(message)
+                if message:
+                    broadcasters[key].publish(message)
 
                 # Get data from queue.
                 try:
-                    message = queue.get(timeout=1.0)
-                    message_time = message['timestamp']
+                    # Read data in the form:
+                    #
+                    #     dct = {'elapsed_time: <float>,
+                    #            'topic': <string>,
+                    #            'message': <:py:class:`.Message` object>}
+                    #
+                    data = queue.get(timeout=0.1)
+                    elapsed_time = data['elapsed_time']
+                    topic = data['topic']
+                    message = data['message']
+
+                    # Create a list of active broadcasters as required.
+                    key = (type(message), topic)
+                    if key not in broadcasters:
+                        broadcasters[key] = MessageBroadcaster(type(message),
+                                                               topic=topic)
 
                 # Queue read timed out. Possibly no more data left in queue.
                 except Queue.Empty:
@@ -613,20 +612,15 @@ class ScheduleBroadcasts(object):
                     else:
                         continue
 
-                # Create a list of active broadcasters as required.
-                broadcaster = message.connection.broadcaster
-                if broadcaster not in broadcasters:
-                    broadcasters[broadcaster] = MessageBroadcaster(message)
-
                 # Schedule the message to be published in the future based on
                 # the current running time.
-                message_elapsed = message_time - message_time_origin
-                schedule = simulation_time_origin + speed * message_elapsed
+                schedule = time_origin + speed * elapsed_time
 
                 # Burn CPU cycles waiting for the next message to be scheduled.
                 #
-                # Note
-                if time.time() < schedule and run_event.is_set():
+                # Note: time.sleep() is not accurate enough for short
+                #       delays. Poll the clock for higher accuracy.
+                while time.time() < schedule and run_event.is_set():
                     pass
 
         except KeyboardInterrupt:
