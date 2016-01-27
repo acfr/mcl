@@ -125,31 +125,24 @@ extensions = [
     'sphinx.ext.viewcode',
 ]
 
-# Get Sphinx version & issue update warning for the Napoleon extension.
+# Get Sphinx version.
 version = [int(s) for s in sphinx.__version__.split('.')]
-if version[0] >= 1 and version[1] >= 3:
-
-    warn_string = "Your Sphinx version is currently %s. The Napoleon " + \
-                  "extension is native to Sphinx starting from version " + \
-                  "1.3. Please modify inclusion of the Sphinx extensions " + \
-                  "to reflect this change. Add 'sphinx.ext.napoleon' to " + \
-                  "the 'extensions' list."
-    raise Exception(warn_string % sphinx.__version__)
-
-else:
+if (version[0] <= 1) and (version[1] < 3):
     extensions.append('sphinxcontrib.napoleon')
+else:
+    extensions.append('sphinx.ext.napoleon')
 
-    # Napoleon settings
-    napoleon_google_docstring = True
-    napoleon_numpy_docstring = False
-    napoleon_include_private_with_doc = False
-    napoleon_include_special_with_doc = False
-    napoleon_use_admonition_for_examples = False
-    napoleon_use_admonition_for_notes = False
-    napoleon_use_admonition_for_references = False
-    napoleon_use_ivar = False
-    napoleon_use_param = True
-    napoleon_use_rtype = True
+# Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = False
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
 
 # -- Options for HTML output ----------------------------------------------
 
