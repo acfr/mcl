@@ -5,8 +5,7 @@
     :template: detailed.tpl
 
     abstract
-    factory
-    simulate
+    network
     udp
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>

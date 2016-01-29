@@ -1,4 +1,4 @@
-.. pyITS documentation master file, created by
+.. MCL documentation master file, created by
    sphinx-quickstart on Wed Apr 23 11:40:34 2014.
 
 ..
@@ -9,49 +9,52 @@
 
 .. include:: aliases.rst
 
-Welcome to pyITS's documentation!
+Welcome to |MCL|'s documentation!
 =================================
 
-The Intelligent Vehicles and `Safety Systems Group
-<http://www.acfr.usyd.edu.au/research/IntelligentVehiclesSafetySystems.shtml>`_
-at the Australian Centre for Field Robotics (ACFR_) conducts research in the
-areas of vehicle-to-vehicle (V2V) communication, vehicles safety systems,
-navigation, driver intent and safety evaluation. The Python_ intelligent
-transport systems (a.k.a |pyITS|) is a collection of Python modules, classes,
-functions and scripts enables this research to be performed.
+The multiprocess communication library (a.k.a |MCL|) provides software for
+developing low-latency message-passing systems. Message-passing is performed
+using IPv6 multicast. Two key concepts underpin the design philosophy of and use
+of |MCL|: the publish-subscribe paradigm and inter-process communication.
 
-The following sections provide an introduction to the pyITS project:
+To ensure the success and longevity of a software project, it must be extensible
+and reliable. |MCL| encourages users to adopt a modular design when developing
+software projects. By breaking up software into modules of functionality, small
+portions of code can be independently developed and maintained - increasing
+flexibility, maintainability and extensibility. Information is transfered from
+one module to another using the publish-subscribe paradigm. This strategy allows
+event-driven code to be run on many independent processes. Message passing over
+the publish-subscribe network allows communication to occur transparently within
+a single computer, across multiple computers and across heterogeneous devices.
+
+|MCL| was developed at The Intelligent Vehicles and `Safety Systems Group
+<http://its.acfr.usyd.edu.au/>`_ at the Australian Centre for Field Robotics
+(ACFR_).
+
+The following sections provide an introduction to the |MCL| project:
 
 .. toctree::
     :maxdepth: 1
 
-    design_overview
     getting_started
     contributing
     style_guide
-    maintenance
 
-pyITS API documentation
+|MCL| API documentation
 =======================
 
-The following packages are available in |pyITS|:
+The following packages are available in |MCL|:
 
 .. autosummary::
     :toctree: _auto/
     :template: module.tpl
     :nosignatures:
 
-    pyITS
-    pyITS.algorithms
-    pyITS.database
-    pyITS.geolocation
-    pyITS.gui
-    pyITS.logging
-    pyITS.message
-    pyITS.network
-    pyITS.sensor
-    pyITS.transport
-    pyITS.vision
+    mcl.event
+    mcl.logging
+    mcl.message
+    mcl.network
+
 
 Indices and tables
 ==================

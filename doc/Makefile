@@ -67,8 +67,8 @@ singlehtml:
 	@echo "Build finished. The HTML page is in $(BUILDDIR)/singlehtml."
 
 coverage:
-	# Perform coverage check, remove first two lines of the report and move
-	# to the source directory.
+        # Perform coverage check, remove first two lines of the report and move
+        # to the source directory.
 	$(SPHINXBUILD) -b coverage $(SPHINXOPTS) source $(SPHINXOPTS) source/_auto/coverage
 	cat source/_auto/coverage/python.txt | sed '1,2d' > source/coverage.rst
 	rm -rf source/_auto/coverage
@@ -98,17 +98,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/pyITS.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/mcl.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/pyITS.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/mcl.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/pyITS"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/pyITS"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/mcl"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/mcl"
 	@echo "# devhelp"
 
 epub:

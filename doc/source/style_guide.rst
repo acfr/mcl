@@ -5,14 +5,13 @@
 Style Guide
 =========================
 
-This section describes the coding and documentation style used in |pyITS|. These
+This section describes the coding and documentation style used in |MCL|. These
 styles leverage community standards and should be familiar to pythonists,
 pythoneers, pythonistas' and abusers of the word idiomatic. For experienced
 Python developers, this section outlines how the community standards have been
-used (and abused) in |pyITS|. A brief read-through aught to be sufficient. For
-pytheniles (neologism alert), this section serves a crash-course in Python
-coding and documentation convention. Further detail is provided externally via
-frequent, handy links.
+used (and abused) in |MCL|. A brief read-through aught to be sufficient. For new
+Python users, this section serves a crash-course in Python coding and
+documentation convention. Further detail is provided externally via links.
 
 
 Code
@@ -42,7 +41,7 @@ Help You Help Yourself
 Your favourite IDE or `editor <http://en.wikipedia.org/wiki/Editor_war>`_ can
 help you adhere to the PEP8_ guidelines. This can be done by configuring a code
 checking tool to check your Python code. The tool **pep8.py** checks python code
-against some of the style conventions in PEP8_.  You can install, upgrade,
+against some of the style conventions in PEP8_.  You can install, upgrade or
 uninstall `pep8.py` with these commands::
 
 .. code-block:: bash
@@ -89,14 +88,14 @@ the documentation.
 Sphinx
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-|pyITS| documentation is generated using Sphinx_. Sphinx_ uses reStructuredText_
-as its markup language, and many of its strengths come from the power and
-straightforwardness of reStructuredText_ and its parsing and translating suite,
+|MCL| documentation is generated using Sphinx_. Sphinx_ uses reStructuredText_
+as its markup language. Many of Sphinx_'s strengths come from the power and
+straightforwardness of reStructuredText_ and its parsing and translating suite -
 the Docutils_ [#footnotesphinx]_. Due to Sphinx_'s reliance on Docutils_, the
 quality of Sphinx_ documentation depends on the completeness of the project's
 docstrings.
 
-|pyITS| uses `Google style docstrings`. A comprehensive example of `Google style
+|MCL| uses `Google style docstrings`. A comprehensive example of `Google style
 docstrings` can be found `here
 <http://sphinx-doc.org/latest/ext/example_google.html#example-google>`_. Support
 for `Google style docstrings` in Sphinx_ is provided through the Napoleon_
@@ -131,19 +130,19 @@ API documentation tools.
 Although sphinx-apidoc_ provides an 'automagic' mechanism for documentation, it
 is difficult to override its behaviour and format the look and feel of the
 documentation it produces. To allow for more control over the look and feel of
-the |pyITS| documentation, the structure is specified explicitly. Although
-this approach requires more supervision, the 'heavy lifting' is still done by
+the |MCL| documentation, the structure is specified explicitly. Although this
+approach requires more supervision, the 'heavy lifting' is still done by
 autodoc_ and autosummary_.
 
-The Sphinx_ structure is set out in the ``pyITS/doc/source`` directory. The
-master document, ``index.rst``, serves as a welcome page and contains the root
-of the "table of contents tree" (or toctree) - linking to additional
+The Sphinx_ structure is set out in the ``MCL/doc/source`` directory. The master
+document, ``index.rst``, serves as a welcome page and contains the root of the
+"table of contents tree" (or toctree) - linking to additional
 documentation. Sphinx_ configurations can be found in ``conf.py``.
 
 Learning how to extend the documentation is best done by studying the structure
-defined in the ``pyITS/doc/source`` directory. Modification to the structure
-will only be necessary if new packages are created or if it is necessary to
-insert additional documentation (new pages not related to the source code).
+defined in the ``MCL/doc/source`` directory. Modification to the structure will
+only be necessary if new packages are created or if it is necessary to insert
+additional documentation (new pages not related to the source code).
 Modifications to existing packages, including the creation of new modules, will
 not require changes to the documentation source files. These changes will be
 handled by autodoc_ and autosummary_.

@@ -1,5 +1,5 @@
 .. _ACFR: http://www.acfr.usyd.edu.au/index.shtml
-.. |pyITS| replace:: `pyITS`
+.. |MCL| replace:: `MCL`
 
 .. _Python: https://www.python.org/
 .. _PEP8: http://www.python.org/dev/peps/pep-0008/
