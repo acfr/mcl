@@ -4,8 +4,8 @@ The network replay module provides methods and objects designed to replay
 logged network data.
 
 The main object responsible for replaying network data is the
-:py:class:`.NetworkReplay` object. The :py:class:`.NetworkReplay` object
-depends on the remaining objects:
+:py:class:`.Replay` object. The :py:class:`.Replay` object depends on the
+remaining objects:
 
     - :py:class:`.BufferData`
     - :py:class:`.ScheduleBroadcasts`
@@ -36,7 +36,7 @@ object is shown below::
          ___________|_________________________________|___________
         |___________|_________________________________|___________|
         |           |                                 |           |
-        |           |        NetworkReplay()          |           |
+        |           |           Replay()              |           |
         |   ________V____________      _______________|________   |
         |  |_____________________|    |________________________|  |
         |  |                     |    |                        |  |
@@ -192,8 +192,8 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if more data is available. If
-                           all data has been read and buffered from the log
-                           file(s), :data:`False` is returned.
+                           all data has been read and buffered, :data:`False`
+                           is returned.
 
         """
 
@@ -625,3 +625,198 @@ class ScheduleBroadcasts(object):
 
         except KeyboardInterrupt:
             pass
+
+
+class Replay(object):
+    """Re-broadcast historic data.
+
+    The :py:class:`.NetworkReplay` object replays MCL messages in real-time. To
+    replay data from log files::
+
+        # Initialise object and commence replay from files.
+        from mcl.logging.network_dump_replay import NetworkReplay
+        replay = NetworkReplay(source='./dataset/')
+        replay.start()
+
+        # Pause replay.
+        replay.pause()
+
+        # Stop replay (resets object to read data from beginning).
+        replay.stop()
+
+    Args:
+        reader (): data reader
+        speed (float): Speed multiplier for data replay. Values greater than
+                       1.0 will result in a faster than real-time
+                       playback. Values less than 1.0 will result in a slower
+                       than real-time playback.
+
+    Attributes:
+        speed (float): Speed multiplier for data replay. Values greater than
+                       1.0 will result in a faster than real-time
+                       playback. Values less than 1.0 will result in a slower
+                       than real-time playback.
+
+    Raises:
+        IOError: If the log directory does not exist.
+        TypeError: If the any of the inputs are an incorrect type.
+
+    """
+
+    def __init__(self, reader, speed=1.0):
+        """Document the __init__ method at the class level."""
+
+        # Create object for reading data and start buffering.
+        try:
+            self.__buffer = BufferData(reader)
+        except:
+            raise
+
+        # Create object for scheduling broadcasts.
+        try:
+            self.__scheduler = ScheduleBroadcasts(self.__buffer.queue, speed)
+        except:
+            raise
+
+    @property
+    def speed(self):
+        return self.__scheduler.speed
+
+    def is_data_pending(self):
+        """Return whether data is available for buffering before replay.
+
+        Note: Replay can still occur once all data can be read and buffered.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if more data is available. If
+                           all data has been read and buffered, :data:`False`
+                           is returned.
+
+        """
+
+        return self.__buffer.is_data_pending()
+
+    def is_alive(self):
+        """Return whether the object is replaying data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the object is replaying
+                           data. Returns :data:`False` if the object is NOT
+                           replaying data.
+
+        """
+
+        return self.__scheduler.is_alive()
+
+    def start(self):
+        """Start replaying data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if started replaying data. If
+                           replay could not be started or is replay is
+                           currently active, the request is ignored and the
+                           method returns :data:`False`.
+
+        """
+
+        # Time to wait for process to terminate. This parameter could be
+        # exposed to the user as a kwarg. Currently it is viewed as an
+        # unnecessary tuning parameter.
+        timeout = 1.0
+
+        # Only start replay if the replay is in a paused or stopped state.
+        if not self.is_alive():
+
+            # No data is pending and all buffered messages have been
+            # broadcast. Flush queue and reset file pointers to start reading
+            # data from beginning of logs (i.e. replay has been restarted).
+            if not self.is_data_pending() and self.__buffer.queue.qsize() == 0:
+                self.__buffer.reset()
+
+            # Start buffering data. Wait for buffer to fill with data before
+            # starting broadcasts.
+            self.__buffer.start()
+            start_wait = time.time()
+            while True:
+                if self.__buffer.is_ready():
+                    break
+                elif (time.time() - start_wait) > timeout:
+                    msg = 'Could not buffering data.'
+                    raise Exception(msg)
+                else:
+                    time.sleep(0.1)
+
+            # Start broadcasting data.
+            self.__scheduler.start()
+
+            # Wait for scheduling processes to start.
+            start_wait = time.time()
+            while True:
+                if self.__scheduler.is_alive():
+                    break
+                elif (time.time() - start_wait) > timeout:
+                    msg = 'Could not start objects for replay.'
+                    raise Exception(msg)
+                else:
+                    time.sleep(0.1)
+
+            return self.is_alive()
+        else:
+            return False
+
+    def pause(self):
+        """Pause replay of data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if replay was paused. If replay
+                           is inactive or already paused, the request is
+                           ignored and the method returns :data:`False`.
+
+        """
+
+        # Only pause replay if it is currently in an active state.
+        if self.is_alive():
+
+            # Send signal to stop asynchronous objects.
+            self.__broadcaster.stop()
+            self.__buffer.stop()
+
+            if self.__buffer.is_alive() and self.__scheduler.is_alive():
+                msg = 'Could not stop asynchronous objects in replay.'
+                raise Exception(msg)
+
+            return True
+        else:
+            return False
+
+    def stop(self):
+        """Stop replaying data and reset to beginning.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if replay was stopped. If
+                           replay is inactive, the request is ignored and the
+                           method returns :data:`False`.
+
+        """
+
+        # Only stop replay if it is currently in an active state.
+        #
+        # A reset is performed by stopping the scheduler and resetting the
+        # reader object so that a subsequent call to start() will re-commence
+        # playback from the beginning.
+        #
+        if self.is_alive():
+
+            # Stop broadcasts.
+            self.__scheduler.stop()
+            while self.__scheduler.is_alive():
+                time.sleep(0.1)
+
+            # Reset data reader.
+            self.__buffer.reset()
+            while not (self.is_data_pending() and self.__buffer.queue.qsize() == 0):
+                time.sleep(0.1)
+
+            return True
+        else:
+            return False

@@ -3,6 +3,7 @@ import time
 import unittest
 import multiprocessing
 import mcl.message.messages
+from mcl.logging.replay import Replay
 from mcl.logging.replay import BufferData
 from mcl.logging.file import ReadDirectory
 from mcl.network.network import MessageListener
@@ -227,10 +228,18 @@ class TestScheduleBroadcasts(unittest.TestCase):
         queue = multiprocessing.Queue()
         scheduler = ScheduleBroadcasts(queue, speed=speed)
 
-        # Validate input argument.
+        # Validate input type.
         self.assertEqual(scheduler.speed, speed)
         with self.assertRaises(TypeError):
             ScheduleBroadcasts(queue, speed='speed')
+
+        # Ensure speed cannot be zero.
+        with self.assertRaises(TypeError):
+            ScheduleBroadcasts(queue, speed=0)
+
+        # Ensure speed cannot be negative.
+        with self.assertRaises(TypeError):
+            ScheduleBroadcasts(queue, speed=-1.0)
 
     def test_start_stop(self):
         """Test ScheduleBroadcasts() start/stop."""
@@ -276,7 +285,7 @@ class TestScheduleBroadcasts(unittest.TestCase):
         listener_A.subscribe(callback_A)
         listener_B.subscribe(callback_B)
 
-        # Create objects for scheduling data.
+        # Create objects for reading and scheduling data.
         read = ReadDirectory(LOG_PATH, message=True)
         data = BufferData(read)
         data.start()
@@ -312,13 +321,107 @@ class TestScheduleBroadcasts(unittest.TestCase):
         self.assertLessEqual(duration, 2.0 * run_time)
 
     def test_schedule(self):
-        """Test ScheduleBroadcasts() schedule data at normal speed."""
+        """Test ScheduleBroadcasts() at normal speed."""
 
         # Replay data at normal speed.
         self.schedule()
 
     def test_schedule_speed(self):
-        """Test ScheduleBroadcasts() schedule data at a faster speed."""
+        """Test ScheduleBroadcasts() at a faster speed."""
 
         # Replay data at double speed.
         self.schedule(speed=2)
+
+
+# -----------------------------------------------------------------------------
+#                                   Replay()
+# -----------------------------------------------------------------------------
+class TestReplay(unittest.TestCase):
+
+    def test_init(self):
+        """Test Replay() instantiation."""
+
+        # Create objects for reading data.
+        reader = ReadDirectory(LOG_PATH, message=True)
+
+        # Create object for replay.
+        Replay(reader)
+
+        # Initialise Replay and ensure the speed argument is valid.
+        with self.assertRaises(TypeError):
+            Replay(reader, speed=-1.0)
+
+    def test_start_stop(self):
+        """Test Replay() start/stop."""
+
+        # Create objects for reading data.
+        reader = ReadDirectory(LOG_PATH, message=True)
+
+        # Create object for replay.
+        replay = Replay(reader)
+
+        # Start replaying data.
+        self.assertTrue(replay.start())
+        self.assertTrue(replay.is_alive())
+        self.assertFalse(replay.start())
+
+        # Stop replaying data.
+        self.assertTrue(replay.stop())
+        self.assertFalse(replay.is_alive())
+        self.assertFalse(replay.stop())
+
+        # Allow threads to fully shut down.
+        time.sleep(0.1)
+
+    def replay(self, speed=None):
+        """Schedule broadcasts."""
+
+        # Listen for message broadcasts.
+        listener_A = MessageListener(UnitTestMessageA)
+        listener_B = MessageListener(UnitTestMessageB)
+        buffer_A = list()
+        buffer_B = list()
+
+        # Subscribe callbacks.
+        def callback_A(data): buffer_A.append(data)
+        def callback_B(data): buffer_B.append(data)
+        listener_A.subscribe(callback_A)
+        listener_B.subscribe(callback_B)
+
+        # Create objects for replaying data.
+        reader = ReadDirectory(LOG_PATH, message=True)
+        if not speed:
+            speed = 1.0
+            replay = Replay(reader)
+        else:
+            replay = Replay(reader, speed=speed)
+
+        # Start replay and Wait for broadcasts to end.
+        replay.start()
+        run_time = 1.0 / float(speed)
+        start_wait = time.time()
+        while True:
+            duration = time.time() - start_wait
+            if replay.is_alive() and duration < run_time:
+                time.sleep(0.05)
+            else:
+                break
+
+        # Ensure all messages were received.
+        self.assertEqual(len(buffer_A) + len(buffer_B), 20)
+
+        # Ensure timing is approximately correct.
+        self.assertGreaterEqual(duration, 0.5 * run_time)
+        self.assertLessEqual(duration, 2.0 * run_time)
+
+    def test_replay(self):
+        """Test Replay() at normal speed."""
+
+        # Replay data at normal speed.
+        self.replay()
+
+    def test_schedule_speed(self):
+        """Test Replay() at a faster speed."""
+
+        # Replay data at double speed.
+        self.replay(speed=2)
