@@ -1,6 +1,14 @@
 Multiprocess Communication Library
 ================================================================================
 
+.. image:: https://travis-ci.org/acfr/mcl.svg
+   :target: https://travis-ci.org/acfr/mcl
+   :alt: MCL Build Status
+
+.. image:: https://coveralls.io/repos/github/acfr/mcl/badge.svg
+   :target: https://coveralls.io/github/acfr/mcl
+   :alt: MCL Test Coverage Status
+
 The multiprocess communication library (a.k.a MCL) provides software for
 developing low-latency message-passing systems. Message-passing is performed
 using IPv6 multicast. Two key concepts underpin the design philosophy of and use
