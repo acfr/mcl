@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- Coding: utf-8 -*-
 #
 # MCL documentation build configuration file, created by
 # sphinx-quickstart on Wed Apr 23 11:40:34 2014.
@@ -115,16 +115,14 @@ modindex_common_prefix = ['mcl.']
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx.ext.coverage',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
     'sphinx.ext.viewcode',
 ]
 
 # Get Sphinx version.
-version = [int(s) for s in sphinx.__version__.split('.')]
-if (version[0] <= 1) and (version[1] < 3):
+sphinx_version = [int(s) for s in sphinx.__version__.split('.')]
+if (sphinx_version[0] <= 1) and (sphinx_version[1] < 3):
     extensions.append('sphinxcontrib.napoleon')
 else:
     extensions.append('sphinx.ext.napoleon')
@@ -183,7 +181,7 @@ elif theme == 'bootstrap':
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+#html_static_path = []
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

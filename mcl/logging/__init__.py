@@ -5,7 +5,6 @@
     :template: detailed.tpl
 
     file
-    screen
     tools
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>

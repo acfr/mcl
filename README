@@ -1,0 +1,20 @@
+Multiprocess Commmunication Library
+===================================
+
+The multiprocess communication library (a.k.a MCL) provides software for
+developing low-latency message-passing systems. Message-passing is performed
+using IPv6 multicast.
+
+Installation
+------------
+
+The package can be installed using::
+
+    sudo pip install .
+
+Support
+------------
+
+If you find a bug, please report the issue to::
+
+    a.bender@acfr.usyd.edu.au

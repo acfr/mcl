@@ -1,11 +1,11 @@
 .. include:: aliases.rst
 
-=========================
+===============================================================================
 Getting started
-=========================
+===============================================================================
 
 Operating system support
-------------------------
+--------------------------------------------------------------------------------
 
 |MCL| has been developed in the GNU/Linux operating system. In particular,
 Debian based systems have been used. As a result, support for Windows and Mac OS
@@ -14,18 +14,18 @@ X and other Unix systems have not been tested. Due to Python's flexibility,
 effort.
 
 Obtaining the code
-------------------
+--------------------------------------------------------------------------------
 
 |MCL| can be checked out from the git repository using
 
 .. code-block:: bash
 
-    git clone <source> <target>
+    git clone https://github.com/acfr/mcl <target>
 
 where <target> is your local target directory.
 
 Installation
-------------
+--------------------------------------------------------------------------------
 
 This code supports installation using pip (via `setuptools
 <https://pypi.python.org/pypi/setuptools>`_). To install from the cloned
@@ -43,18 +43,10 @@ To uninstall the package:
     pip uninstall mcl
 
 Documentation
--------------
+--------------------------------------------------------------------------------
 
-The |MCL| documentation attempts to apply the `Read the Docs
-<https://readthedocs.org/>`_ theme. If this theme is not available, the default
-Sphinx theme will be used. To enable the `Read the Docs` theme install the
-package via pip:
-
-.. code-block:: bash
-
-    sudo pip install sphinx_rtd_theme
-
-To generate the Sphinx documentation:
+The |MCL| documentation can be read `online <http://mcl.readthedocs.org/>`_. To
+build a local copy run:
 
 .. code-block:: bash
 
@@ -66,3 +58,12 @@ The entry point of the documentation can then be found at:
 .. code-block:: bash
 
     <target>/doc/build/html/index.html
+
+During compilation, `Sphinx' will attempt to apply the `Read the Docs
+<https://readthedocs.org/>`_ theme. If this theme is not available, the default
+Sphinx theme will be used. To enable the `Read the Docs` theme, install the
+package via pip:
+
+.. code-block:: bash
+
+    sudo pip install sphinx_rtd_theme

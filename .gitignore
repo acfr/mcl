@@ -9,7 +9,6 @@ mcl.egg-info/
 .project
 .pydevproject
 .settings
-.ipynb_checkpoints
 
 # Ignore coverage report temporary files.
 .coverage
@@ -17,4 +16,3 @@ mcl.egg-info/
 # Do not version intermediary documentation files.
 doc/build/
 doc/source/_auto
-doc/source/coverage.rst

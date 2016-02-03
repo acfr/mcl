@@ -19,13 +19,12 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) sou
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) source
 
-.PHONY: help clean html dirhtml singlehtml coverage pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  html       to make standalone HTML files"
 	@echo "  dirhtml    to make HTML files named index.html in directories"
-	@echo "  coverage   to produce a ReST text file recording documentation coverage"
 	@echo "  singlehtml to make a single large HTML file"
 	@echo "  pickle     to make pickle files"
 	@echo "  json       to make JSON files"
@@ -51,7 +50,7 @@ clean:
 	rm -rf $(BUILDDIR)/*
 	rm -rf source/_auto
 
-html:	coverage
+html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
@@ -65,17 +64,6 @@ singlehtml:
 	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(BUILDDIR)/singlehtml
 	@echo
 	@echo "Build finished. The HTML page is in $(BUILDDIR)/singlehtml."
-
-coverage:
-        # Perform coverage check, remove first two lines of the report and move
-        # to the source directory.
-	$(SPHINXBUILD) -b coverage $(SPHINXOPTS) source $(SPHINXOPTS) source/_auto/coverage
-	cat source/_auto/coverage/python.txt | sed '1,2d' > source/coverage.rst
-	rm -rf source/_auto/coverage
-	./scripts/format_coverage.py ./source/coverage.rst
-	@echo
-	@echo "Coverage report finished."
-	@echo "The ReST coverage report, 'coverage.rst', is in source/."
 
 pickle:
 	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) $(BUILDDIR)/pickle

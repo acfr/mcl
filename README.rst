@@ -10,7 +10,7 @@ Multiprocess Communication Library
    :alt: MCL Test Coverage Status
 
 The multiprocess communication library (a.k.a MCL) provides software for
-developing low-latency message-passing systems. Message-passing is performed
+developing low-latency, message-passing systems. Message-passing is performed
 using IPv6 multicast. Two key concepts underpin the design philosophy of and use
 of MCL: the publish-subscribe paradigm and inter-process communication.
 
@@ -18,11 +18,12 @@ To ensure the success and longevity of a software project, it must be extensible
 and reliable. MCL encourages users to adopt a modular design when developing
 software projects. By breaking up software into modules of functionality, small
 portions of code can be independently developed and maintained - increasing
-flexibility, maintainability and extensibility. Information is transfered from
-one module to another using the publish-subscribe paradigm. This strategy allows
-event-driven code to be run on many independent processes. Message passing over
-the publish-subscribe network allows communication to occur transparently within
-a single computer, across multiple computers and across heterogeneous devices.
+flexibility, maintainability and extensibility. To transfer information from one
+module to another, the publish-subscribe paradigm can be used. This strategy
+allows event-driven code to be run on many independent processes. Message
+passing over the publish-subscribe network allows communication to occur
+transparently within a single computer, across multiple computers and across
+heterogeneous devices.
 
 MCL was developed at The `Intelligent Vehicles and Safety Systems Group
 <http://its.acfr.usyd.edu.au/>`_ at the `Australian Centre for Field Robotics
@@ -52,7 +53,11 @@ To uninstall the package:
 Documentation
 --------------------------------------------------------------------------------
 
-To generate the HTML `Sphinx <http://www.sphinx-doc.org/>`_ documentation:
+The documentation is hosted online at `Read the
+Docs <http://mcl.readthedocs.org/>`_.
+
+To build a local copy of the HTML `Sphinx <http://www.sphinx-doc.org/>`_
+documentation run:
 
 .. code-block:: bash
 
