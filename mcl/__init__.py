@@ -14,3 +14,6 @@ multiple packages within the MCL namespace.
 # Location of MCL.
 import os
 MCL_ROOT = os.path.dirname(__file__)
+
+# Import Event() into root namespace.
+from mcl.event.event import Event

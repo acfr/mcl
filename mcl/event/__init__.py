@@ -2,7 +2,7 @@
 
 .. autosummary::
     :toctree: ./
-    :template: detailed.tpl
+    :template: detailed_special.tpl
 
     event
 

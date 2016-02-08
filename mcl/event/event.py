@@ -1,4 +1,28 @@
-"""Base class for implementing the event-driven programming paradigm.
+"""Module for implementing the event-driven programming paradigm.
+
+The event module provides a means for implementing event-driven
+programming. This is done through the :py:class:`.Event` object.
+
+The :py:class:`.Event` object allows data to be communicated to callback
+methods via the :py:meth:`.__trigger__` method. Callback methods can
+un/subscribe to the :py:class:`.Event` object via the :py:meth:`.unsubscribe`
+and :py:meth:`.subscribe` methods.
+
+Example usage:
+
+.. testcode::
+
+    import os
+    from mcl import Event
+
+    pub = Event()
+    pub.subscribe(lambda data: os.sys.stdout.write(data + '\\n'))
+    pub.__trigger__('Hello world')
+
+.. testoutput::
+   :hide:
+
+   Hello world
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
@@ -7,32 +31,14 @@
 
 
 class Event(object):
-    """Class for issuing events and triggering callback functions.
-
-    The :py:class:`.Event` object provides a means for implementing
-    event-driven programming.
-
-    The :py:class:`.Event` object allows data to be communicated to callback
-    methods via the :py:meth:`.publish` method. Callback methods can
-    un/subscribe to the :py:class:`.Event` object via the
-    :py:meth:`.unsubscribe` and :py:meth:`.subscribe` methods.
-
-    Example usage::
-
-        import os
-        from mcl import Event
-
-        pub = Event()
-        pub.subscribe(lambda data: os.sys.stdout.write(str(data) + '\\n'))
-        pub.publish('Hello world')
-
-    """
+    """Class for issuing events and triggering callback functions."""
 
     def __init__(self):
-        """Document the __init__ method at the class level."""
-
-        # Store callbacks in a list.
         self.__callbacks = list()
+
+    # Overload with pass through to hide documentation.
+    def __weakref__(self, *args, **kwargs):
+        super(Event, self).__weakref__(*args, **kwargs)
 
     def is_subscribed(self, callback):
         """Return whether a callback is registered with this object.
@@ -41,29 +47,29 @@ class Event(object):
             callback (function): The callback to test for registration.
 
         Returns:
-            bool: Returns ``True`` if the callback has been registered with
-                  this object. Returns ``False`` if the callback has NOT been
-                  registered with this object.
+            bool: Returns :py:data:`.True` if the callback has been registered
+                  with this object. Returns :py:data:`.False` if the callback
+                  has NOT been registered with this object.
 
         """
 
         return callback in self.__callbacks
 
     def subscribe(self, callback):
-        """Subscribe to events.
+        """Subscribe a callback to events.
 
         Args:
             callback (function): The callback to execute on a event.
 
         Returns:
-            bool: Returns ``True`` if the callback was successfully
+            bool: Returns :py:data:`.True` if the callback was successfully
                   registered. If the callback already exists in the list of
-                  callbacks, it will not be registered again and ``False`` will
-                  be returned.
+                  callbacks, it will not be registered again and
+                  :py:data:`.False` will be returned.
 
         Raises:
             TypeError: If the input callback does not have a '__call__' method,
-                       a TypeError is raised.
+                       a :py:exc:`.TypeError` is raised.
 
         """
 
@@ -82,16 +88,17 @@ class Event(object):
             return False
 
     def unsubscribe(self, callback):
-        """Unsubscribe to events.
+        """Unsubscribe a callback from events.
 
         Args:
             callback (function): The callback to be removed from event
                                  notifications.
 
         Returns:
-            bool: Returns ``True`` if the callback was successfully removed. If
-                  the callback does not exist in the list of callbacks, it will
-                  not be removed and ``False`` will be returned.
+            bool: Returns :py:data:`.True` if the callback was successfully
+                  removed. If the callback does not exist in the list of
+                  callbacks, it will not be removed and :py:data:`.False` will
+                  be returned.
 
         """
 
@@ -118,8 +125,9 @@ class Event(object):
         """Trigger an event and issue data to the callback functions.
 
         Args:
-            *args (any): mandatory arguments to send to callback functions.
-            **kwargs (any): key-word arguments to send to callback functions.
+            *args: Arbitrary mandatory arguments to send to callback functions.
+            **kwargs: Arbitrary keyword arguments to send to callback
+                functions.
 
         """
 
