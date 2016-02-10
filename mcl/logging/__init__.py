@@ -1,4 +1,4 @@
-"""Objects and Methods for logging data in MCL.
+"""Package for creating and handling network log files in MCL.
 
 .. autosummary::
     :toctree: ./

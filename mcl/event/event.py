@@ -1,7 +1,7 @@
 """Module for implementing the event-driven programming paradigm.
 
-The event module provides a means for implementing event-driven
-programming. This is done through the :py:class:`.Event` object.
+The :py:mod:`~.event.event` module provides a means for implementing
+event-driven programming. This is done through the :py:class:`.Event` object.
 
 The :py:class:`.Event` object allows data to be communicated to callback
 methods via the :py:meth:`.__trigger__` method. Callback methods can
@@ -48,8 +48,8 @@ class Event(object):
 
         Returns:
             bool: Returns :py:data:`.True` if the callback has been registered
-                  with this object. Returns :py:data:`.False` if the callback
-                  has NOT been registered with this object.
+                with this object. Returns :py:data:`.False` if the callback has
+                NOT been registered with this object.
 
         """
 
@@ -63,13 +63,13 @@ class Event(object):
 
         Returns:
             bool: Returns :py:data:`.True` if the callback was successfully
-                  registered. If the callback already exists in the list of
-                  callbacks, it will not be registered again and
-                  :py:data:`.False` will be returned.
+                registered. If the callback already exists in the list of
+                callbacks, it will not be registered again and
+                :py:data:`.False` will be returned.
 
         Raises:
             TypeError: If the input callback does not have a '__call__' method,
-                       a :py:exc:`.TypeError` is raised.
+                a :py:exc:`.TypeError` is raised.
 
         """
 
@@ -92,13 +92,13 @@ class Event(object):
 
         Args:
             callback (function): The callback to be removed from event
-                                 notifications.
+                notifications.
 
         Returns:
             bool: Returns :py:data:`.True` if the callback was successfully
-                  removed. If the callback does not exist in the list of
-                  callbacks, it will not be removed and :py:data:`.False` will
-                  be returned.
+                removed. If the callback does not exist in the list of
+                callbacks, it will not be removed and :py:data:`.False` will be
+                returned.
 
         """
 

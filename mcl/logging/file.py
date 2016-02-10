@@ -1,7 +1,7 @@
 """Log network data.
 
-The logging module provides methods and objects designed to simplify logging
-(and reading logs of) network traffic.
+The :py:mod:`~.logging.file` module provides methods and objects designed to
+simplify logging (and reading logs of) network traffic.
 
 The main objects responsible for logging network data are:
 
