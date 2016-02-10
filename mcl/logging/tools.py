@@ -1,7 +1,12 @@
 """Tools for handling logged network data.
 
-The network dump tools module provides methods and objects designed to simplify
-loading and handling logged network data.
+The :py:mod:`~.logging.tools` module provides methods and objects designed to
+simplify loading and handling logged network data. The following methods are
+available:
+
+    - :py:func:`.dump_to_list`  for loading log file data into a list
+    - :py:func:`.dump_to_array` for loading log file data into a numpy array
+    - :py:func:`.dump_to_csv`   for writing log file data to a CSV file
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -16,41 +21,40 @@ from mcl.logging.file import ReadDirectory
 
 
 def dump_to_list(source, min_time=None, max_time=None, message=False):
-    """Load message dumps into a list.
+    """Load log file data into a list.
 
-    The :py:func:`.dump_to_list` function parses a network dump file or
-    directory of network dump files into a list. Note, the following fields are
-    added to each object:
+    The :py:func:`.dump_to_list` function parses a log file or directory of log
+    files into a list. Note, the following fields are added to each object:
 
         - ``elapsed_time``  the time when the message was logged to file, in
-                           seconds, relative to when logging started.
+          seconds, relative to when logging started.
         - ``topic`` the topic that was associated with the message during
-                    transmission.
+          transmission.
 
     If the ``elapsed_time`` or ``topic`` exist as keys in the stored object,
     the original data is preserved and a warning message is printed to the
     screen.
 
     Args:
-        source (str): Path of dump file(s) to convert into a list. Path can
-                      point to a single file or a directory containing multiple
-                      log files.
+        source (str): Path to network data log(s) to convert into a
+            list. `source` can point to a single file or a directory containing
+            multiple log files. If the log files are split, provide the prefix
+            to the log files.
         min_time (float): Minimum time to extract from dataset.
         max_time (float): Maximum time to extract from dataset.
-        message (bool): If set to ``True`` messages will automatically
-                        be decoded into the MCL message type stored in the log
-                        file. If set to ``False`` (default), message data is
-                        returned as a dictionary. Note: to read data as MCL
-                        messages, the messages must be loaded into the
-                        namespace.
+        message (bool): If set to :data:`True` messages will automatically be
+            decoded into the MCL :py:class:`.Message` type stored in the log
+            file(s). If set to :data:`False` (default), message data is
+            returned as a dictionary. Note: to read data as MCL messages, the
+            messages must be loaded into the namespace.
 
     Returns:
         list: A list of chronologically ordered network messages. The type of
-              each item in the list depends on the ``message`` input.
+            each item in the list depends on the `message` input.
 
     """
 
-    # Create object for reading a directory of network dumps in time order.
+    # Create object for reading a directory of network logs in time order.
     try:
         if os.path.isdir(source):
             dumps = ReadDirectory(source,
@@ -123,29 +127,29 @@ def dump_to_list(source, min_time=None, max_time=None, message=False):
 
 
 def dump_to_array(source, keys, min_time=None, max_time=None):
-    """Load message dump into a numpy array.
+    """Load log file data into a numpy array.
 
-    The :py:func:`.dump_to_array` function parses a network dump file or
-    directory of network dump files into a numpy array. To parse data into a
-    numpy array, the following conditions must be met:
+    The :py:func:`.dump_to_array` function parses network data logs into a
+    :py:obj:`numpy:numpy.array`. To parse data into a
+    :py:obj:`numpy:numpy.array`, the following conditions must be met:
 
         - All messages loaded must be the same MCL :py:class:`.Message` type.
-        - The logged messages must contain the specified keys.
+        - All logged messages must contain the specified keys.
         - The contents of the message keys must be convertible to a float.
 
     Args:
-        source (str): Path to dump file to be formatted into a numpy array. If
-                      the dump files are split, provide the prefix to the dump
-                      files.
+        source (str): Path to network data log(s) to convert into a
+            list. `source` can point to a single file or a directory containing
+            multiple log files. If the log files are split, provide the prefix
+            to the log files.
         keys (list): List of message attributes to load into numpy array. The
-                     items in this list specify what is copied into the numpy
-                     columns.
+            items in this list specify what is copied into the numpy columns.
         min_time (float): Minimum time to extract from dataset.
         max_time (float): Maximum time to extract from dataset.
 
     Returns:
-        numpy.array: A 2D numpy array containing the requested keys (columns)
-                     from each message in the dump (rows).
+        numpy.array: A :py:obj:`numpy:numpy.array` containing the requested
+            keys (columns) from each message (rows) in the network log.
 
     Raises:
         IOError: If the input `source` does not exist.
@@ -159,7 +163,7 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
     elif not isinstance(keys, collections.Iterable):
         raise TypeError("'keys' must be a list of strings.")
 
-    # Load message dumps into a list.
+    # Load network logs into a list.
     try:
         message_list = dump_to_list(source,
                                     min_time=min_time,
@@ -205,14 +209,15 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
     return array
 
 
-def dump_to_csv(source, csvfile, keys, min_time=None, max_time=None):
-    """Write fields of message dump into a CSV file.
+def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
+    """Write log file data to a CSV file.
 
     Args:
-        source (str): Path to dump file to be formatted into a CSV file. If the
-                      dump files are split, provide the prefix to the dump
-                      files.
-        csvfile (str): Path to write CSV file.
+        source (str): Path to network data log(s) to convert into a
+            list. `source` can point to a single file or a directory containing
+            multiple log files. If the log files are split, provide the prefix
+            to the log files.
+        csv_file (str): Path to write CSV file.
         keys (list): List of message attributes to load into columns of the CSV
             file.
         min_time (float): Minimum time to extract from dataset.
@@ -253,7 +258,7 @@ def dump_to_csv(source, csvfile, keys, min_time=None, max_time=None):
             raise Exception(msg % (message['name'], message_list[0]['name']))
 
     # Copy message fields into array.
-    with open(csvfile, 'wb') as f:
+    with open(csv_file, 'wb') as f:
         csv_writer = csv.writer(f)
         for message in message_list:
             try:
