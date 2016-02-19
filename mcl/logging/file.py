@@ -24,10 +24,8 @@ import textwrap
 import subprocess
 
 from mcl import MCL_ROOT
+import mcl.network.network
 import mcl.message.messages
-from mcl.message.messages import Message
-from mcl.network.network import QueuedListener
-from mcl.message.messages import get_message_objects
 
 
 class DumpConstants(object):
@@ -774,7 +772,7 @@ class ReadFile(DumpConstants):
                         break
 
                     # Convert dictionary data into an MCL message type.
-                    message = get_message_objects(message['name'])(message)
+                    message = mcl.message.messages.get_message_objects(message['name'])(message)
 
                 # Package up data in a dictionary
                 message = {'elapsed_time': elapsed_time,
@@ -888,7 +886,7 @@ class ReadFile(DumpConstants):
         if self.__message:
             line = line.replace(self.COMMENT_CHARACTER, '')
             message_name = line.replace(self.BROADCAST_MARKER, '').strip()
-            message = get_message_objects(message_name)
+            message = mcl.message.messages.get_message_objects(message_name)
         else:
             message = None
 
@@ -1057,7 +1055,7 @@ class FileDump(object):
 
         # List of messages.
         if (isinstance(messages, (list, tuple)) and
-            all(issubclass(c, Message) for c in messages)):
+            all(issubclass(c, mcl.message.messages.Message) for c in messages)):
             self.__message = True
             self.__messages = messages
 
@@ -1158,7 +1156,7 @@ class FileDump(object):
                 name = message.__name__
 
                 # Create queued listener.
-                self.__listeners[message] = QueuedListener(message.connection)
+                self.__listeners[message] = mcl.network.network.QueuedListener(message.connection)
 
                 # Create file logger.
                 filename = os.path.join(directory, name)
