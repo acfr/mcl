@@ -46,10 +46,7 @@ import socket
 import struct
 import msgpack
 import threading
-
-from mcl.network.abstract import Connection as AbstractConnection
-from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
-from mcl.network.abstract import RawListener as AbstractRawListener
+import mcl.network.abstract
 
 
 # Use a fixed port number for all UDP messages. Specify maximum transmission
@@ -64,7 +61,7 @@ MTU_MAX = 65000
 READ_TIMEOUT = 200
 
 
-class RawBroadcaster(AbstractRawBroadcaster):
+class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
     """Send data over the network using a UDP socket.
 
     The :py:class:`.RawBroadcaster` object allows data to be published over a
@@ -249,7 +246,7 @@ class RawBroadcaster(AbstractRawBroadcaster):
             return False
 
 
-class RawListener(AbstractRawListener):
+class RawListener(mcl.network.abstract.RawListener):
     """Receive data from the network using a UDP socket.
 
     The :py:class:`.RawListener` object subscribes to a UDP socket and issues
@@ -555,7 +552,7 @@ class RawListener(AbstractRawListener):
             return False
 
 
-class Connection(AbstractConnection):
+class Connection(mcl.network.abstract.Connection):
     """Object for encapsulating UDP connection parameters.
 
     Args:

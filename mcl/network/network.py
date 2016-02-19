@@ -9,13 +9,10 @@ import Queue
 import datetime
 import threading
 import multiprocessing
-from threading import Thread
-from multiprocessing import Process
 
+import mcl.event.event
+import mcl.network.abstract
 import mcl.message.messages
-from mcl.event.event import Event
-from mcl.message.messages import Message
-from mcl.network.abstract import Connection as AbstractConnection
 
 # Time to wait for threads and processes to start/stop. This parameter could be
 # exposed to the user. Currently it is viewed as an unnecessary tuning
@@ -60,7 +57,7 @@ def RawBroadcaster(connection, topic=None):
     """
 
     # Ensure the connection object is properly specified.
-    if not isinstance(connection, AbstractConnection):
+    if not isinstance(connection, mcl.network.abstract.Connection):
         msg = "The argument 'connection' must be an instance of a "
         msg += "Connection()."
         raise TypeError(msg)
@@ -91,7 +88,7 @@ def RawListener(connection, topics=None):
     """
 
     # Ensure the connection object is properly specified.
-    if not isinstance(connection, AbstractConnection):
+    if not isinstance(connection, mcl.network.abstract.Connection):
         msg = "The argument 'connection' must be an instance of a "
         msg += "Connection()."
         raise TypeError(msg)
@@ -125,7 +122,7 @@ class MessageBroadcaster(object):
     def __new__(cls, message, topic=None):
 
         # Ensure 'message' is a Message() object.
-        if not issubclass(message, Message):
+        if not issubclass(message, mcl.message.messages.Message):
             msg = "'message' must reference a Message() sub-class."
             raise TypeError(msg)
 
@@ -197,7 +194,7 @@ class MessageListener(object):
     def __new__(cls, message, topics=None):
 
         # Ensure 'message' is a Message() object.
-        if not issubclass(message, Message):
+        if not issubclass(message, mcl.message.messages.Message):
             msg = "'message' must reference a Message() sub-class."
             raise TypeError(msg)
 
@@ -237,7 +234,7 @@ class MessageListener(object):
         return MessageListener(message.connection, topics=topics)
 
 
-class QueuedListener(Event):
+class QueuedListener(mcl.event.event.Event):
     """Open a broadcast address and listen for data.
 
     The :py:class:`.QueuedListener` object subscribes to a network
@@ -441,15 +438,15 @@ class QueuedListener(Event):
 
             # Create THREAD for dequeueing and publishing data.
             self.__reader_run_event.clear()
-            self.__reader = Thread(target=self.__dequeue)
+            self.__reader = threading.Thread(target=self.__dequeue)
 
             # Create PROCESS for enqueueing data.
             self.__writer_run_event.clear()
-            self.__writer = Process(target=self.__enqueue,
-                                    args=(self.__class__.__name__,
-                                          self.__writer_run_event,
-                                          self.__connection,
-                                          self.__queue,))
+            self.__writer = multiprocessing.Process(target=self.__enqueue,
+                                                    args=(self.__class__.__name__,
+                                                          self.__writer_run_event,
+                                                          self.__connection,
+                                                          self.__queue,))
 
             # Start asynchronous objects and wait for them to become alive.
             self.__writer.daemon = True
