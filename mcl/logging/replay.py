@@ -61,10 +61,8 @@ import time
 import Queue
 import threading
 import multiprocessing
-from threading import Thread
-from multiprocessing import Process
-from mcl.message.messages import Message
-from mcl.network.network import MessageBroadcaster
+import mcl.network.network
+import mcl.message.messages
 
 
 def _set_process_name(name):
@@ -242,12 +240,12 @@ class BufferData(object):
             self.__run_event.set()
             self.__is_ready.clear()
             self.__is_data_pending.set()
-            self.__buffer_worker = Process(target=self.__buffer_data,
-                                           args=(self.__run_event,
-                                                 self.__queue,
-                                                 self.__resource,
-                                                 self.__is_ready,
-                                                 self.__is_data_pending,))
+            self.__buffer_worker = multiprocessing.Process(target=self.__buffer_data,
+                                                           args=(self.__run_event,
+                                                                 self.__queue,
+                                                                 self.__resource,
+                                                                 self.__is_ready,
+                                                                 self.__is_data_pending,))
             self.__buffer_worker.daemon = True
             self.__buffer_worker.start()
 
@@ -378,7 +376,7 @@ class BufferData(object):
                             raise NameError(msg % key)
 
                     # Ensure payload is an MCL message.
-                    if not issubclass(type(data['message']), Message):
+                    if not issubclass(type(data['message']), mcl.message.messages.Message):
                         msg = "dict['message'] must be an MCL message."
                         raise TypeError(msg)
 
@@ -497,10 +495,10 @@ class ScheduleBroadcasts(object):
         if not self.is_alive():
 
             self.__run_event.set()
-            self.__worker = Thread(target=self.__inject,
-                                    args=(self.__run_event,
-                                          self.__queue,
-                                          self.__speed,))
+            self.__worker = threading.Thread(target=self.__inject,
+                                             args=(self.__run_event,
+                                                   self.__queue,
+                                                   self.__speed,))
             self.__worker.daemon = True
             self.__worker.start()
 
@@ -598,8 +596,8 @@ class ScheduleBroadcasts(object):
                     # Create a list of active broadcasters as required.
                     key = (type(message), topic)
                     if key not in broadcasters:
-                        broadcasters[key] = MessageBroadcaster(type(message),
-                                                               topic=topic)
+                        broadcasters[key] = mcl.network.network.MessageBroadcaster(type(message),
+                                                                                   topic=topic)
 
                 # Queue read timed out. Possibly no more data left in queue.
                 except Queue.Empty:

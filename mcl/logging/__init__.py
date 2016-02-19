@@ -5,6 +5,7 @@
     :template: detailed.tpl
 
     file
+    replay
     tools
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
