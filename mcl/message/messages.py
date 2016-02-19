@@ -5,11 +5,11 @@
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
+import sets
 import json
 import msgpack
 import datetime
-from sets import Set
-from mcl.network.abstract import Connection as Connection
+import mcl.network.abstract
 
 
 # Globally track Message() definitions. The meta-class _RegisterMeta() inserts
@@ -23,25 +23,25 @@ class _MessageMeta(type):
     The :py:class:`._MessageMeta` object is a meta-class designed to
     manufacture MCL :py:class:`.Message` classes. The meta-class works by
     dynamically adding mandatory attributes to a class definition at run time
-    if and ONLY if the class inherits from :py:class:`.Connection`.
+    if and ONLY if the class inherits from :py:class:`.onnection`.
 
     Classes that inherit from :py:class:`.Message` must implement the
-    ``mandatory`` and ``connection`` attributes where:
+    `mandatory` and `connection` attributes where:
 
-        - ``mandatory`` is a list of strings defining the names of mandatory
+        - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
           :py:class:`.Message` objects are created. During instantiation the
           input list *args is mapped to the attributes defined by
-          ``mandatory``. If ``mandatory`` is not present, a TypeError will be
-          raised.
+          `mandatory`. If `mandatory` is not present, a :py:exc:`.TypeError`
+          will be raised.
 
-        - ``connection`` is an instance of a :py:class:`.Connection` object
+        - `connection` is an instance of a :py:class:`.Connection` object
           specifying where the message can be broadcast and received.
 
     The meta-class also maintains a global register of :py:class:`.Message`
-    sub-classes. :py:class:`.Message` subclasses are added to the register when
-    they are defined. During this process :py:class:`._MessageMeta` checks to
-    see if a :py:class:`.Message` class with the same name has already been
+    sub-classes. :py:class:`.Message` sub-classes are added to the register
+    when they are defined. During this process :py:class:`._MessageMeta` checks
+    to see if a :py:class:`.Message` class with the same name has already been
     defined.
 
     Note that the list of :py:class:`.Message` sub-classes can be acquired by
@@ -60,7 +60,7 @@ class _MessageMeta(type):
         TypeError: If a :py:class:`.Message` object with the same name already
             exists.
         TypeError: If the parent class is a :py:class:`.Message` object and
-            ``mandatory`` is ill-specified.
+            `mandatory` is ill-specified.
 
     """
 
@@ -69,20 +69,20 @@ class _MessageMeta(type):
 
         Manufacture a Message class for objects inheriting from
         :py:class:`.Message`. This is done by searching the input dictionary
-        ``dct`` for the keys ``mandatory`` and ``connection`` where:
+        `dct` for the keys `mandatory` and `connection` where:
 
-            - ``mandatory`` is a list of strings defining the names of
-              mandatory message attributes that must be present when instances
-              of the new :py:class:`.Message` objects are created. During
-              instantiation the input list *args is mapped to the attributes
-              defined by ``mandatory``. If ``mandatory`` is not present, a
-              TypeError will be raised.
+            - `mandatory` is a list of strings defining the names of mandatory
+              message attributes that must be present when instances of the new
+              :py:class:`.Message` object are created. During instantiation the
+              input list *args is mapped to the attributes defined by
+              `mandatory`. If `mandatory` is not present, a
+              :py:exc:`.TypeError` will be raised.
 
-            - ``connection`` is an instance of a :py:class:`.Connection` object
+            - `connection` is an instance of a :py:class:`.Connection` object
               specifying where the message can be broadcast and received.
 
         A new message class is manufactured using the definition specified by
-        the attribute ``mandatory``. The property 'mandatory' is attached to
+        the attribute `mandatory`. The property 'mandatory' is attached to
         the returned class.
 
         Args:
@@ -93,15 +93,15 @@ class _MessageMeta(type):
 
         Returns:
             :py:class:`.Message`: sub-class of :py:class:`.Message` with
-                mandatory attributes defined by the original ``mandatory``
+                mandatory attributes defined by the original `mandatory`
                 attribute.
 
         Raises:
-            NameError: If the ``name`` is message or a :py:class:`.Message`
+            NameError: If the `name` is message or a :py:class:`.Message`
                 subclass with the same name already exists.
-            TypeError: If the ``mandatory`` or ``connection`` attributes are
+            TypeError: If the `mandatory` or `connection` attributes are
                 ill-specified.
-            ValueError: If the ``mandatory`` attribute contains the words
+            ValueError: If the `mandatory` attribute contains the words
                 `mandatory` or `connection`.
 
         """
@@ -136,7 +136,7 @@ class _MessageMeta(type):
             raise TypeError(msg)
 
         # Ensure the connection object is properly specified.
-        if not isinstance(connection, Connection):
+        if not isinstance(connection, mcl.network.abstract.Connection):
             msg = "The argument 'connection' must be an instance of a "
             msg += "Connection() subclass."
             raise TypeError(msg)
@@ -186,25 +186,15 @@ class Message(dict):
 
     The :py:class:`.Message` object provides a base class for defining MCL
     message objects. Objects inheriting from :py:class:`.Message` must
-    implement the attribute ``mandatory`` where:
+    implement the attribute `mandatory` where:
 
-        - ``mandatory`` is a list of strings defining the names of mandatory
+        - `mandatory` is a list of strings defining the names of mandatory
           connection parameters that must be present when instances of the new
-          :py:class:`.Connection` object are created. If ``mandatory`` is not
+          :py:class:`.Connection` object are created. If `mandatory` is not
           present, a TypeError will be raised.
 
     These attributes define a message format and allow :py:class:`.Message` to
     manufacture a message class adhering to the specified definition.
-
-    Example usage::
-
-        # Define new connection object.
-        class ExampleMessage(Message):
-            mandatory = ('A', 'B')
-
-        # Instantiate empty object.
-        example = ExampleMessage()
-        print example
 
     Raises:
         TypeError: If any of the input argument are invalid.
@@ -225,7 +215,7 @@ class Message(dict):
         self.update(*args, **kwargs)
 
         # Ensure the message adheres to specification.
-        if not Set(self.keys()).issuperset(Set(self.mandatory)):
+        if not sets.Set(self.keys()).issuperset(sets.Set(self.mandatory)):
             msg = "'%s' must have the following items: [" % self['name']
             msg += ', '.join(self.mandatory)
             msg += '].'
@@ -301,7 +291,7 @@ class Message(dict):
             if type(dct) is dict:
 
                 # Check if mandatory attributes are missing.
-                missing = Set(self.mandatory) - Set(dct.keys())
+                missing = sets.Set(self.mandatory) - sets.Set(dct.keys())
 
                 # Decode was successful.
                 if not missing:
@@ -346,9 +336,6 @@ class Message(dict):
         If keyword arguments are given, the keyword arguments and their values
         are used to update the contents of the message
 
-        To illustrate, the following examples all update the message in the
-        same manner:
-
         If the key 'timestamp' is present in the input, the timestamp of the
         message is set to the input value. If no 'timestamp' value is
         specified, the CPU time-stamp, in milliseconds from UTC epoch, at the
@@ -356,10 +343,7 @@ class Message(dict):
 
         Args:
             *args (list): positional arguments
-            *jags (dict): keyword arguments.
-
-        Returns:
-            dict: unpacked message contents.
+            *kwargs (dict): keyword arguments.
 
         Raises:
             TypeError: If the message contents could not be updated.
@@ -422,8 +406,9 @@ def remove_message_object(name):
         name (string): Name of message object to de-register.
 
     Returns:
-        bool: ``True`` if the Message() object was de-registered. ``False`` if
-            the Message() object does not exist.
+        bool: :py:data:`.True` if the Message() object was
+            de-registered. :py:data:`.False` if the Message() object does not
+            exist.
 
     """
 
@@ -490,18 +475,20 @@ def get_message_objects(names):
     """Return message object(s) from name(s).
 
     Args:
-        name (string or list): A single (string) or multiple (list/tuple of
-            strings) message object name(s) to retrieve.
+        name (:py:obj:`python:string` or :py:obj:`python:list`): The name (as a
+            string) of a single message object to retrieve. To retrieve
+            multiple message objects, input a list containing the object names.
 
     Returns:
-        :py:class:`.Message` or list: If a single message object is requested
-            (string input), the requested message object is returned. If
-            multiple message objects are requested, a list of message objects
-            is returned.
+
+        Message or list: If a single message object is requested (string
+            input), the requested py:class:`.Message` is returned. If multiple
+            message objects are requested (list input), a list of message
+            objects is returned.
 
     Raises:
-        TypeError: If ``names`` is not a string or list/tuple of strings.
-        NameError: If ``names`` does not exist or multiple message objects are
+        TypeError: If `names` is not a string or list/tuple of strings.
+        NameError: If `names` does not exist or multiple message objects are
             found.
 
     """

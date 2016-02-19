@@ -1,4 +1,4 @@
-"""Specification of MCL message objects.
+"""Modules for specifying and manipulating MCL message objects.
 
 .. autosummary::
     :toctree: ./
