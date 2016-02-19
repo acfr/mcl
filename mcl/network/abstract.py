@@ -1,29 +1,29 @@
 """Module specifying interface for publishing and receiving data in MCL.
 
 This module defines an interface for publishing and receiving data to network
-interfaces in MCL. This is done by providing abstract objects for
-broadcasting and listening for data. The following abstract objects are defined
-and ensure network interfaces can be integrated into MCL:
+interfaces in MCL. This is done by providing abstract objects for broadcasting
+and listening for data. The interface defined by these objects helps insure new
+interface implementations will integrate with MCL.
+
+The following abstract objects are defined:
 
     - :py:class:`.Connection`
     - :py:class:`.RawBroadcaster`
     - :py:class:`.RawListener`
 
 For examples of how to use :py:mod:`.abstract` to integrate a new network
-interface into MLC see :py:mod:`.network.udp`.
+interface into MCL see :py:mod:`.network.udp`.
 
+.. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 
 """
 import abc
-from abc import abstractmethod
-from abc import abstractproperty
-from mcl.event.event import Event
-
+import sys
+import keyword
+import operator
 import textwrap
-import sys as _sys
-from keyword import iskeyword as _iskeyword
-from operator import itemgetter as _itemgetter
+import mcl.event.event
 
 
 class _ConnectionMeta(type):
@@ -190,7 +190,7 @@ class _ConnectionMeta(type):
                 msg += 'alphanumeric characters and underscores: %r'
                 raise ValueError(msg % attr)
 
-            if _iskeyword(attr):
+            if keyword.iskeyword(attr):
                 msg = 'Type names and field names cannot be a keyword: %r'
                 raise ValueError(msg % attr)
 
@@ -334,7 +334,7 @@ class _ConnectionMeta(type):
 
         # Add properties (read-only access).
         for i, attr in enumerate(attrs):
-            dct[attr] = property(_itemgetter(i))
+            dct[attr] = property(operator.itemgetter(i))
 
         # Create object.
         obj = super(_ConnectionMeta, cls).__new__(cls, name, bases, dct)
@@ -342,9 +342,9 @@ class _ConnectionMeta(type):
         # For pickling to work, the __module__ variable needs to be set to the
         # frame where the named tuple is created.  Bypass this step in
         # enviroments where sys._getframe is not defined (Jython for example).
-        if hasattr(_sys, '_getframe'):
-            obj.__module__ = _sys._getframe(1).f_globals.get('__name__',
-                                                             '__main__')
+        if hasattr(sys, '_getframe'):
+            obj.__module__ = sys._getframe(1).f_globals.get('__name__',
+                                                            '__main__')
 
         return obj
 
@@ -455,11 +455,11 @@ class RawBroadcaster(object):
     def topic(self):
         return self.__topic
 
-    @abstractproperty
+    @abc.abstractproperty
     def is_open(self):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def _open(self):
         """Virtual: Open connection to network interface.
 
@@ -471,7 +471,7 @@ class RawBroadcaster(object):
         """
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def publish(self, data):
         """Virtual: Send data over network interface.
 
@@ -481,7 +481,7 @@ class RawBroadcaster(object):
         """
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def close(self):
         """Virtual: Close connection to network interface.
 
@@ -494,7 +494,7 @@ class RawBroadcaster(object):
         pass
 
 
-class RawListener(Event):
+class RawListener(mcl.event.event.Event):
     """Abstract base class for receiving data over a network interface.
 
     The :py:class:`.RawListener` is an abstract base class designed to provide
@@ -559,11 +559,11 @@ class RawListener(Event):
     def topics(self):
         return self.__topics
 
-    @abstractproperty
+    @abc.abstractproperty
     def is_open(self):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def _open(self):
         """Virtual: Open connection to network interface.
 
@@ -575,7 +575,7 @@ class RawListener(Event):
         """
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def close(self):
         """Virtual: Close connection to network interface.
 
