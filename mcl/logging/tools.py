@@ -16,8 +16,7 @@ import os
 import csv
 import numpy as np
 import collections
-from mcl.logging.file import ReadFile
-from mcl.logging.file import ReadDirectory
+import mcl.logging.file
 
 
 def dump_to_list(source, min_time=None, max_time=None, message=False):
@@ -57,15 +56,15 @@ def dump_to_list(source, min_time=None, max_time=None, message=False):
     # Create object for reading a directory of network logs in time order.
     try:
         if os.path.isdir(source):
-            dumps = ReadDirectory(source,
-                                  min_time=min_time,
-                                  max_time=max_time,
-                                  message=message)
+            dumps = mcl.logging.file.ReadDirectory(source,
+                                                   min_time=min_time,
+                                                   max_time=max_time,
+                                                   message=message)
         else:
-            dumps = ReadFile(source,
-                             min_time=min_time,
-                             max_time=max_time,
-                             message=message)
+            dumps = mcl.logging.file.ReadFile(source,
+                                              min_time=min_time,
+                                              max_time=max_time,
+                                              message=message)
     except:
         raise
 
