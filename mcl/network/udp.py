@@ -1,24 +1,27 @@
 """Module for publishing data to a network using UDP sockets.
 
-This module provides an interface between UDP sockets and
-:py:class:`.Publisher` objects. Messages are transmitted using IPv6 `multicasts
+This module provides an interface for publishing data over UDP
+sockets. Messages are transmitted using IPv6 `multicasts
 <http://en.wikipedia.org/wiki/Multicast>`_. Note that this module inherits the
-disadvantages of UDP. That is, there is no guarantee of delivery, ordering, or
+advantages and disadvantages of UDP. That is UDP allows connectionless,
+low-latency broadcasts but there is no guarantee of delivery, ordering, or
 duplicate protection.
 
-.. warning::
+.. note::
 
-    A bug introduced into the `linux kernel
-    <https://github.com/torvalds/linux/commit/efe4208f47f907>`_ prevents IPv6
-    multicast packets from reaching the destination sockets under certain
-    conditions. This is believed to affect linux `kernels 3.13 to 3.15`. The
-    regression was `fixed
-    <https://github.com/torvalds/linux/commit/3bfdc59a6c24608ed23e903f670aaf5f58c7a6f3>`_
-    and should not be present in recent kernels.
+    To use IPv6 multicast, a connected network interface must exist on the
+    system. If no interface is available, linux systems can be configured to
+    work offline with the following:
+
+    .. code-block:: bash
+
+         sudo modprobe dummy
+         sudo ip -6 addr add fd34::1/64 dev dummy0
 
 .. note::
 
     It is advised to increase the UDP kernel buffer size:
+
         http://lcm.googlecode.com/svn/www/reference/lcm/multicast.html
 
     In linux, a temporary method (does not persist across reboots) of
@@ -34,6 +37,16 @@ duplicate protection.
 
         net.core.rmem_max=2097152
         net.core.rmem_default=2097152
+
+.. warning::
+
+    A bug introduced into the `linux kernel
+    <https://github.com/torvalds/linux/commit/efe4208f47f907>`_ prevents IPv6
+    multicast packets from reaching the destination sockets under certain
+    conditions. This is believed to affect linux `kernels 3.13 to 3.15`. The
+    regression was `fixed
+    <https://github.com/torvalds/linux/commit/3bfdc59a6c24608ed23e903f670aaf5f58c7a6f3>`_
+    and should not be present in recent kernels.
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Stewart Worrall <s.worrall@acfr.usyd.edu.au>
