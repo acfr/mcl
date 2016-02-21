@@ -42,7 +42,7 @@ Your favourite IDE or `editor <http://en.wikipedia.org/wiki/Editor_war>`_ can
 help you adhere to the PEP8_ guidelines. This can be done by configuring a code
 checking tool to check your Python code. The tool **pep8.py** checks python code
 against some of the style conventions in PEP8_.  You can install, upgrade or
-uninstall `pep8.py` with these commands::
+uninstall `pep8.py` with these commands:
 
 .. code-block:: bash
 
@@ -129,23 +129,25 @@ API documentation tools.
 
 Although sphinx-apidoc_ provides an 'automagic' mechanism for documentation, it
 is difficult to override its behaviour and format the look and feel of the
-documentation it produces. To allow for more control over the look and feel of
+documentation it produces. To allow for more control over the presentation of
 the |MCL| documentation, the structure is specified explicitly. Although this
 approach requires more supervision, the 'heavy lifting' is still done by
 autodoc_ and autosummary_.
 
-The Sphinx_ structure is set out in the ``MCL/doc/source`` directory. The master
-document, ``index.rst``, serves as a welcome page and contains the root of the
-"table of contents tree" (or toctree) - linking to additional
-documentation. Sphinx_ configurations can be found in ``conf.py``.
+The Sphinx_ structure is set out in the ``doc/source`` directory. The master
+document, ``doc/source/index.rst``, serves as a welcome page and contains the
+root of the "table of contents tree" (or toctree) - linking to additional
+documentation. The Sphinx_ configuration can be found in ``doc/source/conf.py``.
 
 Learning how to extend the documentation is best done by studying the structure
-defined in the ``MCL/doc/source`` directory. Modification to the structure will
-only be necessary if new packages are created or if it is necessary to insert
-additional documentation (new pages not related to the source code).
-Modifications to existing packages, including the creation of new modules, will
-not require changes to the documentation source files. These changes will be
-handled by autodoc_ and autosummary_.
+defined in the ``doc/source`` directory. There are two points within the
+documentation that require maintenance. The master document,
+``doc/source/index.rst``, needs to be updated every time a new package is
+created. If new modules are added to an existing package, the package
+``__init__.py`` file must be updated to include the new module. Modifications to
+existing modules do not require any maintenance - these changes will be handled
+by autodoc_ and autosummary_.
+
 
 .. rubric:: Footnotes
 
