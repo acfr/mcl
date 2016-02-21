@@ -1,9 +1,9 @@
-"""Module specifying interface for publishing and receiving data in MCL.
+"""Interface specification for publishing and receiving data in MCL.
 
-This module defines an interface for publishing and receiving data to network
-interfaces in MCL. This is done by providing abstract objects for broadcasting
-and listening for data. The interface defined by these objects helps insure new
-interface implementations will integrate with MCL.
+This module defines an interface for publishing and receiving data in MCL. This
+is done by providing abstract objects for broadcasting and listening for
+data. The interface defined by these objects helps insure new interface
+implementations will integrate with MCL.
 
 The following abstract objects are defined:
 
@@ -36,30 +36,30 @@ class _ConnectionMeta(type):
     :py:class:`.Connection`.
 
     Classes that inherit from :py:class:`.Connection` must implement the
-    attributes ``mandatory``, ``broadcaster`` and ``listener`` where:
+    attributes `mandatory`, `broadcaster` and `listener` where:
 
-        - ``mandatory`` is a list of strings defining the names of mandatory
+        - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
           :py:class:`.Message` objects are created. During instantiation the
           input list *args is mapped to the attributes defined by
-          ``mandatory``. If ``mandatory`` is not present, a TypeError will be
+          `mandatory`. If `mandatory` is not present, a TypeError will be
           raised.
 
-        - ``broadcaster`` is a reference to the :py:class:`.RawBroadcaster`
+        - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
           object associated with the :py:class:`.Connection` object.
 
-        - ``listener`` is a reference to the :py:class:`.RawListener` object
+        - `listener` is a reference to the :py:class:`.RawListener` object
           associated with the :py:class:`.Connection` object.
 
     Classes that inherit from :py:class:`.Connection` can optionally implement
-    the ``optional`` attribute where:
+    the `optional` attribute where:
 
-        - ``optional`` is a dictionary of optional connection parameters and
+        - `optional` is a dictionary of optional connection parameters and
           their defaults. Keywords represent attribute names and the
           corresponding value represents the default value. During
-          instantiation of the new Connection object, the input dictionary
-          **kwargs is mapped to the attributes defined by
-          ``optional``.
+          instantiation of the new Connection object, **kwargs is mapped to the
+          attributes defined by `optional`. Note that `optional` is not
+          required.
 
     These attributes are used to manufacture an object to contain the
     definition. See :py:class:`.Connection` for implementation detail.
@@ -81,27 +81,27 @@ class _ConnectionMeta(type):
 
         Manufacture a network interface class for objects inheriting from
         :py:class:`.Connection`. This is done by searching the input dictionary
-        ``dct`` for the keys ``mandatory`` and ``optional`` where:
+        `dct` for the keys `mandatory` and `optional` where:
 
-            - ``mandatory`` is a list of strings defining the names of
+            - `mandatory` is a list of strings defining the names of
               mandatory message attributes that must be present when instances
               of the new :py:class:`.Message` objects are created. During
               instantiation the input list *args is mapped to the attributes
-              defined by ``mandatory``. If ``mandatory`` is not present, a
+              defined by `mandatory`. If `mandatory` is not present, a
               TypeError will be raised.
 
-            - ``broadcaster`` is a reference to the :py:class:`.RawBroadcaster`
+            - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
               object associated with the :py:class:`.Connection` object.
 
-            - ``listener`` is a reference to the :py:class:`.RawListener`
+            - `listener` is a reference to the :py:class:`.RawListener`
               object associated with the :py:class:`.Connection` object.
 
-            - ``optional`` is a dictionary of optional connection parameters
+            - `optional` is a dictionary of optional connection parameters
               and their defaults. Keywords represent attribute names and the
               corresponding value represents the default value. During
               instantiation of the new Connection object, the input dictionary
               **kwargs is mapped to the attributes defined by
-              ``optional``. ``optional`` is not required.
+              `optional`. `optional` is not required.
 
         A new connection class is manufactured using the definition specified
         by the attributes. Note that none of the attribute names can be set to
@@ -115,8 +115,8 @@ class _ConnectionMeta(type):
 
         Returns:
             :py:class:`.Connection`: sub-class of :py:class:`.Connection` with
-                attributes defined by the original ``mandatory`` and
-                ``optional`` attributes.
+                attributes defined by the original `mandatory` and
+                `optional` attributes.
 
         Raises:
             TypeError: If the mandatory or optional attributes are
@@ -354,44 +354,71 @@ class Connection(tuple):
 
     The :py:class:`.Connection` object provides a base class for defining MCL
     network interface connection objects.  Classes that inherit from
-    :py:class:`.Connection` must implement the attributes ``mandatory``,
-    ``broadcaster`` and ``listener`` where:
+    :py:class:`.Connection` **must** implement the attributes `mandatory`,
+    `broadcaster` and `listener` where:
 
-        - ``mandatory`` is a list of strings defining the names of mandatory
+        - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
           :py:class:`.Message` objects are created. During instantiation the
           input list *args is mapped to the attributes defined by
-          ``mandatory``. If ``mandatory`` is not present, a TypeError will be
+          `mandatory`. If `mandatory` is not present, a TypeError will be
           raised.
 
-        - ``broadcaster`` is a reference to the :py:class:`.RawBroadcaster`
+        - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
           object associated with the :py:class:`.Connection` object.
 
-        - ``listener`` is a reference to the :py:class:`.RawListener` object
+        - `listener` is a reference to the :py:class:`.RawListener` object
           associated with the :py:class:`.Connection` object.
 
+    Classes that inherit from :py:class:`.Connection` can **optionally**
+    implement the attribute `optional` where:
+
+        - `optional` is a dictionary of optional connection parameters and
+          their defaults. Keywords represent attribute names and the
+          corresponding value represents the default value. During
+          instantiation of the new Connection object, **kwargs is mapped to the
+          attributes defined by `optional`.
+
     These attributes form the definition of the network interface connection
-    and allow :py:class:`.Connection` to manufacture a connection class with
-    these attributes.
+    and allow :py:class:`.Connection` to manufacture a connection class
+    adhering to the specified definition. Note that none of the attribute names
+    can be set to `mandatory`, `broadcaster`, `listener` or `optional`.
 
-    These attributes define a network interface connection and allow
-    :py:class:`.Connection` to manufacture a connection class adhering to the
-    specified definition.
+    Example usage:
 
-    Example usage::
+    .. testcode::
 
-        # Define new connection object (RawBroadcaster/Listener used for
-        # illustration - these are abstract objects).
+        from mcl.network.abstract import Connection
+        from mcl.network.abstract import RawListener
+        from mcl.network.abstract import RawBroadcaster
+
+        # Define new connection object WITH NO optional parameters (abstract
+        # RawBroadcaster/Listener used for illustration).
+        class ExampleConnection(Connection):
+            mandatory = ('A',)
+            broadcaster = RawBroadcaster
+            listener = RawListener
+
+        # Instantiate connection object.
+        example = ExampleConnection('A')
+        print example
+
+        # Define new connection object WITH optional parameters.
         class ExampleConnection(Connection):
             mandatory = ('A',)
             optional  = {'B': 1, 'C': 2, 'D': 3}
             broadcaster = RawBroadcaster
             listener = RawListener
 
-        # Instantiate object.
+        # Instantiate connection object.
         example = ExampleConnection('A', D=5)
-        print example.A
         print example
+
+    .. testoutput::
+       :hide:
+
+       ExampleConnection(A='A')
+       ExampleConnection(A='A', C=2, B=1, D=5)
 
     Raises:
         TypeError: If the mandatory or optional attributes are ill-specified.
