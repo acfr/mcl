@@ -30,9 +30,10 @@ class _ConnectionMeta(type):
     """Meta-class for manufacturing network interface connection objects.
 
     The :py:class:`._ConnectionMeta` object is a meta-class designed to
-    manufacture MCL network interface :py:class:`.Connection` classes. The
-    meta-class works by dynamically adding mandatory and optional attributes to
-    a class definition at run time if and ONLY if the class inherits from
+    manufacture MCL network interface :py:class:`.Connection`
+    classes. Connection objects behave like namedtuples. The meta-class works
+    by dynamically adding mandatory and optional attributes to a class
+    definition at run time if and ONLY if the class inherits from
     :py:class:`.Connection`.
 
     Classes that inherit from :py:class:`.Connection` must implement the
@@ -381,8 +382,15 @@ class Connection(tuple):
 
     These attributes form the definition of the network interface connection
     and allow :py:class:`.Connection` to manufacture a connection class
-    adhering to the specified definition. Note that none of the attribute names
-    can be set to `mandatory`, `broadcaster`, `listener` or `optional`.
+    adhering to the specified definition. None of the attribute names can be
+    set to `mandatory`, `broadcaster`, `listener` or `optional`.
+
+    :py:class:`.Connection` objects behave like
+    :py:obj:`python:collections.namedtuple` objects. That is,
+    :py:class:`.Connection` objects have fields accessible by attribute lookup
+    as well as being indexable and iterable. However, since
+    :py:class:`.Connection` objects are tuple-like, the data they contain is
+    immutable after instantiation.
 
     Example usage:
 
@@ -415,7 +423,7 @@ class Connection(tuple):
         print example
 
     .. testoutput::
-       :hide:
+
 
        ExampleConnection(A='A')
        ExampleConnection(A='A', C=2, B=1, D=5)
