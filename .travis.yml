@@ -1,10 +1,13 @@
 language: python
 python:
   - "2.7"
-# command to install dependencies
-install: "pip install msgpack-python coverage python-coveralls"
-# command to run tests
-script: nosetests --with-coverage --cover-package=mcl
-# run coverage with coveralls
+
+# Command to install dependencies.
+install: "pip install ."
+
+# Command to run tests.
+script: make test
+
+# Run coverage with coveralls.
 after_script:
   - coveralls

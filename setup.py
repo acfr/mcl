@@ -17,10 +17,12 @@ setup(
     long_description=read('README'),
 
     install_requires=[
+        'Sphinx',               # Tested with 1.3.1
         'coverage',             # Tested with 4.0.3
         'msgpack-python',       # Tested with 0.4.2
+        'nose',                 # Tested with 0.4.1
+        'nose-timer',           # Tested with 0.4.3
         'numpy',                # Tested with 1.9.2
-        'Sphinx',               # Tested with 1.3.1
     ],
 
     packages=['mcl'],
