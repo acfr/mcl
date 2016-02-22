@@ -1,4 +1,30 @@
-"""Module for publishing MCL messages over a network.
+"""Generic interface for publishing and receiving data in MCL.
+
+This module provides generic methods and objects for creating network
+broadcasters and listeners from :py:class:`~.abstract.Connection` or
+:py:class:`.Message` objects. Since the details of interface connections are
+encapsulated by :py:class:`~.abstract.Connection` objects, the specific
+implementation of broadcasters and listeners can be abstracted
+away. Broadcasting and receiving data from MCL networks can be handled by
+generic functions and objects.
+
+The functions and objects provided in this module provide generic tools for
+interacting with MCL network interfaces. The only implementation specific
+objects that need to be used, when writing applications, are
+:py:class:`~.abstract.Connection` objects (e.g. :py:class:`.udp.Connection`).
+
+Generic broadcasters and listeners can be created using a
+:py:class:`~.abstract.Connection` object with the following functions:
+
+    - :py:func:`.RawBroadcaster`
+    - :py:func:`.RawListener`
+
+Similarly, generic *message* broadcasters and listeners can be created using a
+:py:class:`.Message` object with the following objects:
+
+    - :py:class:`.MessageBroadcaster`
+    - :py:class:`.MessageListener`
+    - :py:class:`.QueuedListener`
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>

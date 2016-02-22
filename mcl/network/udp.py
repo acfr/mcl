@@ -1,4 +1,4 @@
-"""Module for publishing data to a network using UDP sockets.
+"""Publish and receive data using UDP sockets.
 
 This module provides an interface for publishing data over UDP
 sockets. Messages are transmitted using IPv6 `multicasts
