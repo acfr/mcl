@@ -18,12 +18,10 @@ clean-pyc:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 
-coverage:
-	nosetests -v --with-coverage --cover-package=mcl
-
 docs:
 	$(MAKE) -C doc html
 	$(MAKE) -C doc doctest
 
 test:
-	nosetests --with-timer --timer-top-n 10 -v mcl/
+	nosetests -v --with-timer --timer-top-n 10 --with-coverage --cover-package=mcl mcl/
+

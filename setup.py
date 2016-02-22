@@ -17,6 +17,7 @@ setup(
     long_description=read('README'),
 
     install_requires=[
+        'coverage',             # Tested with 4.0.3
         'msgpack-python',       # Tested with 0.4.2
         'numpy',                # Tested with 1.9.2
         'Sphinx',               # Tested with 1.3.1
