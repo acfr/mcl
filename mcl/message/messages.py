@@ -35,8 +35,8 @@ class _MessageMeta(type):
           `mandatory`. If `mandatory` is not present, a :py:exc:`.TypeError`
           will be raised.
 
-        - `connection` is an instance of a :py:class:`.Connection` object
-          specifying where the message can be broadcast and received.
+        - `connection` is an instance of a :py:class:`~.abstract.Connection`
+          object specifying where the message can be broadcast and received.
 
     The meta-class also maintains a global register of :py:class:`.Message`
     sub-classes. :py:class:`.Message` sub-classes are added to the register
@@ -78,8 +78,9 @@ class _MessageMeta(type):
               `mandatory`. If `mandatory` is not present, a
               :py:exc:`.TypeError` will be raised.
 
-            - `connection` is an instance of a :py:class:`.Connection` object
-              specifying where the message can be broadcast and received.
+            - `connection` is an instance of a
+              :py:class:`~.abstract.Connection` object specifying where the
+              message can be broadcast and received.
 
         A new message class is manufactured using the definition specified by
         the attribute `mandatory`. The property 'mandatory' is attached to
@@ -190,8 +191,8 @@ class Message(dict):
 
         - `mandatory` is a list of strings defining the names of mandatory
           connection parameters that must be present when instances of the new
-          :py:class:`.Connection` object are created. If `mandatory` is not
-          present, a TypeError will be raised.
+          :py:class:`~.abstract.Connection` object are created. If `mandatory`
+          is not present, a TypeError will be raised.
 
     These attributes define a message format and allow :py:class:`.Message` to
     manufacture a message class adhering to the specified definition.

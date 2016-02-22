@@ -20,16 +20,16 @@ the following fields::
      'message': <:py:class:`.Message` object>}
 
 where:
-    - ``topic`` is the topic that was associated with the message.
-    - ``message``: is the network message, delivered as a MCL
+    - `topic` is the topic that was associated with the message.
+    - `message`: is the network message, delivered as a MCL
       :py:class:`.Message` object.
 
 A process is launched to read the data (stored as dictionaries) from the
 multiprocess queue and broadcast them as if they were occurring in real-time.
 This is done using the :py:class:`.ScheduleBroadcasts` object. The broadcasts
 are scheduled such that they occur in time order and follow the timing
-specified by ``elapsed_time``. A summary of the :py:class:`.NetworkReplay`
-object is shown below::
+specified by `elapsed_time`. A summary of the :py:class:`.NetworkReplay` object
+is shown below::
 
                 Log files                         Broadcasts
                     |                                 ^
@@ -114,14 +114,14 @@ class BufferData(object):
 
     Args:
         reader (obj): Data reader object.
-        length (int): Sets the upperbound limit on the number of items that can
-                      be placed in the queue.
+        length (int): Sets the upper-bound limit on the number of items that
+            can be placed in the queue.
 
     Attributes:
-        queue(multiprocessing.Queue): Queue used to buffer data loaded from the
-                                      log files.
+        queue(:py:class:`python:multiprocessing.Queue`): Queue used to buffer
+            data loaded from the log files.
         length (int): Sets the upperbound limit on the number of items that can
-                      be placed in the queue.
+            be placed in the queue.
 
     Raises:
         TypeError: If any of the inputs are the wrong type.
@@ -178,8 +178,8 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` when all data has been read
-                           from the source or the queue is full otherwise
-                           :data:`False` is returned.
+                from the source or the queue is full otherwise :data:`False` is
+                returned.
 
         """
 
@@ -190,8 +190,7 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if more data is available. If
-                           all data has been read and buffered, :data:`False`
-                           is returned.
+                all data has been read and buffered, :data:`False` is returned.
 
         """
 
@@ -202,8 +201,8 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the object is buffering
-                           data. Returns :data:`False` if the object is NOT
-                           buffering data.
+                data. Returns :data:`False` if the object is NOT buffering
+                data.
 
         """
 
@@ -230,9 +229,8 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if started buffering logged
-                           data. If the logged data is already being buffered,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                data. If the logged data is already being buffered, the request
+                is ignored and the method returns :data:`False`.
 
         """
 
@@ -268,9 +266,8 @@ class BufferData(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if stopped buffering logged
-                           data. If the logged data was not being buffered, the
-                           request is ignored and the method returns
-                           :data:`False`.
+                data. If the logged data was not being buffered, the request is
+                ignored and the method returns :data:`False`.
 
         """
 
@@ -417,19 +414,17 @@ class ScheduleBroadcasts(object):
     re-broadcast over the network. Instead they will be replayed through the
     callbacks specified in the hooks option (on a new thread).
 
-   Args:
+    Args:
         queue(multiprocessing.Queue): Queue used to load buffer messages.
         speed (float): Speed multiplier for data replay. Values greater than
-                       1.0 will result in a faster than real-time
-                       playback. Values less than 1.0 will result in a slower
-                       than real-time playback.
+            1.0 will result in a faster than real-time playback. Values less
+            than 1.0 will result in a slower than real-time playback.
 
     Attributes:
         queue(multiprocessing.Queue): Queue used to load buffer messages.
         speed (float): Speed multiplier for data replay. Values greater than
-                       1.0 will result in a faster than real-time
-                       playback. Values less than 1.0 will result in a slower
-                       than real-time playback.
+            1.0 will result in a faster than real-time playback. Values less
+            than 1.0 will result in a slower than real-time playback.
 
     Raises:
         TypeError: If the any of the inputs are an incorrect type.
@@ -470,8 +465,8 @@ class ScheduleBroadcasts(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the object is broadcasting
-                           data. Returns :data:`False` if the object is NOT
-                           broadcasting data.
+                data. Returns :data:`False` if the object is NOT broadcasting
+                data.
 
         """
 
@@ -485,9 +480,8 @@ class ScheduleBroadcasts(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if started scheduling
-                           broadcasts. If the broadcasts are already being
-                           scheduled, the request is ignored and the method
-                           returns :data:`False`.
+                broadcasts. If the broadcasts are already being scheduled, the
+                request is ignored and the method returns :data:`False`.
 
         """
 
@@ -514,9 +508,8 @@ class ScheduleBroadcasts(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if scheduled broadcasts were
-                           stopped. If the broadcasts are not being scheduled,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                stopped. If the broadcasts are not being scheduled, the request
+                is ignored and the method returns :data:`False`.
 
         """
 
@@ -645,15 +638,13 @@ class Replay(object):
     Args:
         reader (): data reader
         speed (float): Speed multiplier for data replay. Values greater than
-                       1.0 will result in a faster than real-time
-                       playback. Values less than 1.0 will result in a slower
-                       than real-time playback.
+            1.0 will result in a faster than real-time playback. Values less
+            than 1.0 will result in a slower than real-time playback.
 
     Attributes:
         speed (float): Speed multiplier for data replay. Values greater than
-                       1.0 will result in a faster than real-time
-                       playback. Values less than 1.0 will result in a slower
-                       than real-time playback.
+            1.0 will result in a faster than real-time playback. Values less
+            than 1.0 will result in a slower than real-time playback.
 
     Raises:
         IOError: If the log directory does not exist.
@@ -687,8 +678,7 @@ class Replay(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if more data is available. If
-                           all data has been read and buffered, :data:`False`
-                           is returned.
+                all data has been read and buffered, :data:`False` is returned.
 
         """
 
@@ -699,8 +689,8 @@ class Replay(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the object is replaying
-                           data. Returns :data:`False` if the object is NOT
-                           replaying data.
+                data. Returns :data:`False` if the object is NOT replaying
+                data.
 
         """
 
@@ -711,9 +701,8 @@ class Replay(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if started replaying data. If
-                           replay could not be started or is replay is
-                           currently active, the request is ignored and the
-                           method returns :data:`False`.
+                replay could not be started or is replay is currently active,
+                the request is ignored and the method returns :data:`False`.
 
         """
 
@@ -767,8 +756,8 @@ class Replay(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if replay was paused. If replay
-                           is inactive or already paused, the request is
-                           ignored and the method returns :data:`False`.
+                is inactive or already paused, the request is ignored and the
+                method returns :data:`False`.
 
         """
 
@@ -792,8 +781,8 @@ class Replay(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if replay was stopped. If
-                           replay is inactive, the request is ignored and the
-                           method returns :data:`False`.
+                replay is inactive, the request is ignored and the method
+                returns :data:`False`.
 
         """
 

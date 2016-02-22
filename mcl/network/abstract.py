@@ -7,7 +7,7 @@ implementations will integrate with MCL.
 
 The following abstract objects are defined:
 
-    - :py:class:`.Connection`
+    - :py:class:`~.abstract.Connection`
     - :py:class:`.RawBroadcaster`
     - :py:class:`.RawListener`
 
@@ -30,14 +30,14 @@ class _ConnectionMeta(type):
     """Meta-class for manufacturing network interface connection objects.
 
     The :py:class:`._ConnectionMeta` object is a meta-class designed to
-    manufacture MCL network interface :py:class:`.Connection`
+    manufacture MCL network interface :py:class:`~.abstract.Connection`
     classes. Connection objects behave like namedtuples. The meta-class works
     by dynamically adding mandatory and optional attributes to a class
     definition at run time if and ONLY if the class inherits from
-    :py:class:`.Connection`.
+    :py:class:`~.abstract.Connection`.
 
-    Classes that inherit from :py:class:`.Connection` must implement the
-    attributes `mandatory`, `broadcaster` and `listener` where:
+    Classes that inherit from :py:class:`~.abstract.Connection` must implement
+    the attributes `mandatory`, `broadcaster` and `listener` where:
 
         - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
@@ -47,13 +47,13 @@ class _ConnectionMeta(type):
           raised.
 
         - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
-          object associated with the :py:class:`.Connection` object.
+          object associated with the :py:class:`~.abstract.Connection` object.
 
         - `listener` is a reference to the :py:class:`.RawListener` object
-          associated with the :py:class:`.Connection` object.
+          associated with the :py:class:`~.abstract.Connection` object.
 
-    Classes that inherit from :py:class:`.Connection` can optionally implement
-    the `optional` attribute where:
+    Classes that inherit from :py:class:`~.abstract.Connection` can optionally
+    implement the `optional` attribute where:
 
         - `optional` is a dictionary of optional connection parameters and
           their defaults. Keywords represent attribute names and the
@@ -63,15 +63,18 @@ class _ConnectionMeta(type):
           required.
 
     These attributes are used to manufacture an object to contain the
-    definition. See :py:class:`.Connection` for implementation detail.
+    definition. See :py:class:`~.abstract.Connection` for implementation
+    detail.
 
-    Note that classes that do not inherit from :py:class:`.Connection` will be
-    left unmodified. These are the :py:class:`.Connection` object and objects
-    which sub-class a sub-class of :py:class:`.Connection`.
+    Note that classes that do not inherit from
+    :py:class:`~.abstract.Connection` will be left unmodified. These are the
+    :py:class:`~.abstract.Connection` object and objects which sub-class a
+    sub-class of :py:class:`~.abstract.Connection`.
 
     Raises:
-        TypeError: If the parent class is a :py:class:`.Connection` object or
-            any of the mandatory or optional attributes are ill-specified.
+        TypeError: If the parent class is a :py:class:`~.abstract.Connection`
+            object or any of the mandatory or optional attributes are
+            ill-specified.
         ValueError: If any of the mandatory or optional attribute names are
             ill-specified.
 
@@ -81,8 +84,8 @@ class _ConnectionMeta(type):
         """Manufacture a network interface connection class.
 
         Manufacture a network interface class for objects inheriting from
-        :py:class:`.Connection`. This is done by searching the input dictionary
-        `dct` for the keys `mandatory` and `optional` where:
+        :py:class:`~.abstract.Connection`. This is done by searching the input
+        dictionary `dct` for the keys `mandatory` and `optional` where:
 
             - `mandatory` is a list of strings defining the names of
               mandatory message attributes that must be present when instances
@@ -92,10 +95,11 @@ class _ConnectionMeta(type):
               TypeError will be raised.
 
             - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
-              object associated with the :py:class:`.Connection` object.
+              object associated with the :py:class:`~.abstract.Connection`
+              object.
 
-            - `listener` is a reference to the :py:class:`.RawListener`
-              object associated with the :py:class:`.Connection` object.
+            - `listener` is a reference to the :py:class:`.RawListener` object
+              associated with the :py:class:`~.abstract.Connection` object.
 
             - `optional` is a dictionary of optional connection parameters
               and their defaults. Keywords represent attribute names and the
@@ -106,7 +110,7 @@ class _ConnectionMeta(type):
 
         A new connection class is manufactured using the definition specified
         by the attributes. Note that none of the attribute names can be set to
-        *mandatory*, *broadcaster* or *listener*.
+        `mandatory`, `broadcaster` or `listener`.
 
         Args:
           cls (class): is the class being instantiated.
@@ -115,9 +119,9 @@ class _ConnectionMeta(type):
           dct (dict): dictionary mapping the class attribute names to objects.
 
         Returns:
-            :py:class:`.Connection`: sub-class of :py:class:`.Connection` with
-                attributes defined by the original `mandatory` and
-                `optional` attributes.
+            :py:class:`~.abstract.Connection`: sub-class of
+                :py:class:`~.abstract.Connection` with attributes defined by
+                the original `mandatory` and `optional` attributes.
 
         Raises:
             TypeError: If the mandatory or optional attributes are
@@ -353,44 +357,44 @@ class _ConnectionMeta(type):
 class Connection(tuple):
     """Base class for MCL network interface connection objects.
 
-    The :py:class:`.Connection` object provides a base class for defining MCL
-    network interface connection objects.  Classes that inherit from
-    :py:class:`.Connection` **must** implement the attributes `mandatory`,
-    `broadcaster` and `listener` where:
+    The :py:class:`~.abstract.Connection` object provides a base class for
+    defining MCL network interface connection objects.  Classes that inherit
+    from :py:class:`~.abstract.Connection` **must** implement the attributes
+    `mandatory`, `broadcaster` and `listener` where:
 
         - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
           :py:class:`.Message` objects are created. During instantiation the
-          input list *args is mapped to the attributes defined by
+          input list \*args is mapped to the attributes defined by
           `mandatory`. If `mandatory` is not present, a TypeError will be
           raised.
 
         - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
-          object associated with the :py:class:`.Connection` object.
+          object associated with the :py:class:`~.abstract.Connection` object.
 
         - `listener` is a reference to the :py:class:`.RawListener` object
-          associated with the :py:class:`.Connection` object.
+          associated with the :py:class:`~.abstract.Connection` object.
 
-    Classes that inherit from :py:class:`.Connection` can **optionally**
-    implement the attribute `optional` where:
+    Classes that inherit from :py:class:`~.abstract.Connection` can
+    **optionally** implement the attribute `optional` where:
 
         - `optional` is a dictionary of optional connection parameters and
           their defaults. Keywords represent attribute names and the
           corresponding value represents the default value. During
-          instantiation of the new Connection object, **kwargs is mapped to the
-          attributes defined by `optional`.
+          instantiation of the new Connection object, \**kwargs is mapped to
+          the attributes defined by `optional`.
 
     These attributes form the definition of the network interface connection
-    and allow :py:class:`.Connection` to manufacture a connection class
-    adhering to the specified definition. None of the attribute names can be
-    set to `mandatory`, `broadcaster`, `listener` or `optional`.
+    and allow :py:class:`~.abstract.Connection` to manufacture a connection
+    class adhering to the specified definition. None of the attribute names can
+    be set to `mandatory`, `broadcaster`, `listener` or `optional`.
 
-    :py:class:`.Connection` objects behave like
+    :py:class:`~.abstract.Connection` objects behave like
     :py:obj:`python:collections.namedtuple` objects. That is,
-    :py:class:`.Connection` objects have fields accessible by attribute lookup
-    as well as being indexable and iterable. However, since
-    :py:class:`.Connection` objects are tuple-like, the data they contain is
-    immutable after instantiation.
+    :py:class:`~.abstract.Connection` objects have fields accessible by
+    attribute lookup as well as being indexable and iterable. However, since
+    :py:class:`~.abstract.Connection` objects are tuple-like, the data they
+    contain is immutable after instantiation.
 
     Example usage:
 
@@ -446,11 +450,11 @@ class RawBroadcaster(object):
     likely to integrate safely with the MCL system.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
@@ -548,11 +552,11 @@ class RawListener(mcl.event.event.Event):
         method in I/O loops when network data is available.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.

@@ -77,9 +77,9 @@ READ_TIMEOUT = 200
 class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
     """Send data over the network using a UDP socket.
 
-    The :py:class:`.RawBroadcaster` object allows data to be published over a
-    UDP socket. The object marshalls broadcasts and ensures large items will be
-    fragmented into smaller sub-packets which obey the network maximum
+    The :py:class:`~.udp.RawBroadcaster` object allows data to be published
+    over a UDP socket. The object marshalls broadcasts and ensures large items
+    will be fragmented into smaller sub-packets which obey the network maximum
     transmission unit (MTU) constraints.
 
     Args:
@@ -166,7 +166,8 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         """Send data over UDP interface.
 
         Large data is fragmented into smaller MTU sized packets. The protocol
-        used during publishing is documented in :py:class:`.RawBroadcaster`.
+        used during publishing is documented in
+        :py:class:`~.udp.RawBroadcaster`.
 
         Args:
             data (str): Array of characters to broadcast over UDP.
@@ -262,10 +263,10 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 class RawListener(mcl.network.abstract.RawListener):
     """Receive data from the network using a UDP socket.
 
-    The :py:class:`.RawListener` object subscribes to a UDP socket and issues
-    publish events when UDP data is received. The object marshalls broadcasts
-    and ensures multiple, fragmented packets will be recomposed into a single
-    packet.
+    The :py:class:`~.udp.RawListener` object subscribes to a UDP socket and
+    issues publish events when UDP data is received. The object marshalls
+    broadcasts and ensures multiple, fragmented packets will be recomposed into
+    a single packet.
 
     When data packets arrive, they are made available to other objects using
     the publish-subscribe paradigm implemented by the parent class
@@ -282,21 +283,21 @@ class RawListener(mcl.network.abstract.RawListener):
         - ``payload`` contains the contents of the data transmission as a
           string.
 
-    **Note:** :py:class:`.RawListener` does not interpret the received data in
-    anyway. Code receiving the data must be aware of how to handle it. A method
-    for simplifying data handling is to pair a specific data type with a unique
-    network address. By adopting this paradigm, handling the data is trivial if
-    the network address is known.
+    **Note:** :py:class:`~.udp.RawListener` does not interpret the received
+    data in anyway. Code receiving the data must be aware of how to handle
+    it. A method for simplifying data handling is to pair a specific data type
+    with a unique network address. By adopting this paradigm, handling the data
+    is trivial if the network address is known.
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
         topics (str): List of strings containing topics
-                      :py:class:`.RawListener` will receive and process.
+                      :py:class:`~.udp.RawListener` will receive and process.
 
     Attributes:
         connection (:py:class:`.Connection`): Connection object.
         topics (list): List of strings containing the topics
-                       :py:class:`.RawListener` will receive and process.
+                       :py:class:`~.udp.RawListener` will receive and process.
         is_open (bool): Return whether the UDP socket is open.
 
     """

@@ -67,11 +67,11 @@ def RawBroadcaster(connection, topic=None):
     """Return an object for sending data over a network interface.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
@@ -98,11 +98,11 @@ def RawListener(connection, topics=None):
     """Return an object for receiving data over a network interface.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:py:class:`~.abstract.Connection`): Connection object.
         topics (str): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
                         open. Otherwise returns :data:`False`.
@@ -131,13 +131,14 @@ class MessageBroadcaster(object):
     The :py:class:`.MessageBroadcaster` object is a factory which manufactures
     objects for broadcasting MCL :py:class:`.Message` objects over a
     network. The returned object overloads the
-    :py:meth:`.RawBroadcaster.publish` of a :py:class:`.RawBroadcaster` object
-    to serialise the contents of a :py:class:`.Message` before
-    transmission. `Message pack <http://msgpack.org/index.html>`_ is used to
-    serialise :py:class:`.Message` objects into byte string.
+    :py:meth:`~.abstract.RawBroadcaster.publish` of a
+    :py:class:`~.abstract.RawBroadcaster` object to serialise the contents of a
+    :py:class:`.Message` before transmission. `Message pack
+    <http://msgpack.org/index.html>`_ is used to serialise :py:class:`.Message`
+    objects into byte string.
 
     For a list of available methods and attributes in the returned object, see
-    :py:class:`.RawBroadcaster`.
+    :py:class:`~.abstract.RawBroadcaster`.
 
     Args:
         message (:py:class:`.Message`): MCL message object.
@@ -167,7 +168,7 @@ class MessageBroadcaster(object):
             :py:class:`.Message` type.
 
             For a list of available methods and attributes, see
-            :py:class:`.RawBroadcaster`.
+            :py:class:`~.abstract.RawBroadcaster`.
 
             Args:
                 message (:py:class:`.Message`): MCL message object.
@@ -203,12 +204,13 @@ class MessageListener(object):
 
     The :py:class:`.MessageListener` object is a factory which manufactures
     objects for receiving MCL :py:class:`.Message` objects over a network. The
-    returned object inherits from the :py:class:`.RawListener` class. When data
-    is received, it is decoded into a :py:class:`.Message` object before an
-    event is raised to forward the received data to subscribed callbacks.
+    returned object inherits from the :py:class:`~.abstract.RawListener`
+    class. When data is received, it is decoded into a :py:class:`.Message`
+    object before an event is raised to forward the received data to subscribed
+    callbacks.
 
     For a list of available methods and attributes in the returned object, see
-    :py:class:`.RawListener`.
+    :py:class:`~.abstract.RawListener`.
 
     Args:
         message (:py:class:`.Message`): MCL message object.
@@ -239,7 +241,7 @@ class MessageListener(object):
             :py:class:`.Message` type.
 
             For a list of available methods and attributes, see
-            :py:class:`.RawListener`.
+            :py:class:`~.abstract.RawListener`.
 
             Args:
                 message (:py:class:`.Message`): MCL message object.
@@ -321,7 +323,7 @@ class QueuedListener(mcl.event.event.Event):
           string.
 
     Args:
-        connection (:py:class:`.Connection`): MCL connection object.
+        connection (:py:class:`~.abstract.Connection`): MCL connection object.
 
     """
 
