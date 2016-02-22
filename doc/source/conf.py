@@ -8,17 +8,21 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
-import sys
 import os
+import sys
 import sphinx
 
+# Select documentation theme.
 theme = 'rtd'
 try:
     if theme == 'rtd':
-        import sphinx_rtd_theme
-    elif theme == 'bootstrap':
-        import sphinx_bootstrap_theme
+
+        # Only import the theme if we're building docs locally.
+        if not os.environ.get('READTHEDOCS', None) == 'True':
+            import sphinx_rtd_theme
+
+        # Otherwise, readthedocs.org uses their theme by default, so no need to
+        # specify it.
 except:
     theme = 'default'
 
@@ -53,7 +57,7 @@ todo_include_todos = True
 
 # General information about the project.
 project = u'MCL'
-copyright = u'2014, ACFR Intelligent Vehicles and Safety Systems Group'
+copyright = u'2016, ACFR Intelligent Vehicles and Safety Systems Group'
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.0'
@@ -146,13 +150,10 @@ napoleon_use_rtype = True
 if theme == 'default':
     html_theme = 'default'
 
-elif theme == 'rtd':
+# Only set the RTD theme if we're building docs locally.
+elif theme == 'rtd' and not os.environ.get('READTHEDOCS', None) == 'True':
     html_theme = 'sphinx_rtd_theme'
     html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-
-elif theme == 'bootstrap':
-    html_theme = 'bootstrap'
-    html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
