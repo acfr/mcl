@@ -84,8 +84,8 @@ Contributors
 Citation
 --------------------------------------------------------------------------------
 
-If you use this work for academic research please cite the following
-`article <http://dx.doi.org/10.1109/TITS.2016.2524523>`_:
+If you use this work for academic research please cite the following `article
+<http://dx.doi.org/10.1109/TITS.2016.2524523>`_:
 
     A. Bender, G. Agamennoni, J. Ward, S. Worrall, and E. NebotBender, A.;
     Ward, J. R.; Worrall, S.; Moreyra, M.; Konrad, S. G.; Masson, F. &
@@ -106,3 +106,11 @@ BibTeX::
       Doi       = {10.1109/TITS.2016.2524523},
       ISSN      = {1524-9050},
     }
+
+License
+--------------------------------------------------------------------------------
+
+Redistribution and use of this library, with or without modification, are
+permitted under the terms of the `BSD 3-Clause
+<https://opensource.org/licenses/BSD-3-Clause>`_ license. See `LICENSE.txt
+<https://github.com/acfr/mcl/blob/master/LICENSE.txt>`_.
