@@ -80,3 +80,29 @@ Contributors
 - `Dr Asher Bender <http://db.acfr.usyd.edu.au/content.php/232.html?personid=302>`_
 - `Dr James Ward <http://db.acfr.usyd.edu.au/content.php/232.html?personid=436>`_
 - `Dr Stewart Worrall <http://db.acfr.usyd.edu.au/content.php/232.html?personid=199>`_
+
+Citation
+--------------------------------------------------------------------------------
+
+If you use this work for academic research please cite the following
+`article <http://dx.doi.org/10.1109/TITS.2016.2524523>`_:
+
+    A. Bender, G. Agamennoni, J. Ward, S. Worrall, and E. NebotBender, A.;
+    Ward, J. R.; Worrall, S.; Moreyra, M.; Konrad, S. G.; Masson, F. &
+    Nebot, E. M., "A Flexible System Architecture for Acquisition and
+    Storage of Naturalistic Driving Data", *IEEE Transactions on
+    Intelligent Transportation Systems*, 2016, pp. 1-14
+
+BibTeX::
+
+    @Article{Bender2016,
+      Title     = {A Flexible System Architecture for Acquisition and Storage of Naturalistic Driving Data},
+      Author    = {Asher Bender and James R. Ward and Stewart Worrall and Marcelo Moreyra and Santiago Gerling Konrad and Favio Masson and Eduardo M.~Nebot},
+      Journal   = {IEEE Transactions on Intelligent Transportation Systems},
+      Year      = {2016},
+      Number    = {99},
+      Pages     = {1-14},
+      Volume    = {PP},
+      Doi       = {10.1109/TITS.2016.2524523},
+      ISSN      = {1524-9050},
+    }
