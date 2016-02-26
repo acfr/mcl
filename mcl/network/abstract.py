@@ -541,7 +541,7 @@ class RawListener(mcl.event.event.Event):
     network interface. Listeners inheriting from this template are likely to
     integrate safely with the MCL system.
 
-    note::
+    .. note::
 
         :py:class:`.RawListener` implements the event-based programming
         paradigm by inheriting from :py:class:`.Event`. To prevent *users* from
