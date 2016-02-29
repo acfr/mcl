@@ -256,8 +256,8 @@ class MessageListener(object):
                 try:
                     msg = message_type(packed_data['payload'])
                     super(MessageListener, self).__trigger__(msg)
-                except Exception as e:
-                    print e.message
+                except:
+                    raise
 
         return MessageListener(message.connection, topics=topics)
 

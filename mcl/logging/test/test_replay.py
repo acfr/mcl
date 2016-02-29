@@ -18,8 +18,8 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 # -----------------------------------------------------------------------------
 #                           Objects for unit-testing
 # -----------------------------------------------------------------------------
-URL_A = 'ff15::c75d:ce41:ea8e:000a'
-URL_B = 'ff15::c75d:ce41:ea8e:000b'
+URL_A = 'ff15::c75e:ce41:ea8e:000d'
+URL_B = 'ff15::c75e:ce41:ea8e:000e'
 
 # WARNING: this should not be deployed in production code. It is an
 #          abuse that has been used for the purposes of unit-testing.

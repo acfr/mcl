@@ -390,8 +390,9 @@ class Message(dict):
 
         # The name parameter was modified.
         elif self['name'] != self.__class__.__name__:
-            msg = "The key value '%s' in '%s' is read-only."
-            raise ValueError(msg % ('name', self.__class__.__name__))
+            msg = "Attempted to set the read-only key value %s['%s'] = '%s'."
+            raise ValueError(msg % (self.__class__.__name__,
+                                    'name', self['name']))
 
         # Record the time of update if the 'timestamp' field was not
         # specified. By checking for changes to the 'timestamp' field, users

@@ -2,7 +2,6 @@ import os
 import time
 import shutil
 import msgpack
-import datetime
 import unittest
 
 import mcl.message.messages
@@ -20,8 +19,8 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 TIME_OUT = 1
 
-URL_A = 'ff15::c75d:ce41:ea8e:000a'
-URL_B = 'ff15::c75d:ce41:ea8e:000b'
+URL_A = 'ff15::c75d:ce41:ea8e:000b'
+URL_B = 'ff15::c75d:ce41:ea8e:000c'
 
 
 # -----------------------------------------------------------------------------
