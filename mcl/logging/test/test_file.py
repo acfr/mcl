@@ -2,12 +2,14 @@ import os
 import time
 import shutil
 import msgpack
+import datetime
 import unittest
 
 import mcl.message.messages
 from mcl.logging.file import FileDump
 from mcl.logging.file import ReadFile
 from mcl.logging.file import WriteFile
+from mcl.logging.file import LogConnection
 from mcl.logging.file import ReadDirectory
 from mcl.network.udp import Connection as Connection
 from mcl.network.network import MessageBroadcaster
@@ -227,6 +229,50 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         # Clean up after testing.
         for fname in [tmp0, tmp1, log0, log1]:
             self.delete_if_exists(fname)
+
+
+# -----------------------------------------------------------------------------
+#                               LogConnection()
+# -----------------------------------------------------------------------------
+
+class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
+
+    def test_init(self):
+        """Test LogConnection() initialisation."""
+
+        # Path to log file.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+
+        # Limit logging by both entries and time.
+        max_entries = 10
+        max_time = 60
+        start_time = time.strftime('%Y%m%dT%H%M%S')
+
+        # Ensure object can be initialised using all keyword arguments.
+        logger = LogConnection(prefix,
+                               UnitTestMessageA,
+                               time_origin=start_time,
+                               max_entries=max_entries,
+                               max_time=max_time,
+                               open_init=False)
+
+        self.assertEqual(logger.max_entries, max_entries)
+        self.assertEqual(logger.max_time, max_time)
+        self.assertFalse(logger.is_alive())
+        self.assertTrue(logger.start())
+        self.assertTrue(logger.stop())
+        self.assertFalse(logger.is_alive())
+
+    def test_open_after_init(self):
+        """Test LogConnection() start logging after initialisation."""
+
+        # Ensure object can be initialised using all keyword arguments.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        logger = LogConnection(prefix, UnitTestMessageA, open_init=True)
+        self.assertTrue(logger.is_alive())
+        self.assertFalse(logger.start())
+        self.assertTrue(logger.stop())
+        self.assertFalse(logger.is_alive())
 
 
 # -----------------------------------------------------------------------------

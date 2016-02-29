@@ -115,6 +115,12 @@ class WriteFile(DumpConstants):
             single file called '<prefix>.log'. This option can be used in
             combination with `max_entries`.
 
+    Attributes:
+        max_entries (int): Maximum number of entries to record per log file
+            before splitting.
+        max_time (int): Maximum length of time, in seconds, to log data before
+            splitting.
+
     Raises:
         IOError: If the write directory does not exist.
         ValueError: If any of the inputs are improperly specified.
@@ -456,6 +462,137 @@ class WriteFile(DumpConstants):
 
         """
         self.__close_file()
+
+
+class LogConnection(object):
+    """Open a connection and record data to file.
+
+    Args:
+        prefix (str): Prefix used for log file(s). The extension is excluded
+            and is handled by :py:class:`.WriteFile` (to facilitate split
+            logs). For example the prefix './data/TestMessage' will log data to
+            the file './data/TestMessage.log' and will log data to the files
+            './data/TestMessage_<NNN>.log' for split log files (where NNN is
+            incremented for each new split log).
+        connection (:py:class:`~.abstract.Connection`): MCL
+            :py:class:`.Message` object to record to log file(s).
+        time_origin (datetime.datetime): Time origin used to calculate elapsed
+            time during logging (time data was received - time origin). This
+            option allows the time origin to be synchronised across multiple
+            log files. If set to :py:data:`.None`, the time origin will be set
+            to the time the first logged message was received. This results in
+            the first logged item having an elapsed time of zero.
+        max_entries (int): Maximum number of entries to record per log file. If
+            set, a new log file will be created once the maximum number of
+            entries has been recorded. Files follow the naming scheme
+            '<prefix>_<NNN>.log' where NNN is incremented for each new log
+            file. If set to :py:data:`.None` all data will be logged to a
+            single file called '<prefix>.log'. This option can be used in
+            combination with `max_time`.
+        max_time (int): Maximum length of time, in seconds, to log data. If
+            set, a new log file will be created after the maximum length of
+            time has elapsed. Files follow the naming scheme
+            '<prefix>_<NNN>.log' where NNN is incremented for each new log
+            file. If set to :py:data:`.None` all data will be logged to a
+            single file called '<prefix>.log'. This option can be used in
+            combination with `max_entries`.
+        open_init (bool): open connection immediately after initialisation.
+
+    Attributes:
+        max_entries (int): Maximum number of entries to record per log file
+            before splitting.
+        max_time (int): Maximum length of time, in seconds, to log data before
+            splitting.
+
+    """
+
+    def __init__(self, prefix, connection, time_origin=None, max_entries=None,
+                 max_time=None, open_init=False):
+        """Document the __init__ method at the class level."""
+
+        # # Store type of recorded data.
+        # if issubclass(connection, mcl.message.messages.Message):
+        #     connection = connection.connection
+
+        # # Ensure 'connection' is a Connection() object.
+        # if not isinstance(connection, mcl.network.abstract.Connection):
+        #     msg = "'connection' must reference a Connection() instance."
+        #     raise TypeError(msg)
+
+        # Create file logger.
+        try:
+            self.__file = WriteFile(prefix,
+                                    connection,
+                                    time_origin=time_origin,
+                                    max_entries=max_entries,
+                                    max_time=max_time)
+        except:
+            raise
+
+        # Create queued listener.
+        try:
+            self.__listener = mcl.network.network.QueuedListener(connection.connection,
+                                                                 open_init)
+        except:
+            raise
+
+        # Write connection data to while when received.
+        self.__listener.subscribe(self.__file.write)
+
+    @property
+    def max_entries(self):
+        return self.__file.max_entries
+
+    @property
+    def max_time(self):
+        return self.__file.max_time
+
+    def is_alive(self):
+        """Return whether the object is listening for broadcasts.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the object is recording
+                connection data. Returns :data:`False` if the object is NOT
+                recording connection data.
+
+        """
+
+        return self.__listener.is_alive()
+
+    def start(self):
+        """Start logging connection data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the connection logger was
+                started. If the connection logger was already started, the
+                request is ignored and the method returns :data:`False`.
+
+        """
+
+        if not self.is_alive():
+            self.__listener.open()
+            return True
+        else:
+            return False
+
+    def stop(self):
+        """Stop logging connection data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if the connection logger was
+                closed. If the connection logger was already closed, the
+                request is ignored and the method returns :data:`False`.
+
+        """
+
+        # Stop listening for data and close file.
+        if self.is_alive():
+            self.__listener.close()
+            self.__file.close()
+
+            return True
+        else:
+            return False
 
 
 class ReadFile(DumpConstants):
