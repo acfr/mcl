@@ -457,7 +457,7 @@ class RawBroadcaster(object):
         connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
-                        open. Otherwise returns :data:`False`.
+            open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts issued.
 
     Raises:
@@ -504,9 +504,9 @@ class RawBroadcaster(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the network interface was
-                           opened. If the network interface was already opened,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                opened. If the network interface was already opened, the
+                request is ignored and the method returns :data:`False`.
+
         """
         pass
 
@@ -516,7 +516,7 @@ class RawBroadcaster(object):
 
         Args:
             data (str): Array of characters to publish over the network
-                        interface.
+                interface.
         """
         pass
 
@@ -526,9 +526,9 @@ class RawBroadcaster(object):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the network interface was
-                           closed. If the network interface was already closed,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                closed. If the network interface was already closed, the
+                request is ignored and the method returns :data:`False`.
+
         """
         pass
 
@@ -553,13 +553,14 @@ class RawListener(mcl.event.event.Event):
 
     Args:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str): Topics associated with the network interface.
+        topics (str or list): Topics associated with the network interface
+            represented as either a string or list of strings.
 
     Attributes:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str): Topics associated with the network interface.
+        topics (str or list ): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
-                        open. Otherwise returns :data:`False`.
+            open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts received.
 
     Raises:
@@ -608,9 +609,9 @@ class RawListener(mcl.event.event.Event):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the network interface was
-                           opened. If the network interface was already opened,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                opened. If the network interface was already opened, the
+                request is ignored and the method returns :data:`False`.
+
         """
         pass
 
@@ -620,8 +621,8 @@ class RawListener(mcl.event.event.Event):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the network interface was
-                           closed. If the network interface was already closed,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                closed. If the network interface was already closed, the
+                request is ignored and the method returns :data:`False`.
+
         """
         pass

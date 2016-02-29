@@ -88,8 +88,8 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 
     Attributes:
         connection (:py:class:`.Connection`): Connection object.
-        topic (str): String containing the topic :py:class:`.RawBroadcaster`
-                     will attach to broadcasts.
+        topic (str): Topic associated with :py:class:`.RawBroadcaster`
+            broadcasts.
         is_open (bool): Return whether the UDP socket is open.
 
     Raises:
@@ -137,8 +137,8 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the socket was created. If
-                           the socket already exists, the request is ignored
-                           and the method returns :data:`False`.
+                the socket already exists, the request is ignored and the
+                method returns :data:`False`.
 
         """
 
@@ -247,8 +247,8 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the socket was closed. If
-                           the socket was already closed, the request is
-                           ignored and the method returns :data:`False`.
+                the socket was already closed, the request is ignored and the
+                method returns :data:`False`.
 
         """
 
@@ -291,13 +291,13 @@ class RawListener(mcl.network.abstract.RawListener):
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
-        topics (str): List of strings containing topics
-                      :py:class:`~.udp.RawListener` will receive and process.
+        topics (str or list): Topics associated with the
+            :py:class:`~.udp.RawListener` interface.
 
     Attributes:
         connection (:py:class:`.Connection`): Connection object.
-        topics (list): List of strings containing the topics
-                       :py:class:`~.udp.RawListener` will receive and process.
+        topics (str or list): Topics associated with the
+            :py:class:`~.udp.RawListener` interface.
         is_open (bool): Return whether the UDP socket is open.
 
     """
@@ -546,8 +546,8 @@ class RawListener(mcl.network.abstract.RawListener):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the socket was closed. If
-                           the socket was already closed, the request is
-                           ignored and the method returns :data:`False`.
+                the socket was already closed, the request is ignored and the
+                method returns :data:`False`.
 
         """
 

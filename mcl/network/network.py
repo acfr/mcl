@@ -72,10 +72,9 @@ def RawBroadcaster(connection, topic=None):
 
     Attributes:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topic (str): Topic associated with the network interface.
+        topic (str): Topic associated with the network interface broadcasts.
         is_open (bool): Returns :data:`True` if the network interface is
-                        open. Otherwise returns :data:`False`.
-        counter (int): Number of broadcasts issued.
+            open. Otherwise returns :data:`False`.
 
     Raises:
         TypeError: If any of the inputs are ill-specified.
@@ -99,14 +98,14 @@ def RawListener(connection, topics=None):
 
     Args:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str): Topics associated with the network interface.
+        topics (str or list): Topics associated with the network interface
+            represented as either a string or list of strings.
 
     Attributes:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str): Topics associated with the network interface.
+        topics (str or list ): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
-                        open. Otherwise returns :data:`False`.
-        counter (int): Number of broadcasts received.
+            open. Otherwise returns :data:`False`.
 
     Raises:
         TypeError: If any of the inputs are ill-specified.
