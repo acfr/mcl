@@ -308,8 +308,7 @@ class QueuedListener(mcl.event.event.Event):
 
     Data are published as a dictionary in the following format::
 
-        {'transmissions': int(),
-         'topic': str(),
+        {'topic': str(),
          'payload': str(),
          'time_received': datetime}
 
@@ -324,10 +323,11 @@ class QueuedListener(mcl.event.event.Event):
 
     Args:
         connection (:py:class:`~.abstract.Connection`): MCL connection object.
+        open_init (bool): open connection immediately after initialisation.
 
     """
 
-    def __init__(self, connection):
+    def __init__(self, connection, open_init=True):
         """Document the __init__ method at the class level."""
 
         # Ensure 'connection' is a Connection() object.
@@ -352,14 +352,15 @@ class QueuedListener(mcl.event.event.Event):
         self.__is_alive = False
 
         # Attempt to connect to network interface.
-        try:
-            success = self._open()
-        except:
-            success = False
+        if open_init:
+            try:
+                success = self.open()
+            except:
+                success = False
 
-        if not success:
-            msg = "Could not connect to '%s'." % str(connection)
-            raise IOError(msg)
+            if not success:
+                msg = "Could not connect to '%s'." % str(connection)
+                raise IOError(msg)
 
     def is_alive(self):
         """Return whether the object is listening for broadcasts.
@@ -447,7 +448,7 @@ class QueuedListener(mcl.event.event.Event):
             except:
                 raise
 
-    def _open(self):
+    def open(self):
         """Open connection to queued listener and start publishing broadcasts.
 
         Returns:

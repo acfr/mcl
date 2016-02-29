@@ -409,9 +409,15 @@ class ListenerTests(object):
         # Instantiate QueuedListener() using connection object.
         listener = QueuedListener(self.Message.connection)
         self.assertTrue(listener.is_alive())
-        self.assertFalse(listener._open())
+        self.assertFalse(listener.open())
+        self.assertTrue(listener.close())
+        self.assertFalse(listener.is_alive())
+        self.assertFalse(listener.close())
 
-        # Stop listener.
+        # Instantiate QueuedListener(), delay opening connection.
+        listener = QueuedListener(self.Message.connection, open_init=False)
+        self.assertFalse(listener.is_alive())
+        self.assertTrue(listener.open())
         self.assertTrue(listener.close())
         self.assertFalse(listener.is_alive())
         self.assertFalse(listener.close())
