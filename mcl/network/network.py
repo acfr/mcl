@@ -13,13 +13,46 @@ interacting with MCL network interfaces. The only implementation specific
 objects that need to be used, when writing applications, are
 :py:class:`~.abstract.Connection` objects (e.g. :py:class:`.udp.Connection`).
 
-Generic broadcasters and listeners can be created using a
+Broadcasters and listeners can be created using a
 :py:class:`~.abstract.Connection` object with the following functions:
 
     - :py:func:`.RawBroadcaster`
     - :py:func:`.RawListener`
+    - :py:class:`.QueuedListener`
 
-Similarly, generic *message* broadcasters and listeners can be created using a
+Example usage:
+
+.. testcode::
+
+    import os
+    import time
+    from mcl.network.udp import Connection
+    from mcl.network.network import RawListener
+    from mcl.network.network import RawBroadcaster
+
+    # Create raw listener from IPv6 connection.
+    URL = 'ff15::c75d:ce41:ea8e:a000'
+    connection = Connection(URL)
+    broadcaster = RawBroadcaster(connection)
+    listener = RawListener(connection)
+
+    # Print received data to screen.
+    listener.subscribe(lambda d: os.sys.stdout.write(d['payload'] + '\\n'))
+
+    # Broadcast data.
+    broadcaster.publish('hello world')
+    time.sleep(0.1)
+
+    # Close connections.
+    broadcaster.close()
+    listener.close()
+
+.. testoutput::
+   :hide:
+
+   hello world
+
+Similarly, *message* broadcasters and listeners can be created using a
 :py:class:`.Message` object with the following objects:
 
     - :py:class:`.MessageBroadcaster`
@@ -66,6 +99,24 @@ def _set_process_name(name):
 def RawBroadcaster(connection, topic=None):
     """Return an object for sending data over a network interface.
 
+    Example usage:
+
+    .. testcode::
+
+        from mcl.network.udp import Connection
+        from mcl.network.network import RawBroadcaster
+
+        # Create raw broadcaster from IPv6 connection.
+        URL = 'ff15::c75d:ce41:ea8e:a000'
+        connection = Connection(URL)
+        broadcaster = RawBroadcaster(connection)
+
+        # Broadcast data.
+        broadcaster.publish('hello world')
+
+        # Close connection.
+        broadcaster.close()
+
     Args:
         connection (:py:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
@@ -95,6 +146,39 @@ def RawBroadcaster(connection, topic=None):
 
 def RawListener(connection, topics=None):
     """Return an object for receiving data over a network interface.
+
+    Objects returned by :py:func:`.RawListener` make network data available to
+    subscribers by issuing callbacks when data arrives in the following
+    format::
+
+        {'topic': str(),
+         'payload': obj()}
+
+    where:
+
+        - **<topic>** is a string containing the topic associated with the
+          received data.
+
+        - **<payload>** is the received (serialisable) data.
+
+    Example usage:
+
+    .. testcode::
+
+        import os
+        from mcl.network.udp import Connection
+        from mcl.network.network import RawListener
+
+        # Create raw listener from IPv6 connection.
+        URL = 'ff15::c75d:ce41:ea8e:a000'
+        connection = Connection(URL)
+        listener = RawListener(connection)
+
+        # Print received data to screen.
+        listener.subscribe(lambda d: os.sys.stdout.write(d['payload'] + '\\n'))
+
+        # Close connection.
+        listener.close()
 
     Args:
         connection (:py:class:`~.abstract.Connection`): Connection object.
