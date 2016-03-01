@@ -25,6 +25,7 @@ import subprocess
 
 from mcl import MCL_ROOT
 import mcl.network.network
+import mcl.network.abstract
 import mcl.message.messages
 
 
@@ -92,8 +93,9 @@ class WriteFile(DumpConstants):
             the file './data/TestMessage.log' and will log data to the files
             './data/TestMessage_<NNN>.log' for split log files (where NNN is
             incremented for each new split log).
-        message (:py:class:`.Message`): MCL :py:class:`.Message` object to
-            record to log file(s).
+        connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
+            an instance of a MCL connection object or a reference to a MCL
+            message type to record to log file(s).
         time_origin (datetime.datetime): Time origin used to calculate elapsed
             time during logging (time data was received - time origin). This
             option allows the time origin to be synchronised across multiple
@@ -127,7 +129,7 @@ class WriteFile(DumpConstants):
 
     """
 
-    def __init__(self, prefix, message, time_origin=None, max_entries=None,
+    def __init__(self, prefix, connection, time_origin=None, max_entries=None,
                  max_time=None):
         """Document the __init__ method at the class level."""
 
@@ -137,11 +139,19 @@ class WriteFile(DumpConstants):
         if not os.path.isdir(dir_name):
             raise IOError('The directory %s does not exist.' % dir_name)
 
-        # Store type of recorded data.
-        if issubclass(message, mcl.message.messages.Message):
-            self.__message = message
+        # 'connection' is a Connection() instance.
+        if isinstance(connection, mcl.network.abstract.Connection):
+            self.__connection = connection
+            self.__message_type = None
+
+        # 'connection is a reference to a Message() subclass.
+        elif issubclass(connection, mcl.message.messages.Message):
+            self.__connection = connection.connection
+            self.__message_type = connection
+
         else:
-            msg = "The input 'message' must be a MCL message object."
+            msg = "'connection' must reference a Connection() instance "
+            msg += "or a Message() subclass."
             raise TypeError(msg)
 
         # Store file objects.
@@ -274,7 +284,15 @@ class WriteFile(DumpConstants):
         revision = revision % (self.VERSION_MARKER, git_hash)
         created = created % (self.VERSION_MARKER, str(self.__time_origin))
         version = '%s\n%s\n%s\n' % (version, revision, created)
-        message = '\n     %s %s' % (self.BROADCAST_MARKER, self.__message.__name__)
+
+        # Record raw broadcast.
+        if self.__message_type is None:
+            message = '\n     %s %s' % (self.BROADCAST_MARKER, str(None))
+
+        # Record message broadcast.
+        else:
+            message = '\n     %s %s' % (self.BROADCAST_MARKER,
+                                        self.__message_type.__name__)
 
         # Adjust padding on column names for pretty printing.
         time_padding = self.TIME_PADDING - len(self.COMMENT_CHARACTER + ' ')
@@ -335,19 +353,7 @@ class WriteFile(DumpConstants):
         self.__header = True
 
     def __format_message(self, elapsed_time, topic, msg):
-        """Format message before writing to file.
-
-        Log files recording only ONE broadcast will store data in the following
-        format:
-
-            <Time>    <Topic>    <Data>
-
-        Log files recording MULTIPLE broadcasts will store data in the
-        following format:
-
-            <Time>    <MessageType>    <Topic>    <Data>
-
-        """
+        """Format message before writing to file."""
 
         # Format time string.
         time_str = '%1.5f' % elapsed_time
@@ -360,15 +366,15 @@ class WriteFile(DumpConstants):
             topic_str = "'%s'" % topic
             topic_str = topic_str.ljust(self.TOPIC_PADDING)
 
-        # Only ONE broadcast in the current file. No need to record the message
-        # type in each row.
-        #
-        # Format line: <Time>    <Topic>    <Data>
+        # Concatenate time and topic.
         file_str = '%s    %s    '
         file_str = file_str % (time_str, topic_str)
 
         # Encode payload as hex-msgpack string to remove non printing
-        # characters.
+        # characters and append to line. The line of data is now formatted as:
+        #
+        #     <Time>    <Topic>    <Data>
+        #
         file_str += msgpack.dumps(msg).encode('hex') + '\n'
         return file_str
 

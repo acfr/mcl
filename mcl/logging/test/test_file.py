@@ -109,9 +109,9 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
 
         # Create prefix for data log.
         prefix = os.path.join(TMP_PATH, 'unittest')
-        tmp = prefix + '_000.tmp'
 
         # Delete split log if it already exists (it shouldn't).
+        tmp = prefix + '_000.tmp'
         self.delete_if_exists(tmp)
 
         # Limit logging by both entries and time.
@@ -130,105 +130,110 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         self.assertFalse(os.path.exists(tmp))
         wf.close()
 
-    def test_write_single(self):
-        """Test WriteFile() write single file."""
+    def file_write(self, prefix,
+                   writes_per_split=2,
+                   split_delay=None,
+                   max_splits=2,
+                   max_entries=None,
+                   max_time=None):
+        """Method for testing (split) logging."""
 
         # Create file names.
         prefix = os.path.join(TMP_PATH, 'unittest')
-        tmp = prefix + '.tmp'
-        log = prefix + '.log'
-
-        # Ensure logs do not exist before testing.
-        self.delete_if_exists(tmp)
-        self.delete_if_exists(log)
-
-        # Create data for testing.
-        test_message = UnitTestMessageA(data=None)
-
-        # Package up message object.
-        message = {'time_received': None,
-                   'topic': 'test',
-                   'payload': test_message}
 
         # Create logging object.
-        wf = WriteFile(prefix, UnitTestMessageA)
-        self.assertFalse(os.path.exists(tmp))
+        wf = WriteFile(prefix, UnitTestMessageA,
+                       max_entries=max_entries,
+                       max_time=max_time)
 
-        # Log data and ensure file exists.
-        wf.write(message)
-        self.assertTrue(os.path.exists(tmp))
+        # Iterate through log file splits.
+        for split in range(max_splits):
+
+            # No splitting enabled
+            if max_entries is None and max_time is None:
+                tmp = prefix + '.tmp'
+                log = prefix + '.log'
+
+            #  Split encountered.
+            else:
+                tmp = prefix + '_%03i.tmp' % split
+                log = prefix + '_%03i.log' % split
+
+            # Ensure files do not exist.
+            self.delete_if_exists(tmp)
+            self.delete_if_exists(log)
+
+            # Write data to log file.
+            for i in range(writes_per_split):
+                j = (split * writes_per_split) + i
+                message = {'time_received': None,
+                           'topic': 'test',
+                           'payload': UnitTestMessageA(data=j)}
+
+                wf.write(message)
+
+            # File has not been closed. Ensure the file still has a temporary
+            # extension.
+            self.assertTrue(os.path.exists(tmp))
+            self.assertFalse(os.path.exists(log))
+
+            # Re-read split/log file.
+            with open(tmp, 'r') as f:
+                lines = f.readlines()
+                lines = [line for line in lines if not line.startswith('#')]
+
+            # Ensure data has been written to the file correctly.
+            for i in range(writes_per_split):
+                j = (split * writes_per_split) + i
+                recorded_time, topic, payload = lines[i].split()
+                self.assertEqual(topic, "'" + message['topic'] + "'")
+                self.assertEqual(msgpack.loads(payload.decode('hex'))['data'],
+                                 UnitTestMessageA(data=j)['data'])
+
+            # No splits enabled.
+            if max_entries is None and max_time is None:
+                break
+
+            # Pause before creating next split.
+            if split_delay is not None:
+                time.sleep(split_delay)
 
         # Ensure log file gets 'closed' - rotated from '.tmp' to '.log'
         # extension.
         wf.close()
         self.assertTrue(os.path.exists(log))
 
-        # Re-read log file.
-        with open(log, 'r') as f:
-            lines = f.readlines()
-
-        # Ensure data has been written to the file correctly (skip header).
-        time, topic, payload = lines[-1].split()
-        self.assertEqual(float(time), 0.0)
-        self.assertEqual(topic, "'" + message['topic'] + "'")
-        self.assertEqual(msgpack.loads(payload.decode('hex')),
-                         message['payload'])
-
         # Clean up after testing.
-        self.delete_if_exists(tmp)
-        self.delete_if_exists(log)
+        for ext in ['tmp', 'log']:
+            self.delete_if_exists(prefix + '.%s' % ext)
+            for s_ext in ['_%03i.%s' % (i, ext) for i in range(max_splits)]:
+                self.delete_if_exists(prefix + '%s' % s_ext)
 
-    def test_write_split(self):
-        """Test WriteFile() write split files."""
+    def test_write_single(self):
+        """Test WriteFile() write single file."""
 
-        # Create file names.
+        # Write data to a single file.
         prefix = os.path.join(TMP_PATH, 'unittest')
-        tmp0 = prefix + '_000.tmp'
-        tmp1 = prefix + '_001.tmp'
-        log0 = prefix + '_000.log'
-        log1 = prefix + '_001.log'
+        self.file_write(prefix,
+                        writes_per_split=3)
 
-        # Ensure logs do not exist before testing.
-        for fname in [tmp0, tmp1, log0, log1]:
-            self.delete_if_exists(fname)
+    def test_write_split_entries(self):
+        """Test WriteFile() write split files on max entries."""
 
-        # Create data for testing.
-        test_message = UnitTestMessageA(data=None)
+        # Split logging based on number of entries.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        self.file_write(prefix,
+                        writes_per_split=2,
+                        max_entries=2)
 
-        # Package up message object.
-        message = {'time_received': None,
-                   'topic': 'test',
-                   'payload': test_message}
-
-        # Create logging object.
-        wf = WriteFile(prefix, UnitTestMessageA, max_entries=2)
-        wf.write(message)
-        wf.write(message)
-        self.assertTrue(os.path.exists(tmp0))
-
-        # Ensure log file gets 'closed' - rotated from '.tmp' to '.log'
-        # extension when splitting condition is breached.
-        wf.write(message)
-        self.assertTrue(os.path.exists(log0))
-        self.assertTrue(os.path.exists(tmp1))
-
-        # Ensure split log file gets 'closed' - rotated from '.tmp' to '.log'
-        # extension.
-        wf.close()
-        self.assertTrue(os.path.exists(log1))
-
-        # Ensure data has been written to the files correctly.
-        for fname in [log0, log1]:
-            with open(fname, 'r') as f:
-                lines = f.readlines()
-            time, topic, payload = lines[-1].split()
-            self.assertEqual(topic, "'" + message['topic'] + "'")
-            self.assertEqual(msgpack.loads(payload.decode('hex')),
-                             message['payload'])
-
-        # Clean up after testing.
-        for fname in [tmp0, tmp1, log0, log1]:
-            self.delete_if_exists(fname)
+    def test_write_split_time(self):
+        """Test WriteFile() write split files on max time."""
+        # Split logging based on number of entries.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        self.file_write(prefix,
+                        writes_per_split=2,
+                        split_delay=0.1,
+                        max_time=0.1)
 
 
 # -----------------------------------------------------------------------------
