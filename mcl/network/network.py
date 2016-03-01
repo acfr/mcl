@@ -309,8 +309,11 @@ class MessageBroadcaster(object):
     def __new__(cls, message, topic=None):
 
         # Ensure 'message' is a Message() object.
-        if not issubclass(message, mcl.message.messages.Message):
-            msg = "'message' must reference a Message() sub-class."
+        msg = "'message' must reference a Message() sub-class."
+        try:
+            if not issubclass(message, mcl.message.messages.Message):
+                raise TypeError(msg)
+        except:
             raise TypeError(msg)
 
         # Use closure to define a sub-class of the RawBroadcaster specified in
@@ -641,11 +644,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         # Attempt to connect to network interface.
         if open_init:
-            try:
-                success = self.open()
-            except:
-                success = False
-
+            success = self.open()
             if not success:
                 msg = "Could not connect to '%s'." % str(connection)
                 raise IOError(msg)

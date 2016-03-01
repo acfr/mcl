@@ -127,14 +127,6 @@ class BroadcasterTests(object):
         result = broadcaster.close()
         self.assertFalse(result)
 
-    def test_factory(self):
-        """Test %s RawBroadcaster() from connection."""
-
-        # Manufacture an instance of RawBroadcaster() from the connection
-        # object.
-        broadcaster = RawBroadcaster(self.connection)
-        broadcaster.close()
-
     def test_bad_init(self):
         """Test %s RawBroadcaster() catches bad initialisation inputs."""
 
@@ -181,6 +173,18 @@ class BroadcasterTests(object):
         broadcaster.close()
         with self.assertRaises(IOError):
             broadcaster.publish('test')
+
+    def test_factory(self):
+        """Test %s RawBroadcaster() from connection."""
+
+        # Manufacture an instance of RawBroadcaster() from the connection
+        # object.
+        broadcaster = RawBroadcaster(self.connection)
+        broadcaster.close()
+
+        # Test instantiation fails if input is not a 'connection' object.
+        with self.assertRaises(TypeError):
+            RawBroadcaster('connection')
 
     def test_message_init(self):
         """Test %s MessageBroadcaster() initialisation."""
@@ -412,25 +416,32 @@ class ListenerTests(object):
         """Test %s QueuedListener() initialisation."""
 
         # Instantiate QueuedListener() using connection object.
-        listener = QueuedListener(self.Message.connection)
-        self.assertTrue(listener.is_open())
-        self.assertFalse(listener.open())
-        self.assertTrue(listener.close())
-        self.assertFalse(listener.is_open())
-        self.assertFalse(listener.close())
+        for obj in [self.Message.connection, self.Message]:
+            listener = QueuedListener(obj)
+            self.assertTrue(listener.is_open())
+            self.assertFalse(listener.open())
+            self.assertTrue(listener.close())
+            self.assertFalse(listener.is_open())
+            self.assertFalse(listener.close())
 
         # Instantiate QueuedListener(), delay opening connection.
-        listener = QueuedListener(self.Message.connection, open_init=False)
-        self.assertFalse(listener.is_open())
-        self.assertTrue(listener.open())
-        self.assertTrue(listener.close())
-        self.assertFalse(listener.is_open())
-        self.assertFalse(listener.close())
+        for obj in [self.Message.connection, self.Message]:
+            listener = QueuedListener(obj, open_init=False)
+            self.assertFalse(listener.is_open())
+            self.assertTrue(listener.open())
+            self.assertTrue(listener.close())
+            self.assertFalse(listener.is_open())
+            self.assertFalse(listener.close())
 
         # Ensure instantiation fails if the input is not a MCL connection.
         # object.
         with self.assertRaises(TypeError):
-            QueuedListener('hat')
+            QueuedListener('connection')
+
+        # Ensure instantiation fails if the topic input is not a string or list
+        # of strings.
+        with self.assertRaises(TypeError):
+            QueuedListener(self.Message, topics=5)
 
     def test_queuedlistener_enqueue(self):
         """Test %s QueuedListener() multiprocess enqueue functionality."""
