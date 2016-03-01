@@ -841,4 +841,4 @@ class PublishSubscribeTests(object):
         self.assertEqual(len(topic_buffer), len(listen_topics))
         for i, topic in enumerate(listen_topics):
             self.assertEqual(messages[send_topics.index(topic)],
-                             topic_buffer[i])
+                             topic_buffer[i]['payload'])

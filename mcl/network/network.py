@@ -151,7 +151,7 @@ def RawListener(connection, topics=None):
     subscribers by issuing callbacks, when data arrives, in the following
     format::
 
-        {'topic': str(),
+        {'topic': str,
          'payload': obj()}
 
     where:
@@ -290,7 +290,17 @@ class MessageListener(object):
     returned object inherits from the :py:class:`~.abstract.RawListener`
     class. When data is received, it is decoded into a :py:class:`.Message`
     object before an event is raised to forward the received data to subscribed
-    callbacks.
+    callbacks in the following format::
+
+        {'topic': str,
+         'payload': Message()}
+
+    where:
+
+        - **<topic>** is a string containing the topic associated with the
+          received data.
+
+        - **<payload>** is the received :py:class:`.Message` object.
 
     For a list of available methods and attributes in the returned object, see
     :py:class:`~.abstract.RawListener`.
@@ -332,13 +342,13 @@ class MessageListener(object):
 
             """
 
-            def __trigger__(self, packed_data):
+            def __trigger__(self, data):
                 """Distribute MCL message to subscribed callbacks."""
 
                 # Attempt to serialise input data.
                 try:
-                    msg = message_type(packed_data['payload'])
-                    super(MessageListener, self).__trigger__(msg)
+                    data['payload'] = message_type(data['payload'])
+                    super(MessageListener, self).__trigger__(data)
                 except:
                     raise
 

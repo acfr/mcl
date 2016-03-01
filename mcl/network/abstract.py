@@ -544,7 +544,7 @@ class RawListener(mcl.event.event.Event):
     Network data is made available to subscribers by issuing callbacks, when
     data arrives, in the following format::
 
-        {'topic': str(),
+        {'topic': str,
          'payload': obj()}
 
     where:
