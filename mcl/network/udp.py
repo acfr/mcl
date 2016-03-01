@@ -170,7 +170,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         :py:class:`~.udp.RawBroadcaster`.
 
         Args:
-            data (str): Array of characters to broadcast over UDP.
+            data (obj): Serialisable object to broadcast over UDP.
 
         """
 
@@ -202,7 +202,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         #         - Total packets is an integer indicating that the current
         #           packet is a member of a sequence of M packets.
         #
-        #     Note that payload is a fragment of the serialised data. To
+        #     Note that 'payload' is a fragment of the serialised data. To
         #     remarshall the payload, the fragments must be joined in the
         #     correct order and unpacked.
         #

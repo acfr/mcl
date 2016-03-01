@@ -515,8 +515,9 @@ class RawBroadcaster(object):
         """Virtual: Send data over network interface.
 
         Args:
-            data (str): Array of characters to publish over the network
+            data (obj): Serialisable object to publish over the network
                 interface.
+
         """
         pass
 
@@ -558,7 +559,7 @@ class RawListener(mcl.event.event.Event):
 
     Attributes:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str or list ): Topics associated with the network interface.
+        topics (str or list): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
             open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts received.

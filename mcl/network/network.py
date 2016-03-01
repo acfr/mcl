@@ -103,7 +103,7 @@ def RawListener(connection, topics=None):
 
     Attributes:
         connection (:py:class:`~.abstract.Connection`): Connection object.
-        topics (str or list ): Topics associated with the network interface.
+        topics (str or list): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
             open. Otherwise returns :data:`False`.
 
@@ -189,7 +189,7 @@ class MessageBroadcaster(object):
 
                 # Ensure 'message' is a Message() object.
                 if not isinstance(message, message_type):
-                    error_msg = "'msg' must reference a %s() instance."
+                    error_msg = "Input 'msg' must reference a %s() instance."
                     raise TypeError(error_msg % message_type.__name__)
 
                 # Publish data.
@@ -261,7 +261,7 @@ class MessageListener(object):
         return MessageListener(message.connection, topics=topics)
 
 
-class QueuedListener(mcl.event.event.Event):
+class QueuedListener(mcl.network.abstract.RawListener):
     """Open a broadcast address and listen for data.
 
     The :py:class:`.QueuedListener` object subscribes to a network
@@ -308,35 +308,53 @@ class QueuedListener(mcl.event.event.Event):
     Data are published as a dictionary in the following format::
 
         {'topic': str(),
-         'payload': str(),
+         'payload': obj(),
          'time_received': datetime}
 
     where:
 
-        - ``transmissions`` is an integer representing the total number of data
-          packets sent at the origin.
-        - ``topic`` is a string representing the topic associated with the
+        - **<topic>** is a string representing the topic associated with the
           current data packet. This can be used for filtering broadcasts.
-        - ``payload`` contains the contents of the data transmission as a
-          string.
+
+        - **<payload>** contains the contents of the data transmission.
+
+        - **<time_received>** is a datetime object containing the time the data
+          was received and queued.
 
     Args:
-        connection (:py:class:`~.abstract.Connection`): MCL connection object.
+        connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
+            an instance of a MCL connection object or a reference to a MCL
+            message type.
+        topics (str or list): Topics associated with the network interface
+            represented as either a string or list of strings.
         open_init (bool): open connection immediately after initialisation.
 
     """
 
-    def __init__(self, connection, open_init=True):
+    def __init__(self, connection, topics=None, open_init=True):
         """Document the __init__ method at the class level."""
 
-        # Ensure 'connection' is a Connection() object.
-        if not isinstance(connection, mcl.network.abstract.Connection):
-            msg = "'connection' must reference a Connection() instance."
-            raise TypeError(msg)
-        self.__connection = connection
+        # 'connection' is a Connection() instance.
+        if isinstance(connection, mcl.network.abstract.Connection):
+            self.__connection = connection
+            self.__message_type = None
 
-        # Initialise Event() object.
-        super(QueuedListener, self).__init__()
+        # 'connection is a reference to a Message() subclass.
+        elif issubclass(connection, mcl.message.messages.Message):
+            self.__connection = connection.connection
+            self.__message_type = connection
+
+        else:
+            msg = "'connection' must reference a Connection() instance "
+            msg += "or a Message() subclass."
+            raise TypeError(msg)
+
+        # Attempt to initialise listener base-class.
+        try:
+            super(QueuedListener, self).__init__(self.__connection,
+                                                 topics=topics)
+        except:
+            raise
 
         # Create objects for inter-process communication.
         self.__queue = None
@@ -352,16 +370,16 @@ class QueuedListener(mcl.event.event.Event):
 
         # Attempt to connect to network interface.
         if open_init:
-            try:
-                success = self.open()
-            except:
-                success = False
+            #try:
+            success = self.open()
+            #except:
+            #    success = False
 
             if not success:
                 msg = "Could not connect to '%s'." % str(connection)
                 raise IOError(msg)
 
-    def is_alive(self):
+    def is_open(self):
         """Return whether the object is listening for broadcasts.
 
         Returns:
@@ -381,7 +399,7 @@ class QueuedListener(mcl.event.event.Event):
     #       functionality that is particular to the class.
     #
     @staticmethod
-    def __enqueue(class_name, run_event, connection, queue):
+    def __enqueue(class_name, run_event, connection, topics, queue):
         """Light weight service to write incoming data to a queue."""
 
         # Attempt to set process name.
@@ -409,12 +427,13 @@ class QueuedListener(mcl.event.event.Event):
                 #
                 data['time_received'] = datetime.datetime.utcnow()
                 queue.put(data)
-
             except:
                 pass
 
         # Start listening for network broadcasts.
-        listener = RawListener(connection)
+        listener = RawListener(connection, topics=topics)
+
+        # Capture broadcast data.
         listener.subscribe(enqueue)
 
         # Wait for user to terminate listening service.
@@ -439,7 +458,19 @@ class QueuedListener(mcl.event.event.Event):
         while self.__reader_run_event.is_set():
             try:
                 data = self.__queue.get(timeout=self.__timeout)
-                self.__trigger__(data)
+
+                # Publish raw data.
+                if self.__message_type is None:
+                    self.__trigger__(data)
+
+                # Publish message object.
+                else:
+                    try:
+                        data['payload'] = self.__message_type(data['payload'])
+                        self.__trigger__(data)
+                    except:
+                        self.request_close()
+                        raise
 
             except Queue.Empty:
                 pass
@@ -447,7 +478,7 @@ class QueuedListener(mcl.event.event.Event):
             except:
                 raise
 
-    def open(self):
+    def _open(self):
         """Open connection to queued listener and start publishing broadcasts.
 
         Returns:
@@ -459,7 +490,7 @@ class QueuedListener(mcl.event.event.Event):
         """
 
         # Start publishing broadcast-events on a thread.
-        if not self.is_alive():
+        if not self.is_open():
 
             # Reset asynchronous objects.
             self.__queue = multiprocessing.Queue()
@@ -474,7 +505,8 @@ class QueuedListener(mcl.event.event.Event):
                                                     args=(self.__class__.__name__,
                                                           self.__writer_run_event,
                                                           self.__connection,
-                                                          self.__queue,))
+                                                          self.topics,
+                                                          self.__queue))
 
             # Start asynchronous objects and wait for them to become alive.
             self.__writer.daemon = True
@@ -508,9 +540,21 @@ class QueuedListener(mcl.event.event.Event):
         else:
             return False
 
+    def open(self):
+        """Open connection to queued listener and start publishing broadcasts.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if a connection to the queued
+                           listener is opened. If the queued listener is
+                           already open, the request is ignored and the method
+                           returns :data:`False`.
+
+        """
+        return self._open()
+
     def request_close(self):
 
-        if self.is_alive():
+        if self.is_open():
             self.__writer_run_event.clear()
             self.__reader_run_event.clear()
 
@@ -526,7 +570,7 @@ class QueuedListener(mcl.event.event.Event):
         """
 
         # Stop queuing broadcasts on process.
-        if self.is_alive():
+        if self.is_open():
 
             # Send signal to STOP queue WRITER and READER.
             self.__writer_run_event.clear()

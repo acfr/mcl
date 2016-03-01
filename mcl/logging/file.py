@@ -532,7 +532,7 @@ class LogConnection(object):
         # Create queued listener.
         try:
             self.__listener = mcl.network.network.QueuedListener(connection.connection,
-                                                                 open_init)
+                                                                 open_init=open_init)
         except:
             raise
 
@@ -557,7 +557,7 @@ class LogConnection(object):
 
         """
 
-        return self.__listener.is_alive()
+        return self.__listener.is_open()
 
     def start(self):
         """Start logging connection data.

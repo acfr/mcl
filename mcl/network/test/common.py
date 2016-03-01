@@ -403,23 +403,28 @@ class ListenerTests(object):
         with self.assertRaises(TypeError):
             MessageListener(self.Message, topics=5)
 
+
+    # --------------------------------------------------------------------------
+    #                         QueuedListener()
+    # --------------------------------------------------------------------------
+
     def test_queuedlistener_init(self):
         """Test %s QueuedListener() initialisation."""
 
         # Instantiate QueuedListener() using connection object.
         listener = QueuedListener(self.Message.connection)
-        self.assertTrue(listener.is_alive())
+        self.assertTrue(listener.is_open())
         self.assertFalse(listener.open())
         self.assertTrue(listener.close())
-        self.assertFalse(listener.is_alive())
+        self.assertFalse(listener.is_open())
         self.assertFalse(listener.close())
 
         # Instantiate QueuedListener(), delay opening connection.
         listener = QueuedListener(self.Message.connection, open_init=False)
-        self.assertFalse(listener.is_alive())
+        self.assertFalse(listener.is_open())
         self.assertTrue(listener.open())
         self.assertTrue(listener.close())
-        self.assertFalse(listener.is_alive())
+        self.assertFalse(listener.is_open())
         self.assertFalse(listener.close())
 
         # Ensure instantiation fails if the input is not a MCL connection.
@@ -457,6 +462,7 @@ class ListenerTests(object):
                                   args=(QueuedListener(self.Message.connection),
                                         run_event,
                                         self.Message.connection,
+                                        None,
                                         queue))
         thread.daemon = True
         thread.start()
@@ -474,21 +480,15 @@ class ListenerTests(object):
         # Ensure data was processed.
         self.assertEqual(queue.get()['payload'], test_data)
 
-    def test_receive(self):
-        """Test %s QueuedListener() send-receive functionality."""
-
-        # Create QueuedListener().
-        listener = QueuedListener(self.Message.connection)
-
-        # Create broadcaster.
-        broadcaster = RawBroadcaster(self.Message.connection)
+    @staticmethod
+    def queued_send_receive(self, listener, broadcaster, test_data):
+        """Method for testing QueuedListener send-receive facility"""
 
         # Catch messages.
         data_buffer = list()
         listener.subscribe(lambda data: data_buffer.append(data))
 
         # Send message.
-        test_data = 'test'
         broadcaster.publish(test_data)
         time.sleep(DELAY)
 
@@ -499,6 +499,22 @@ class ListenerTests(object):
         # Stop listener and broadcaster.
         listener.close()
         broadcaster.close()
+
+    def test_raw_receive(self):
+        """Test %s QueuedListener() raw-data send-receive functionality."""
+
+        listener = QueuedListener(self.Message.connection)
+        broadcaster = RawBroadcaster(self.Message.connection)
+        data = 'test'
+        self.queued_send_receive(listener, broadcaster, data)
+
+    def test_message_receive(self):
+        """Test %s QueuedListener() message send-receive functionality."""
+
+        listener = QueuedListener(self.Message)
+        broadcaster = MessageBroadcaster(self.Message)
+        data = self.Message(A=1, B=2)
+        self.queued_send_receive(listener, broadcaster, data)
 
 
 # -----------------------------------------------------------------------------
