@@ -16,13 +16,13 @@ Example usage:
     from mcl import Event
 
     pub = Event()
-    pub.subscribe(lambda data: os.sys.stdout.write(data + '\\n'))
-    pub.__trigger__('Hello world')
+    pub.subscribe(lambda data: os.sys.stdout.write(data))
+    pub.__trigger__('hello world')
 
 .. testoutput::
    :hide:
 
-   Hello world
+   hello world
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>

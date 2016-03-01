@@ -18,7 +18,6 @@ Broadcasters and listeners can be created using a
 
     - :py:func:`.RawBroadcaster`
     - :py:func:`.RawListener`
-    - :py:class:`.QueuedListener`
 
 Example usage:
 
@@ -30,22 +29,22 @@ Example usage:
     from mcl.network.network import RawListener
     from mcl.network.network import RawBroadcaster
 
-    # Create raw listener from IPv6 connection.
+    # Create raw listener and broadcaster from IPv6 connection.
     URL = 'ff15::c75d:ce41:ea8e:a000'
     connection = Connection(URL)
-    broadcaster = RawBroadcaster(connection)
     listener = RawListener(connection)
+    broadcaster = RawBroadcaster(connection)
 
     # Print received data to screen.
-    listener.subscribe(lambda d: os.sys.stdout.write(d['payload'] + '\\n'))
+    listener.subscribe(lambda d: os.sys.stdout.write(d['payload']))
 
     # Broadcast data.
     broadcaster.publish('hello world')
     time.sleep(0.1)
 
     # Close connections.
-    broadcaster.close()
     listener.close()
+    broadcaster.close()
 
 .. testoutput::
    :hide:
@@ -57,7 +56,57 @@ Similarly, *message* broadcasters and listeners can be created using a
 
     - :py:class:`.MessageBroadcaster`
     - :py:class:`.MessageListener`
-    - :py:class:`.QueuedListener`
+
+Example usage:
+
+.. testcleanup:: send-receive
+
+    # WARNING: this should not be deployed in production code. It is an
+    #          abuse that has been used for the purposes of unit-testing.
+    mcl.message.messages._MESSAGES = list()
+
+.. testcode:: send-receive
+
+    import os
+    import time
+    import mcl.message.messages
+    from mcl.network.udp import Connection
+    from mcl.network.network import MessageListener
+    from mcl.network.network import MessageBroadcaster
+
+    # Define MCL message.
+    class ExampleMessage(mcl.message.messages.Message):
+        mandatory = ('text',)
+        connection = Connection('ff15::c75d:ce41:ea8e:b000')
+
+    # Create raw listener and broadcaster from IPv6 connection.
+    listener = MessageListener(ExampleMessage)
+    broadcaster = MessageBroadcaster(ExampleMessage)
+
+    # Print received message to screen.
+    listener.subscribe(lambda d: os.sys.stdout.write(d['payload']['text']))
+
+    # Broadcast message.
+    broadcaster.publish(ExampleMessage(text='hello world'))
+    time.sleep(0.1)
+
+    # Close connections.
+    listener.close()
+    broadcaster.close()
+
+.. testoutput:: send-receive
+   :hide:
+
+   hello world
+
+The object :py:class:`.QueuedListener` can operate as a :py:func:`.RawListener`
+or a :py:class:`.MessageListener` depending on the input. This object differs
+from other listener objects by receiving network data on a separate process and
+inserting the data to a multi-processing queue. Callbacks are issued on a
+separate thread. The intention is to use a light-weight process for receiving
+data so as to achieve more accurate timing by avoiding restrictions of the GIL
+- resource allocation is left to the operating system. This object maintains
+the same interface as other listener objects.
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -107,7 +156,7 @@ def RawBroadcaster(connection, topic=None):
         from mcl.network.network import RawBroadcaster
 
         # Create raw broadcaster from IPv6 connection.
-        URL = 'ff15::c75d:ce41:ea8e:a000'
+        URL = 'ff15::c75d:ce41:ea8e:0a00'
         connection = Connection(URL)
         broadcaster = RawBroadcaster(connection)
 
@@ -170,12 +219,12 @@ def RawListener(connection, topics=None):
         from mcl.network.network import RawListener
 
         # Create raw listener from IPv6 connection.
-        URL = 'ff15::c75d:ce41:ea8e:a000'
+        URL = 'ff15::c75d:ce41:ea8e:0b00'
         connection = Connection(URL)
         listener = RawListener(connection)
 
         # Print received data to screen.
-        listener.subscribe(lambda d: os.sys.stdout.write(d['payload'] + '\\n'))
+        listener.subscribe(lambda d: os.sys.stdout.write(d['payload']))
 
         # Close connection.
         listener.close()
@@ -219,6 +268,34 @@ class MessageBroadcaster(object):
     :py:class:`.Message` before transmission. `Message pack
     <http://msgpack.org/index.html>`_ is used to serialise :py:class:`.Message`
     objects into byte string.
+
+    Example usage:
+
+    .. testcleanup:: broadcast
+
+        # WARNING: this should not be deployed in production code. It is an
+        #          abuse that has been used for the purposes of unit-testing.
+        mcl.message.messages._MESSAGES = list()
+
+    .. testcode:: broadcast
+
+        import mcl.message.messages
+        from mcl.network.udp import Connection
+        from mcl.network.network import MessageBroadcaster
+
+        # Define MCL message.
+        class ExampleMessage(mcl.message.messages.Message):
+            mandatory = ('text',)
+            connection = Connection('ff15::c75d:ce41:ea8e:00a0')
+
+        # Create message broadcaster from IPv6 connection.
+        broadcaster = MessageBroadcaster(ExampleMessage)
+
+        # Broadcast message.
+        broadcaster.publish(ExampleMessage(text='hello world'))
+
+        # Close connection.
+        broadcaster.close()
 
     For a list of available methods and attributes in the returned object, see
     :py:class:`~.abstract.RawBroadcaster`.
@@ -301,6 +378,34 @@ class MessageListener(object):
           received data.
 
         - **<payload>** is the received :py:class:`.Message` object.
+
+    Example usage:
+
+    .. testcleanup:: listen
+
+        # WARNING: this should not be deployed in production code. It is an
+        #          abuse that has been used for the purposes of unit-testing.
+        mcl.message.messages._MESSAGES = list()
+
+    .. testcode:: listen
+
+        import mcl.message.messages
+        from mcl.network.udp import Connection
+        from mcl.network.network import MessageListener
+
+        # Define MCL message.
+        class ExampleMessage(mcl.message.messages.Message):
+            mandatory = ('text',)
+            connection = Connection('ff15::c75d:ce41:ea8e:00b0')
+
+        # Create message listener from IPv6 connection.
+        listener = MessageListener(ExampleMessage)
+
+        # Print received message to screen.
+        listener.subscribe(lambda d: os.sys.stdout.write(d['payload']['text']))
+
+        # Close connection.
+        listener.close()
 
     For a list of available methods and attributes in the returned object, see
     :py:class:`~.abstract.RawListener`.
@@ -415,6 +520,78 @@ class QueuedListener(mcl.network.abstract.RawListener):
         - **<time_received>** is a datetime object containing the time the data
           was received and queued.
 
+    Example usage emulating objects returned from :py:func:`.RawListener`:
+
+    .. testcode:: queuedlistener-raw
+
+        import os
+        import time
+        from mcl.network.udp import Connection
+        from mcl.network.network import QueuedListener
+        from mcl.network.network import RawBroadcaster
+
+        # Define MCL connection.
+        URL = 'ff15::c75d:ce41:ea8e:00c0'
+        connection = Connection(URL)
+
+        # Print received data to screen.
+        listener = QueuedListener(connection)
+        broadcaster = RawBroadcaster(connection)
+        listener.subscribe(lambda d: os.sys.stdout.write(d['payload']))
+
+        # Broadcast data.
+        broadcaster.publish('hello world')
+        time.sleep(0.1)
+
+        # Close connections.
+        listener.close()
+
+    .. testoutput:: queuedlistener-raw
+       :hide:
+
+       hello world
+
+    Example usage emulating objects returned from
+    :py:func:`.MessageListener`. Note how the interface is the same as the
+    previous example but only the input object has changed:
+
+    .. testcleanup:: queuedlistener-message
+
+        # WARNING: this should not be deployed in production code. It is an
+        #          abuse that has been used for the purposes of unit-testing.
+        mcl.message.messages._MESSAGES = list()
+
+    .. testcode:: queuedlistener-message
+
+        import os
+        import time
+        import mcl.message.messages
+        from mcl.network.udp import Connection
+        from mcl.network.network import QueuedListener
+        from mcl.network.network import MessageBroadcaster
+
+        # Define MCL message.
+        class ExampleMessage(mcl.message.messages.Message):
+            mandatory = ('text',)
+            connection = Connection('ff15::c75d:ce41:ea8e:00c0')
+
+        # Print received message to screen.
+        listener = QueuedListener(ExampleMessage)
+        broadcaster = MessageBroadcaster(ExampleMessage)
+        listener.subscribe(lambda d: os.sys.stdout.write(d['payload']['text']))
+
+        # Broadcast message.
+        broadcaster.publish(ExampleMessage(text='hello world'))
+        time.sleep(0.1)
+
+        # Close connections.
+        listener.close()
+
+    .. testoutput:: queuedlistener-message
+       :hide:
+
+       hello world
+
     Args:
         connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
             an instance of a MCL connection object or a reference to a MCL
@@ -464,10 +641,10 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         # Attempt to connect to network interface.
         if open_init:
-            #try:
-            success = self.open()
-            #except:
-            #    success = False
+            try:
+                success = self.open()
+            except:
+                success = False
 
             if not success:
                 msg = "Could not connect to '%s'." % str(connection)
