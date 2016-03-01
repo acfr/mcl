@@ -148,7 +148,7 @@ def RawListener(connection, topics=None):
     """Return an object for receiving data over a network interface.
 
     Objects returned by :py:func:`.RawListener` make network data available to
-    subscribers by issuing callbacks when data arrives in the following
+    subscribers by issuing callbacks, when data arrives, in the following
     format::
 
         {'topic': str(),

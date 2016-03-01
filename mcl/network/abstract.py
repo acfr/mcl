@@ -428,7 +428,6 @@ class Connection(tuple):
 
     .. testoutput::
 
-
        ExampleConnection(A='A')
        ExampleConnection(A='A', C=2, B=1, D=5)
 
@@ -542,15 +541,28 @@ class RawListener(mcl.event.event.Event):
     network interface. Listeners inheriting from this template are likely to
     integrate safely with the MCL system.
 
+    Network data is made available to subscribers by issuing callbacks, when
+    data arrives, in the following format::
+
+        {'topic': str(),
+         'payload': obj()}
+
+    where:
+
+        - **<topic>** is a string containing the topic associated with the
+          received data.
+
+        - **<payload>** is the received (serialisable) data.
+
     .. note::
 
         :py:class:`.RawListener` implements the event-based programming
-        paradigm by inheriting from :py:class:`.Event`. To prevent *users* from
-        triggering callbacks directly, the :py:func:`Event.trigger` method has
-        been obfuscated. Data can be issued to callback functions by calling
-        the RawListener.__trigger__ method. In concrete implementations of the
-        :py:class:`.RawListener, *developers* should call the '__trigger__'
-        method in I/O loops when network data is available.
+        paradigm by inheriting from :py:class:`.Event`. Data can be issued to
+        callback functions by calling the RawListener.__trigger__ method. This
+        method has been removed from the public API to prevent *users* from
+        calling the method. In concrete implementations of the
+        :py:class:`.RawListener, *developers* can call the '__trigger__' method
+        in I/O loops when network data is available.
 
     Args:
         connection (:py:class:`~.abstract.Connection`): Connection object.
