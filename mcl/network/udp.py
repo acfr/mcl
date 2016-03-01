@@ -119,11 +119,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         self.__is_open = False
 
         # Attempt to connect to UDP interface.
-        try:
-            success = self._open()
-        except:
-            success = False
-
+        success = self._open()
         if not success:
             msg = "Could not connect to '%s'." % str(self.connection)
             raise IOError(msg)
@@ -264,30 +260,30 @@ class RawListener(mcl.network.abstract.RawListener):
     """Receive data from the network using a UDP socket.
 
     The :py:class:`~.udp.RawListener` object subscribes to a UDP socket and
-    issues publish events when UDP data is received. The object marshalls
-    broadcasts and ensures multiple, fragmented packets will be recomposed into
-    a single packet.
-
-    When data packets arrive, they are made available to other objects using
-    the publish-subscribe paradigm implemented by the parent class
-    :py:class:`.Event`. When data arrives, it is published to callbacks in the
-    following format::
+    issues publish events when UDP data are received. Network data are made
+    available to other objects by issuing callbacks in the following format::
 
         {'topic': str(),
-         'payload': str()}
+         'payload': obj()}
 
     where:
 
-        - ``topic`` is a string representing the topic associated with the
-          current data packet. This can be used for filtering broadcasts.
-        - ``payload`` contains the contents of the data transmission as a
-          string.
+        - **<topic>** is a string containing the topic associated with the
+          received data.
 
-    **Note:** :py:class:`~.udp.RawListener` does not interpret the received
-    data in anyway. Code receiving the data must be aware of how to handle
-    it. A method for simplifying data handling is to pair a specific data type
-    with a unique network address. By adopting this paradigm, handling the data
-    is trivial if the network address is known.
+        - **<payload>** is the received (serialisable) data.
+
+    The :py:class:`~.udp.RawListener` marshalls broadcasts and ensures
+    multiple, fragmented packets will be recomposed into a single packet before
+    issuing a publish event.
+
+    .. note::
+
+        :py:class:`~.udp.RawListener` does not interpret the received data in
+        anyway. Code receiving the data must be aware of how to handle it. A
+        method for simplifying data handling is to pair a specific data type
+        with a unique network address. By adopting this paradigm, handling the
+        data is trivial if the network address is known.
 
     Args:
         connection (:py:class:`.Connection`): Connection object.
@@ -328,11 +324,7 @@ class RawListener(mcl.network.abstract.RawListener):
         self.__is_open = False
 
         # Attempt to connect to UDP interface.
-        try:
-            success = self._open()
-        except:
-            success = False
-
+        success = self._open()
         if not success:
             msg = "Could not connect to '%s'." % str(self.connection)
             raise IOError(msg)
