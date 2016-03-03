@@ -64,6 +64,18 @@ class DumpListTests(unittest.TestCase):
             self.assertAlmostEqual(item['data'], log_data[i]['data'])
             self.assertAlmostEqual(item['timestamp'], log_data[i]['timestamp'])
 
+    def test_bad_args(self):
+        """Test dump_to_list() catches bad input."""
+
+        # Validate log file inputs.
+        with self.assertRaises(IOError):
+            dump_to_list('does_not_exist.log')
+
+        # Ensure 'metadata' is a boolean.
+        with self.assertRaises(TypeError):
+            dump_to_list(os.path.join(LOG_PATH, 'UnitTestMessageA.log'),
+                         metadata='bool')
+
     def test_load(self):
         """Test dump_to_list() can load data."""
 

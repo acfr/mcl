@@ -15,7 +15,6 @@ available:
 import os
 import csv
 import numpy as np
-import collections
 import mcl.logging.file
 
 
