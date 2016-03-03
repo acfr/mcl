@@ -16,8 +16,9 @@ and insert them into a multiprocess queue. This is done using the
 :py:class:`.ReadDirectory` object. The data is formatted as a dictionary using
 the following fields::
 
-    {'topic': str(),
-     'message': <:py:class:`.Message` object>}
+    {'elapsed_time: <float>,
+     'topic': <string>,
+     'payload': <dict or :py:class:`.Message`>}
 
 where:
     - `topic` is the topic that was associated with the message.
@@ -339,7 +340,7 @@ class BufferData(object):
         _set_process_name(proc_name)
 
         # Define expected data dictionary keys.
-        keys = ['elapsed_time', 'topic', 'message']
+        keys = ['elapsed_time', 'topic', 'payload']
 
         try:
             data = None
@@ -352,7 +353,7 @@ class BufferData(object):
                     #
                     #     dct = {'elapsed_time: <float>,
                     #            'topic': <string>,
-                    #            'message': <:py:class:`.Message` object>}
+                    #            'payload': dict or <:py:class:`.Message` object>}
                     data = resource.read()
 
                     # The only reason candidate data should be falsy (None) is
@@ -373,8 +374,8 @@ class BufferData(object):
                             raise NameError(msg % key)
 
                     # Ensure payload is an MCL message.
-                    if not issubclass(type(data['message']), mcl.message.messages.Message):
-                        msg = "dict['message'] must be an MCL message."
+                    if not issubclass(type(data['payload']), mcl.message.messages.Message):
+                        msg = "dict['payload'] must be an MCL message."
                         raise TypeError(msg)
 
                 # Put the candidate data on the queue if a free slot is
@@ -579,12 +580,12 @@ class ScheduleBroadcasts(object):
                     #
                     #     dct = {'elapsed_time: <float>,
                     #            'topic': <string>,
-                    #            'message': <:py:class:`.Message` object>}
+                    #            'payload': dict or <:py:class:`.Message` object>}
                     #
                     data = queue.get(timeout=0.1)
                     elapsed_time = data['elapsed_time']
                     topic = data['topic']
-                    message = data['message']
+                    message = data['payload']
 
                     # Create a list of active broadcasters as required.
                     key = (type(message), topic)

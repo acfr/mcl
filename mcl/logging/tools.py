@@ -19,20 +19,17 @@ import collections
 import mcl.logging.file
 
 
-def dump_to_list(source, min_time=None, max_time=None, message=False):
+def dump_to_list(source, min_time=None, max_time=None, message=False,
+                 metadata=True):
     """Load log file data into a list.
 
     The :py:func:`.dump_to_list` function parses a log file or directory of log
-    files into a list. Note, the following fields are added to each object:
+    files into a list. Each element in the list is returned as it is recorded
+    in the log file(s) (see `metadata`)::
 
-        - ``elapsed_time``  the time when the message was logged to file, in
-          seconds, relative to when logging started.
-        - ``topic`` the topic that was associated with the message during
-          transmission.
-
-    If the ``elapsed_time`` or ``topic`` exist as keys in the stored object,
-    the original data is preserved and a warning message is printed to the
-    screen.
+        {'elapsed_time': float(),
+         'topic': str(),
+         'message': dict or Message()}
 
     Args:
         source (str): Path to network data log(s) to convert into a
@@ -45,13 +42,22 @@ def dump_to_list(source, min_time=None, max_time=None, message=False):
             decoded into the MCL :py:class:`.Message` type stored in the log
             file(s). If set to :data:`False` (default), message data is
             returned as a dictionary. Note: to read data as MCL messages, the
-            messages must be loaded into the namespace.
+            messages must be loaded into the namespace and recorded in the log
+            file header.
+        metadata (bool): If set to :data:`True` (default), each element in the
+            list will store a dictionary containing the elapsed time, topic and
+            payload. If set to :data:`False` only the payload will be stored in
+            each element of the list.
 
     Returns:
-        list: A list of chronologically ordered network messages. The type of
-            each item in the list depends on the `message` input.
+        list: A list of chronologically ordered network messages.
 
     """
+
+    # Force message type.
+    if not isinstance(metadata, bool):
+        msg = "'metadata' must be a boolean."
+        raise TypeError(msg)
 
     # Create object for reading a directory of network logs in time order.
     try:
@@ -68,57 +74,24 @@ def dump_to_list(source, min_time=None, max_time=None, message=False):
     except:
         raise
 
-    # Create warning message for fields which exist in the dictionary and might
-    # get clobbered.
-    warning_msg = "%s: Already contains the key '%s'. "
-    warning_msg += "Preserving the original data."
-
     # Read data from files.
     messages = list()
-    time_origin = None
     while True:
 
         # Parse line from file(s) as a dictionary in the following format:
         #
         #    {'elapsed_time': float(),
         #     'topic': str(),
-        #     'message': <:py:class:`.Message`>}
+        #     'message': dict or <:py:class:`.Message`>}
         #
         message = dumps.read()
 
         # Write message to file.
         if message:
-            try:
-                topic = message['topic']
-                message = message['message']
-
-                if not time_origin:
-                    time_origin = message['timestamp']
-                    elapsed_time = 0.0
-                else:
-                    elapsed_time = message['timestamp'] - time_origin
-
-                # Add elapsed time and topic.
-                if 'elapsed_time' not in message:
-                    message['elapsed_time'] = elapsed_time
-                else:
-                    print warning_msg % (message['name'], 'elapsed_time')
-
-                # Add message topic.
-                if 'topic' not in message:
-                    message['topic'] = topic
-                else:
-                    print warning_msg % (message['name'], 'topic')
-
-                # Store formatted message object in list.
+            if metadata:
                 messages.append(message)
-                message = None
-
-            except:
-                print '\nCould not convert:'
-                print message
-                raise
-
+            else:
+                messages.append(message['payload'])
         else:
             break
 
@@ -166,7 +139,8 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
     try:
         message_list = dump_to_list(source,
                                     min_time=min_time,
-                                    max_time=max_time)
+                                    max_time=max_time,
+                                    metadata=False)
     except:
         raise
 
@@ -234,7 +208,8 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
     try:
         message_list = dump_to_list(source,
                                     min_time=min_time,
-                                    max_time=max_time)
+                                    max_time=max_time,
+                                    metadata=False)
     except:
         raise
 

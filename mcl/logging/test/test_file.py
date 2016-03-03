@@ -451,13 +451,13 @@ class ReadFileTests(unittest.TestCase):
         self.assertEqual(rf.header['version'], '1.0')
         self.assertEqual(rf.header['revision'], 'f9ab7811383ad9b67bdf495c88a8d86950520650')
         self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
-        self.assertEqual(rf.header['message'], dict)
+        self.assertEqual(rf.header['type'], dict)
 
         # Create file reader for loading data into message objects.
         rf = ReadFile(fname, message=True)
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
-        self.assertEqual(rf.header['message'], UnitTestMessageA)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
 
     def test_bad_init(self):
         """Test ReadFile() catches bad initialisation."""
@@ -497,7 +497,7 @@ class ReadFileTests(unittest.TestCase):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -523,7 +523,7 @@ class ReadFileTests(unittest.TestCase):
         for i in range(4, 9):
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         message = rf.read()
@@ -541,7 +541,7 @@ class ReadFileTests(unittest.TestCase):
             for i in range(10):
                 message = rf.read()
                 self.assertEqual(round(100 * message['elapsed_time']), i)
-                self.assertEqual(round(100 * message['message']['timestamp']), i)
+                self.assertEqual(round(100 * message['payload']['timestamp']), i)
 
             # Reset object (ensure data is read from beginning on next loop).
             rf.reset()
@@ -555,14 +555,14 @@ class ReadFileTests(unittest.TestCase):
 
         # Ensure object can parse the header block.
         self.assertNotEqual(rf.header, None)
-        self.assertEqual(rf.header['message'], UnitTestMessageA)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
 
         # Ensure items in split log-files can be read correctly.
         for i in range(10):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -584,7 +584,7 @@ class ReadFileTests(unittest.TestCase):
             self.assertTrue(rf.is_data_pending())
             message = rf.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rf.is_data_pending())
@@ -664,18 +664,18 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
-            self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageA))
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageA')
+            self.assertTrue(isinstance(rd_msg.read()['payload'], UnitTestMessageA))
 
         # Read UnitTestMessageB messages.
         for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i + 1)
-            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
-            self.assertTrue(isinstance(rd_msg.read()['message'], UnitTestMessageB))
+            self.assertEqual(round(10 * message['payload']['timestamp']), i + 1)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageB')
+            self.assertTrue(isinstance(rd_msg.read()['payload'], UnitTestMessageB))
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -693,16 +693,16 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(1, 4):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i)
-            self.assertEqual(round(10 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
+            self.assertEqual(round(10 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -720,8 +720,8 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageA')
 
         # Reset directory reader.
         rd.reset()
@@ -731,16 +731,16 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(0, 10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i + 1)
-            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
+            self.assertEqual(round(10 * message['payload']['timestamp']), i + 1)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())
@@ -758,16 +758,16 @@ class ReadDirectoryTests(unittest.TestCase):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['message']['timestamp']), i)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageA')
+            self.assertEqual(round(100 * message['payload']['timestamp']), i)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageA')
 
         # Read UnitTestMessageB messages.
         for i in range(10):
             self.assertTrue(rd.is_data_pending())
             message = rd.read()
             self.assertEqual(round(10 * message['elapsed_time']), i + 1)
-            self.assertEqual(round(10 * message['message']['timestamp']), i + 1)
-            self.assertTrue(message['message']['name'], 'UnitTestMessageB')
+            self.assertEqual(round(10 * message['payload']['timestamp']), i + 1)
+            self.assertTrue(message['payload']['name'], 'UnitTestMessageB')
 
         # Ensure None is returned when all data has been read.
         self.assertFalse(rd.is_data_pending())

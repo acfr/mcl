@@ -43,18 +43,36 @@ log_data = [{'data': 0.00, 'name': 'UnitTestMessageA', 'timestamp': 0.00},
 
 class DumpListTests(unittest.TestCase):
 
-    def test_load(self):
+    def load_list(self, path, metadata):
         """Test dump_to_list() can load data."""
 
         # Load logged data into a list.
-        lst = dump_to_list(LOG_PATH)
+        lst = dump_to_list(path, metadata=metadata)
 
         # Ensure loaded data is valid.
         self.assertEqual(len(lst), len(log_data))
         for i, item in enumerate(lst):
-            self.assertAlmostEqual(item['data'], log_data[i]['data'])
+
+            # Validate metadata.
+            if metadata:
+                self.assertEqual(item['topic'], '')
+                self.assertAlmostEqual(item['elapsed_time'],
+                                       log_data[i]['timestamp'])
+                item = item['payload']
+
             self.assertEqual(item['name'], log_data[i]['name'])
+            self.assertAlmostEqual(item['data'], log_data[i]['data'])
             self.assertAlmostEqual(item['timestamp'], log_data[i]['timestamp'])
+
+    def test_load(self):
+        """Test dump_to_list() can load data."""
+
+        self.load_list(LOG_PATH, True)
+
+    def test_load_no_meta(self):
+        """Test dump_to_list() can ignore metadata."""
+
+        self.load_list(LOG_PATH, True)
 
     def test_load_time(self):
         """Test dump_to_list() can load a time range of data."""
@@ -66,9 +84,8 @@ class DumpListTests(unittest.TestCase):
 
         # Ensure time range of data is valid.
         for i, item in enumerate(lst):
-            self.assertAlmostEqual(item['timestamp'],
+            self.assertAlmostEqual(item['payload']['timestamp'],
                                    log_data[i + 1]['timestamp'])
-
 
 # -----------------------------------------------------------------------------
 #                               dump_to_array()

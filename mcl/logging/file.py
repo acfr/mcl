@@ -647,7 +647,6 @@ class ReadFile(object):
             loaded into the namespace.
 
     Attributes:
-
         header (dict): Contents of the log file header. If the log file header
             is not available :py:data:`.None` is returned, otherwise the
             following dictionary is returned::
@@ -657,7 +656,7 @@ class ReadFile(object):
                        'version': string,
                        'revision': string,
                        'created': string,
-                       'message': :py:class:`.Message`}
+                       'type': dict or :py:class:`.Message`}
 
             where:
                 - <text> is the header text
@@ -665,8 +664,8 @@ class ReadFile(object):
                 - <version> Version used to record log files
                 - <revision> Git hash of version used to log data
                 - <created> Time when log file was created
-                - <message> is a pointer to the MCL object stored in the log
-                  file(s)
+                - <message> is the type used to represent the logged data
+                  (either dict or :py:class:`.Message`)
 
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
@@ -870,7 +869,7 @@ class ReadFile(object):
 
             dct = {'elapsed_time: <float>,
                    'topic': <string>,
-                   'message': <:py:class:`.Message` object>}
+                   'payload': dict or <:py:class:`.Message` object>}
 
         If an error is encountered during parsing an IOError is returned
         instead of a dictionary.
@@ -918,7 +917,7 @@ class ReadFile(object):
 
                         # Cast into message type given message type recorded in
                         # the header.
-                        message = self.header['message'](message)
+                        message = self.header['type'](message)
 
                     # Force a message type.
                     else:
@@ -927,7 +926,7 @@ class ReadFile(object):
                 # Package up data in a dictionary
                 message = {'elapsed_time': elapsed_time,
                            'topic': topic[1:-1],
-                           'message': message}
+                           'payload': message}
 
                 # Filter out messages before requested period.
                 if self.__min_time and elapsed_time < self.__min_time:
@@ -960,7 +959,7 @@ class ReadFile(object):
                    'version': string,
                    'revision': string,
                    'created': string,
-                   'message': :py:class:`.Message`}
+                   'type': dict or :py:class:`.Message`}
 
         where:
             - <text> is the header text
@@ -968,8 +967,8 @@ class ReadFile(object):
             - <version> Version used to record log files
             - <revision> Git hash of version used to log data
             - <created> Time when log file was created
-            - <message> is a pointer to the MCL object stored in the log
-              file(s)
+            - <type> is the type used to represent the logged data (either dict
+              or :py:class:`.Message`)
 
         Returns:
             dict: A dictionary containing the contents of the header.
@@ -1059,7 +1058,7 @@ class ReadFile(object):
                 'version': parameter[0],
                 'revision': parameter[1],
                 'created': parameter[2],
-                'message': message}
+                'type': message}
 
     def read(self):
         """Read data from the log file(s).
@@ -1069,7 +1068,7 @@ class ReadFile(object):
 
             dct = {'elapsed_time: <float>,
                    'topic': <string>,
-                   'message': <:py:class:`.Message` object>}
+                   'payload': dict or <:py:class:`.Message` object>}
 
         where:
 
@@ -1077,8 +1076,8 @@ class ReadFile(object):
               file and recording the message.
             - ``topic`` is the topic associated with the message during the
               broadcast.
-            - ``message``: is the network message, delivered as a MCL
-              :py:class:`.Message` object.
+            - ``message``: is the network message, delivered as a dictionary or
+              MCL :py:class:`.Message` object.
 
         If all data has been read from the log file, None is returned.
 
@@ -1349,7 +1348,7 @@ class ReadDirectory(object):
             rf = ReadDirectory('./logs')
             data = rd.read()
 
-    NOTE::
+    .. note::
 
         :py:class:`.ReadDirectory` assumes the log files have been created by
         :py:class:`.WriteFile` and searches for files with the '.log' extension
@@ -1363,7 +1362,6 @@ class ReadDirectory(object):
         source (str): Path to directory containing log files.
         min_time (float): Minimum time to extract from log file in seconds.
         max_time (float): Maximum time to extract from log file in seconds.
-
         message (bool): If set to :py:data:`.True` messages will automatically
             be decoded into the MCL message type stored in the log file. If set
             to :py:data:`.False` (default), message data is returned as a
@@ -1449,7 +1447,7 @@ class ReadDirectory(object):
 
                     # Store message objects recorded in each log file.
                     if self.__message:
-                        self.__messages.append(dump.header['message'])
+                        self.__messages.append(dump.header['type'])
 
         # Store max/min time.
         self.__min_time = min_time
@@ -1558,7 +1556,7 @@ class ReadDirectory(object):
 
             {'elapsed_time: <float>,
              'topic': <string>,
-             'message': <:py:class:`.Message`>}
+             'payload': <dict or :py:class:`.Message`>}
 
         where:
 
@@ -1566,8 +1564,8 @@ class ReadDirectory(object):
               file and recording the message.
             - ``topic`` is the topic associated with the message during the
               broadcast.
-            - ``message``: is the network message, delivered as a MCL
-              :py:class:`.Message` object.
+            - ``message``: is the network message, delivered as a dictionary or
+              MCL :py:class:`.Message` object.
 
         If all data has been read from the log files (directory), None is
         returned.
