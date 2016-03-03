@@ -75,7 +75,16 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
     def test_bad_init(self):
         """Test WriteFile() catches bad initialisation."""
 
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(IOError):
+            prefix = os.path.join(TMP_PATH, 'does', 'not', 'exist', )
+            WriteFile(prefix, UnitTestMessageA)
+
         prefix = os.path.join(TMP_PATH, 'unittest')
+
+        # Ensure connection is specified properly.
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, 'connection')
 
         # Ensure max_entries is specified properly.
         with self.assertRaises(TypeError):
@@ -99,7 +108,10 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         # Delete log if it already exists (it shouldn't).
         self.delete_if_exists(tmp)
 
-        # Create logging object.
+        # Create logging object with connection.
+        WriteFile(prefix, UnitTestMessageA.connection)
+
+        # Create logging object with message.
         wf = WriteFile(prefix, UnitTestMessageA)
         self.assertEqual(tmp, wf._WriteFile__get_filename())
 
@@ -349,17 +361,27 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
 
 class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
 
+    def test_bad_init(self):
+        """Test LogConnection() with bad inputs."""
+
+        # Ensure WriteFile() can pass through errors.
+        with self.assertRaises(IOError):
+            prefix = os.path.join(TMP_PATH, 'does', 'not', 'exist', )
+            LogConnection(prefix, UnitTestMessageA)
+
     def test_init(self):
         """Test LogConnection() initialisation."""
 
         # Path to log file.
         prefix = os.path.join(TMP_PATH, 'unittest')
 
-        # Limit logging by both entries and time.
-        max_entries = 10
-        max_time = 60
+        # Create logging object with connection/message.
+        LogConnection(prefix, UnitTestMessageA.connection)
+        LogConnection(prefix, UnitTestMessageA)
 
         # Ensure object can be initialised using all keyword arguments.
+        max_entries = 10
+        max_time = 60
         logger = LogConnection(prefix,
                                UnitTestMessageA,
                                time_origin=datetime.datetime.now(),
@@ -371,19 +393,18 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
         self.assertEqual(logger.max_time, max_time)
         self.assertFalse(logger.is_alive())
         self.assertTrue(logger.open())
+        self.assertFalse(logger.open())
         self.assertTrue(logger.close())
         self.assertFalse(logger.is_alive())
+        self.assertFalse(logger.close())
 
     def test_open_after_init(self):
         """Test LogConnection() start logging after initialisation."""
 
-        # Ensure object can be initialised using all keyword arguments.
         prefix = os.path.join(TMP_PATH, 'unittest')
         logger = LogConnection(prefix, UnitTestMessageA, open_init=True)
         self.assertTrue(logger.is_alive())
-        self.assertFalse(logger.open())
         self.assertTrue(logger.close())
-        self.assertFalse(logger.is_alive())
 
     def log_file(self, prefix, connection, broadcaster, data):
         """Method for testing logging ability."""
@@ -781,8 +802,38 @@ class ReadDirectoryTests(unittest.TestCase):
 
 class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
 
+    def test_bad_init(self):
+        """Test LogNetwork() catches bad initialisation."""
+
+        messages = [UnitTestMessageA, UnitTestMessageB]
+
+        # Ensure error is raised if the logging directory does not exist.
+        with self.assertRaises(IOError):
+            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
+
+        # Ensure error is raised if the input connections are wrong.
+        with self.assertRaises(TypeError):
+            LogNetwork('connection', TMP_PATH)
+        with self.assertRaises(TypeError):
+            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
+
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries=0)
+
+        # Ensure max_time is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time=0)
+
     def test_init(self):
         """Test LogNetwork() initialisation."""
+
+        # Ensure all valid connections can be instantiated.
+        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
 
         # Initialise network dump.
         messages = [UnitTestMessageA, UnitTestMessageB]
@@ -797,27 +848,6 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
         # The directory property is only created once logging has
         # started. Ensure it is set to None initially.
         self.assertEqual(dump.directory, None)
-
-    def test_bad_init(self):
-        """Test LogNetwork() catches bad initialisation."""
-
-        messages = [UnitTestMessageA, UnitTestMessageB]
-
-        # Ensure error is raised if the logging directory does not exist.
-        with self.assertRaises(IOError):
-            LogNetwork(messages, directory='fail')
-
-        # Ensure max_entries is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries=0)
-
-        # Ensure max_time is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time=0)
 
     def test_start_stop(self):
         """Test LogNetwork() start/stop."""

@@ -526,18 +526,18 @@ class LogConnection(object):
         except:
             raise
 
+        # Always operate on raw data. Do not incur the overhead of casting
+        # received messages to their defined type prior to logging.
+        try:
+            if issubclass(connection, mcl.message.messages.Message):
+                connection = connection.connection
+
+        # Must be a connection object.
+        except:
+            pass
+
         # Create queued listener.
         try:
-            # Always operate on raw data. Do not incur the overhead of castin
-            # received messages to their defined type prior to logging.
-            try:
-                if issubclass(connection, mcl.message.messages.Message):
-                    connection = connection.connection
-
-            # Must be a connection object.
-            except:
-                pass
-
             self.__listener = mcl.network.network.QueuedListener(connection,
                                                                  open_init=open_init)
         except:
@@ -732,7 +732,7 @@ class ReadFile(object):
 
             # Incorrect type.
             elif not isinstance(message, bool):
-                msg = "'message' must be a boolean or string."
+                msg = "'message' must be a boolean or MCL message object."
                 raise TypeError(msg)
 
         # If file exists, use single file mode.
@@ -785,7 +785,7 @@ class ReadFile(object):
 
         Returns:
             string: Returns the path to the log file which is currently being
-                    read.
+                read.
 
         """
 
@@ -808,9 +808,9 @@ class ReadFile(object):
 
         Returns:
             tuple: A tuple containing, the line of text extracted from the log
-                    file(s), the line number of the log file and the file
-                    pointer.  If the end of the log file(s) is encountered,
-                    (None, None, None) is returned.
+                file(s), the line number of the log file and the file pointer.
+                If the end of the log file(s) is encountered, (None, None,
+                None) is returned.
 
         """
 
@@ -879,10 +879,9 @@ class ReadFile(object):
 
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
-                  text was recorded. The topic associated with the message
-                  broadcast and the message payload as a MCL message object.
-                  If an error was encountered during parsing an IOError is
-                  returned.
+                text was recorded. The topic associated with the message
+                broadcast and the message payload as a MCL message object.  If
+                an error was encountered during parsing an IOError is returned.
 
         """
 
@@ -1205,16 +1204,24 @@ class LogNetwork(object):
         if directory and not os.path.isdir(directory):
             raise IOError("The directory '%s' does not exist." % directory)
 
-        # List of messages.
-        if (isinstance(messages, (list, tuple)) and
-            all(issubclass(c, mcl.message.messages.Message) for c in messages)):
-            self.__message = True
-            self.__messages = messages
-
-        else:
+        # Input is not an iterable.
+        if not isinstance(messages, (list, tuple)):
             msg = "The '%s' parameter must be a list/tuple of Connection() "
             msg += "or Message() objects."
             raise TypeError(msg % 'messages')
+
+        # Catch errors early: ensure each item in the iterable can create a
+        # logger.
+        else:
+            self.__message = True
+            self.__messages = messages
+            for message in self.messages:
+                try:
+                    LogConnection(os.path.join(directory, 'test'),
+                                  message,
+                                  open_init=False)
+                except:
+                    raise
 
         # Ensure max_entries is properly specified.
         if ((max_entries is None) or
