@@ -28,36 +28,25 @@ import mcl.network.network
 import mcl.network.abstract
 import mcl.message.messages
 
+# Define version.
+VERSION = 1.0
 
-class DumpConstants(object):
-    """Container for message dump constants."""
+# NOTE: The time has been padded to 12 characters. This allows 6 integer
+#       characters, the decimal point and 5 fractional characters. With 6
+#       integer characters, the log files can log up to 999999 seconds
+#       before the text becomes misaligned - this equates to approximately
+#       277 hours or 11 days.
+TIME_PADDING = 12
+TOPIC_PADDING = 8
 
-    # Define version.
-    VERSION = 1.0
-
-    # Define version 1 padding.
-    #
-    # NOTE: The time has been padded to 12 characters. This allows 6 integer
-    #       characters, the decimal point and 5 fractional characters. With 6
-    #       integer characters, the log files can log up to 999999 seconds
-    #       before the text becomes misaligned - this equates to approximately
-    #       277 hours or 11 days.
-    TIME_PADDING = 12
-    TOPIC_PADDING = 8
-
-    # Define version 1 column names.
-    TITLE_TIME = '<Time>'
-    TITLE_MESSAGE = '<MessageType>'
-    TITLE_TOPIC = '<Topic>'
-    TITLE_PAYLOAD = '<Payload>'
-
-    COMMENT_CHARACTER = '#'
-    COMMENT_BLOCK = COMMENT_CHARACTER + '-' * 65
-    VERSION_MARKER = '--'
-    BROADCAST_MARKER = '>>>'
+COMMENT_CHARACTER = '#'
+COMMENT_BLOCK = COMMENT_CHARACTER + '-' * 65
+VERSION_MARKER = '--'
+CONNECTION_MARKER = '>>'
+MESSAGE_MARKER = '>>>'
 
 
-class WriteFile(DumpConstants):
+class WriteFile(object):
     """Write network messages to log file(s).
 
     The :py:class:`.WriteFile` object is used for writing network messages to
@@ -276,70 +265,63 @@ class WriteFile(DumpConstants):
         except:
             git_hash = '<unknown>'
 
-        # Create version details.
-        version = '    %s version     %1.1f'
-        revision = '    %s revision    %s'
-        created = '    %s created     %s'
-        version = version % (self.VERSION_MARKER, self.VERSION)
-        revision = revision % (self.VERSION_MARKER, git_hash)
-        created = created % (self.VERSION_MARKER, str(self.__time_origin))
-        version = '%s\n%s\n%s\n' % (version, revision, created)
-
-        # Record raw broadcast.
-        if self.__message_type is None:
-            message = '\n     %s %s' % (self.BROADCAST_MARKER, str(None))
-
-        # Record message broadcast.
-        else:
-            message = '\n     %s %s' % (self.BROADCAST_MARKER,
-                                        self.__message_type.__name__)
-
-        # Adjust padding on column names for pretty printing.
-        time_padding = self.TIME_PADDING - len(self.COMMENT_CHARACTER + ' ')
-        title_time = self.TITLE_TIME.rjust(time_padding)
-        title_topic = self.TITLE_TOPIC.ljust(self.TOPIC_PADDING)
-
-        # Format line: <Time>    <Topic>    <Data>
-        #
-        column_description = """\
-        1) The time when the data frame was received relative
-           to when this file was created.
-        2) The topic associated with the data frame.
-        3) The binary data stored as a hex string.
-        """
-
-        column_title = '%s    %s    %s'
-        column_title = column_title % (title_time,
-                                       title_topic,
-                                       self.TITLE_PAYLOAD)
-
-        # Remove common leading whitespace from triple-quoted strings.
-        lines = textwrap.dedent(column_description).splitlines()
-        column_description = '\n'.join(['    ' + line for line in lines])
-
         # Create format of file header.
-        hdr = textwrap.dedent("""\
+        header = textwrap.dedent("""\
         NETWORK_DUMP
-        %s
+            %s
+            %s
+            %s
+
         Each line of this file records a packet of data transmitted over the
         network. The columns in this file are:
 
+            1) The time when the data frame was received relative
+               to when this file was created.
+            2) The topic associated with the data frame.
+            3) The binary data stored as a hex string.
+
         %s
 
-        The following message objects were recorded in this file:
-        %s
+        %s""")
 
-        %s""") % (version,
-                  column_description,
-                  message,
-                  column_title)
+        # Create version details.
+        version = '%s version     %1.1f' % (VERSION_MARKER, VERSION)
+        revision = '%s revision    %s' % (VERSION_MARKER, git_hash)
+        created = '%s created     %s' % (VERSION_MARKER,
+                                         str(self.__time_origin))
 
-        # Return formatted header.
-        lines = textwrap.dedent(hdr).splitlines()
-        hdr = [self.COMMENT_CHARACTER + ' ' + line for line in lines]
-        hdr.insert(0, self.COMMENT_BLOCK)
-        hdr.append(self.COMMENT_BLOCK)
-        header = '\n'.join(hdr) + '\n'
+        # Record raw broadcast.
+        if self.__message_type is None:
+            broadcast = 'The following connection was recorded in this file:\n'
+            broadcast += '\n     %s %s' % (CONNECTION_MARKER,
+                                           self.__connection)
+
+        # Record message broadcast.
+        else:
+            broadcast = 'The following message was recorded in this file:\n'
+            broadcast += '\n     %s %s' % (MESSAGE_MARKER,
+                                           self.__message_type.__name__)
+
+        # Adjust padding on column names for pretty printing.
+        time_padding = TIME_PADDING - len(COMMENT_CHARACTER + ' ')
+        column_title = '%s    %s    %s'
+        column_title = column_title % ('<Time>'.rjust(time_padding),
+                                       '<Topic>'.ljust(TOPIC_PADDING),
+                                       '<Payload>')
+
+        # Compile header
+        header %= (version, revision, created, broadcast, column_title)
+
+        # Add comment character to header.
+        header = header.splitlines()
+        for i, line in enumerate(header):
+            if line:
+                header[i] = COMMENT_CHARACTER + ' ' + line
+            else:
+                header[i] = COMMENT_CHARACTER
+        header.insert(0, COMMENT_BLOCK)
+        header.append(COMMENT_BLOCK)
+        header = '\n'.join(header) + '\n'
 
         # Opens a file for both writing and reading. Overwrites the existing
         # file if the file exists. If the file does not exist, creates a new
@@ -357,14 +339,14 @@ class WriteFile(DumpConstants):
 
         # Format time string.
         time_str = '%1.5f' % elapsed_time
-        time_str = time_str.rjust(self.TIME_PADDING)
+        time_str = time_str.rjust(TIME_PADDING)
 
         # Format topic to have a minimum number of characters.
         if topic is None:
-            topic_str = "''".ljust(self.TOPIC_PADDING)
+            topic_str = "''".ljust(TOPIC_PADDING)
         else:
             topic_str = "'%s'" % topic
-            topic_str = topic_str.ljust(self.TOPIC_PADDING)
+            topic_str = topic_str.ljust(TOPIC_PADDING)
 
         # Concatenate time and topic.
         file_str = '%s    %s    '
@@ -537,7 +519,17 @@ class LogConnection(object):
 
         # Create queued listener.
         try:
-            self.__listener = mcl.network.network.QueuedListener(connection.connection,
+            # Always operate on raw data. Do not incur the overhead of castin
+            # received messages to their defined type prior to logging.
+            try:
+                if issubclass(connection, mcl.message.messages.Message):
+                    connection = connection.connection
+
+            # Must be a connection object.
+            except:
+                pass
+
+            self.__listener = mcl.network.network.QueuedListener(connection,
                                                                  open_init=open_init)
         except:
             raise
@@ -565,7 +557,7 @@ class LogConnection(object):
 
         return self.__listener.is_open()
 
-    def start(self):
+    def open(self):
         """Start logging connection data.
 
         Returns:
@@ -576,12 +568,11 @@ class LogConnection(object):
         """
 
         if not self.is_alive():
-            self.__listener.open()
-            return True
+            return self.__listener.open()
         else:
             return False
 
-    def stop(self):
+    def close(self):
         """Stop logging connection data.
 
         Returns:
@@ -601,7 +592,7 @@ class LogConnection(object):
             return False
 
 
-class ReadFile(DumpConstants):
+class ReadFile(object):
     """Read data from a log file.
 
     The :py:class:`.ReadFile` object reads data from network dump log files
@@ -984,7 +975,7 @@ class ReadFile(DumpConstants):
 
         # If the first line is a comment but not a 'comment block' then the
         # file might not be a dump file.
-        elif line != self.COMMENT_BLOCK:
+        elif line != COMMENT_BLOCK:
             raise IOError(error_msg)
 
         # Get NETWORK_DUMP title. Expect title to be specified in the
@@ -1007,8 +998,8 @@ class ReadFile(DumpConstants):
         parameter = [None] * 3
         for i, name in enumerate(['version', 'revision', 'created']):
             line = self.__readline()[0]
-            line = line.replace(self.COMMENT_CHARACTER, '')
-            line = line.replace(self.VERSION_MARKER, '')
+            line = line.replace(COMMENT_CHARACTER, '')
+            line = line.replace(VERSION_MARKER, '')
             line = line.strip()
             item, parameter[i] = line.split(None, 1)
             if item != name:
@@ -1027,14 +1018,14 @@ class ReadFile(DumpConstants):
         #
         # Remove comment character and '>>>' bullet point.
         if self.__message:
-            line = line.replace(self.COMMENT_CHARACTER, '')
-            message_name = line.replace(self.BROADCAST_MARKER, '').strip()
+            line = line.replace(COMMENT_CHARACTER, '')
+            message_name = line.replace(MESSAGE_MARKER, '').strip()
             message = mcl.message.messages.get_message_objects(message_name)
         else:
             message = None
 
         # Find end of header block.
-        while line.strip() != self.COMMENT_BLOCK:
+        while line.strip() != COMMENT_BLOCK:
             line, number, pointer = self.__readline()
             if not line:
                 raise IOError(error_msg)

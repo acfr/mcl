@@ -3,6 +3,7 @@ import time
 import shutil
 import msgpack
 import datetime
+import textwrap
 import unittest
 
 import mcl.message.messages
@@ -11,6 +12,7 @@ from mcl.logging.file import ReadFile
 from mcl.logging.file import WriteFile
 from mcl.logging.file import LogConnection
 from mcl.logging.file import ReadDirectory
+from mcl.network.network import RawBroadcaster
 from mcl.network.udp import Connection as Connection
 from mcl.network.network import MessageBroadcaster
 
@@ -22,6 +24,7 @@ TIME_OUT = 1
 
 URL_A = 'ff15::c75d:ce41:ea8e:000b'
 URL_B = 'ff15::c75d:ce41:ea8e:000c'
+URL_C = 'ff15::c75d:ce41:ea8e:00cc'
 
 
 # -----------------------------------------------------------------------------
@@ -130,6 +133,110 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
         self.assertFalse(os.path.exists(tmp))
         wf.close()
 
+    def read_header(self, prefix, connection, data):
+        """Test WriteFile() header format."""
+
+        # Delete log if it already exists (it shouldn't).
+        log = prefix + '.log'
+        self.delete_if_exists(log)
+
+        # Create logging object.
+        wf = WriteFile(prefix, connection)
+        self.assertFalse(os.path.exists(log))
+        wf.write(data)
+        wf.close()
+
+        # Read log file header.
+        self.assertTrue(os.path.exists(log))
+        with open(log, 'r') as f:
+            lines = f.readlines()
+            lines = [line for line in lines if line.startswith('#')]
+
+        # Use hard-coded example for raw connections.
+        if isinstance(connection, mcl.network.abstract.Connection):
+            template = textwrap.dedent("""\
+                #-----------------------------------------------------------------
+                # NETWORK_DUMP
+                #     -- version     1.0
+                #     -- revision    0123456789abcdef0123456789abcdef01234567
+                #     -- created     1970-01-01 00:00:00
+                #
+                # Each line of this file records a packet of data transmitted over the
+                # network. The columns in this file are:
+                #
+                #     1) The time when the data frame was received relative
+                #        to when this file was created.
+                #     2) The topic associated with the data frame.
+                #     3) The binary data stored as a hex string.
+                #
+                # The following connection was recorded in this file:
+                #
+                #      >> Connection(url='ff15::c75d:ce41:ea8e:000b', port=26000)
+                #
+                #     <Time>    <Topic>     <Payload>
+                #-----------------------------------------------------------------"""
+            ).splitlines()
+
+        # Use hard-coded example for messages.
+        else:
+            template = textwrap.dedent("""\
+                #-----------------------------------------------------------------
+                # NETWORK_DUMP
+                #     -- version     1.0
+                #     -- revision    0123456789abcdef0123456789abcdef01234567
+                #     -- created     1970-01-01 00:00:00
+                #
+                # Each line of this file records a packet of data transmitted over the
+                # network. The columns in this file are:
+                #
+                #     1) The time when the data frame was received relative
+                #        to when this file was created.
+                #     2) The topic associated with the data frame.
+                #     3) The binary data stored as a hex string.
+                #
+                # The following message was recorded in this file:
+                #
+                #      >>> UnitTestMessageA
+                #
+                #     <Time>    <Topic>     <Payload>
+                #-----------------------------------------------------------------"""
+            ).splitlines()
+
+        # Make sure header is correctly formatted.
+        for i, (line, template_line) in enumerate(zip(lines, template)):
+            if i == 3:
+                tokens = line.split()
+                self.assertEqual('revision', tokens[2])
+            elif i == 4:
+                tokens = line.split()
+                self.assertEqual('created', tokens[2])
+            else:
+                self.assertEqual(line, template_line + '\n')
+
+        # Clean up after test.
+        self.delete_if_exists(log)
+
+    def test_raw_data_header(self):
+        """Test WriteFile() raw data header format."""
+
+        # Ensure header for data recordings is valid.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        data = {'time_received': None,
+                'topic': None,
+                'payload':'test'}
+        self.read_header(prefix, UnitTestMessageA.connection, data)
+
+    def test_message_header(self):
+        """Test WriteFile() message header format."""
+
+        # Ensure header for message recordings is valid.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        message = {'time_received': None,
+                   'topic': None,
+                   'payload': UnitTestMessageA()}
+
+        self.read_header(prefix, UnitTestMessageA, message)
+
     def file_write(self, prefix,
                    writes_per_split=2,
                    split_delay=None,
@@ -177,7 +284,7 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
             self.assertTrue(os.path.exists(tmp))
             self.assertFalse(os.path.exists(log))
 
-            # Re-read split/log file.
+            # Re-read split/log file (skip header).
             with open(tmp, 'r') as f:
                 lines = f.readlines()
                 lines = [line for line in lines if not line.startswith('#')]
@@ -263,8 +370,8 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
         self.assertEqual(logger.max_entries, max_entries)
         self.assertEqual(logger.max_time, max_time)
         self.assertFalse(logger.is_alive())
-        self.assertTrue(logger.start())
-        self.assertTrue(logger.stop())
+        self.assertTrue(logger.open())
+        self.assertTrue(logger.close())
         self.assertFalse(logger.is_alive())
 
     def test_open_after_init(self):
@@ -274,10 +381,55 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
         prefix = os.path.join(TMP_PATH, 'unittest')
         logger = LogConnection(prefix, UnitTestMessageA, open_init=True)
         self.assertTrue(logger.is_alive())
-        self.assertFalse(logger.start())
-        self.assertTrue(logger.stop())
+        self.assertFalse(logger.open())
+        self.assertTrue(logger.close())
         self.assertFalse(logger.is_alive())
 
+    def log_file(self, prefix, connection, broadcaster, data):
+        """Method for testing logging ability."""
+
+        # Delete log if it already exists (it shouldn't).
+        log = prefix + '.log'
+        self.delete_if_exists(log)
+
+        # Create broadcast and logging object.
+        lc = LogConnection(prefix, connection, open_init=True)
+        self.assertFalse(os.path.exists(log))
+
+        # Broadcast data.
+        broadcaster.publish(data)
+        time.sleep(0.1)
+
+        # Ensure data exists.
+        lc.close()
+        self.assertTrue(os.path.exists(log))
+
+        # Re-read split/log file (skip header).
+        with open(log, 'r') as f:
+            lines = f.readlines()
+            lines = [line for line in lines if not line.startswith('#')]
+
+        recorded_time, received_topic, payload = lines[0].split()
+        self.assertEqual(received_topic, "''")
+        self.assertEqual(msgpack.loads(payload.decode('hex')), data)
+        self.delete_if_exists(log)
+        broadcaster.close()
+
+    def test_log_raw(self):
+        """Test LogConnection() log raw data."""
+
+        self.log_file(os.path.join(TMP_PATH, 'unittest'),
+                      Connection(URL_C),
+                      RawBroadcaster(Connection(URL_C)),
+                      'test')
+
+    def test_log_message(self):
+        """Test LogConnection() log message data."""
+
+        self.log_file(os.path.join(TMP_PATH, 'unittest'),
+                      UnitTestMessageA,
+                      MessageBroadcaster(UnitTestMessageA),
+                      UnitTestMessageA(data='test'))
 
 # -----------------------------------------------------------------------------
 #                                  ReadFile()
