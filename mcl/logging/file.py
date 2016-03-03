@@ -635,15 +635,16 @@ class ReadFile(object):
             contents of that file (e.g. 'data/TestMessage_000.log').
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
-        message (bool or str): If set to :py:data:`.True` messages will
-            automatically be decoded into the MCL message type stored in the
-            log file. If set to :py:data:`.False` (default), message data is
-            returned as a dictionary. To force the reader to unpack messages as
-            a specific MCL message type, set this field to the string name of
-            the message type. This option can be useful for reading unnamed
-            messages or debugging log files. Use with caution. *Note*: to read
-            data as MCL messages, the messages must be loaded into the
-            namespace.
+        message (bool or str or :py:class:`.Message`): If set to
+            :py:data:`.True` messages will automatically be decoded into the
+            MCL message type stored in the log file. If set to
+            :py:data:`.False` (default), message data is returned as a
+            dictionary. To force the reader to unpack messages as a specific
+            MCL message type, set this field the :py:class:`.Message` type or
+            to the string name of the message type. This option can be useful
+            for reading unnamed messages or debugging log files. Use with
+            caution. *Note*: to read data as MCL messages, the messages must be
+            loaded into the namespace.
 
     Attributes:
 
@@ -659,13 +660,12 @@ class ReadFile(object):
                        'message': :py:class:`.Message`}
 
             where:
-
-                - ``text`` is the header text
-                - ``end`` Pointer to the end of the header
-                - ``version`` Version used to record log files
-                - ``revision`` Git hash of version used to log data
-                - ``created`` Time when log file was created
-                - ``message`` is a pointer to the MCL object stored in the log
+                - <text> is the header text
+                - <end> Pointer to the end of the header
+                - <version> Version used to record log files
+                - <revision> Git hash of version used to log data
+                - <created> Time when log file was created
+                - <message> is a pointer to the MCL object stored in the log
                   file(s)
 
         min_time (float): Minimum time to extract from log file.
@@ -719,11 +719,22 @@ class ReadFile(object):
             raise ValueError(msg)
 
         # Force message type.
-        if isinstance(message, bool) or isinstance(message, basestring):
-            self.__message = message
-        else:
-            msg = "'message' must be a boolean or string."
-            raise TypeError(msg)
+        self.__message = message
+        try:
+            if issubclass(message, mcl.message.messages.Message):
+                self.__message = message
+        except:
+            if isinstance(message, basestring):
+                try:
+                    self.__message = mcl.message.messages.get_message_objects(message)
+                except:
+                    msg = 'Did not recognise the message type: %s'
+                    raise TypeError(msg % message)
+
+            # Incorrect type.
+            elif not isinstance(message, bool):
+                msg = "'message' must be a boolean or string."
+                raise TypeError(msg)
 
         # If file exists, use single file mode.
         if os.path.exists(self.__filename):
@@ -900,22 +911,18 @@ class ReadFile(object):
                 message = msgpack.loads(payload.decode('hex'))
 
                 # Convert data into MCL message.
-                if self.__message:
+                if self.__message is not False:
+
+                    # Load message type from header
+                    if self.__message is True:
+
+                        # Cast into message type given message type recorded in
+                        # the header.
+                        message = self.header['message'](message)
 
                     # Force a message type.
-                    if isinstance(self.__message, basestring):
-                        message['name'] = self.__message
-
-                    # Cannot process messages if the message type is not stored
-                    # in the dictionary or specified.
-                    elif 'name' not in message.keys():
-                        msg = 'Cannot format unnamed dictionary. Ensure data '
-                        msg += "is logged with the field 'name' populated."
-                        message = Exception(msg)
-                        break
-
-                    # Convert dictionary data into an MCL message type.
-                    message = mcl.message.messages.get_message_objects(message['name'])(message)
+                    else:
+                        message = self.__message(message)
 
                 # Package up data in a dictionary
                 message = {'elapsed_time': elapsed_time,
@@ -1015,7 +1022,7 @@ class ReadFile(object):
                 raise IOError(error_msg)
 
         # Fast forward to recorded broadcasts.
-        while '>>>' not in line:
+        while (CONNECTION_MARKER not in line) or (MESSAGE_MARKER not in line):
             line = self.__readline()[0]
             if not line:
                 raise IOError(error_msg)
@@ -1026,12 +1033,15 @@ class ReadFile(object):
         #     >>> <Message>
         #
         # Remove comment character and '>>>' bullet point.
-        if self.__message:
-            line = line.replace(COMMENT_CHARACTER, '')
-            message_name = line.replace(MESSAGE_MARKER, '').strip()
-            message = mcl.message.messages.get_message_objects(message_name)
-        else:
-            message = None
+        message = dict
+        if self.__message is not False:
+            line = line.replace(COMMENT_CHARACTER, '').strip()
+            if line.startswith(MESSAGE_MARKER):
+                message_name = line.replace(MESSAGE_MARKER, '').strip()
+                try:
+                    message = mcl.message.messages.get_message_objects(message_name)
+                except:
+                    raise
 
         # Find end of header block.
         while line.strip() != COMMENT_BLOCK:

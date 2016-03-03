@@ -431,6 +431,7 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
                       MessageBroadcaster(UnitTestMessageA),
                       UnitTestMessageA(data='test'))
 
+
 # -----------------------------------------------------------------------------
 #                                  ReadFile()
 # -----------------------------------------------------------------------------
@@ -447,14 +448,15 @@ class ReadFileTests(unittest.TestCase):
         rf = ReadFile(fname)
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
-        self.assertNotEqual(rf.header, None)
-        self.assertEqual(rf.header['message'], None)
+        self.assertEqual(rf.header['version'], '1.0')
+        self.assertEqual(rf.header['revision'], 'f9ab7811383ad9b67bdf495c88a8d86950520650')
+        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
+        self.assertEqual(rf.header['message'], dict)
 
         # Create file reader for loading data into message objects.
         rf = ReadFile(fname, message=True)
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
-        self.assertNotEqual(rf.header, None)
         self.assertEqual(rf.header['message'], UnitTestMessageA)
 
     def test_bad_init(self):
