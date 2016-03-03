@@ -106,48 +106,57 @@ class DumpListTests(unittest.TestCase):
 
 class DumpArrayTests(unittest.TestCase):
 
-    def test_bad_path(self):
-        """Test dump_to_list() bad path."""
+    def test_bad_input(self):
+        """Test dump_to_array() bad input."""
 
-        with self.assertRaises(IOError):
-            dump_to_list(os.path.join(LOG_PATH, 'UnitTestMessageC.log'))
-
-    def test_bad_key(self):
-        """Test dump_to_array() throws an exception on missing keys."""
-
+        bad_path = os.path.join(LOG_PATH, 'UnitTestMessageC.log')
         log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
 
+        # Catch invalid paths.
+        with self.assertRaises(IOError):
+            dump_to_array(bad_path, ['data'])
+
+        # Catch non iterable keys.
         with self.assertRaises(TypeError):
             dump_to_array(log_file, 5)
 
+        # Catch non-string key.
         with self.assertRaises(TypeError):
-            dump_to_array(log_file, ['error', 5])
+            dump_to_array(log_file, ['data', 5])
 
+        # Catch non-existent key
         with self.assertRaises(KeyError):
             dump_to_array(log_file, ['error'])
 
     def test_mixed_type(self):
-        """Test dump_to_list() mixed types."""
+        """Test dump_to_array() mixed types."""
 
         with self.assertRaises(TypeError):
-            dump_to_list(LOG_PATH, ['data', 'timestamp'])
+            dump_to_array(LOG_PATH, ['timestamp', 'data'])
 
     def test_non_numeric(self):
-        """Test dump_to_list() throws an exception on non-numeric types."""
+        """Test dump_to_array() throws an exception on non-numeric types."""
 
         with self.assertRaises(TypeError):
             dump_to_array(os.path.join(LOG_PATH, 'UnitTestMessageA.log'),
                           ['name'])
 
+    def test_no_data(self):
+        """Test dump_to_array() no data."""
+
+        log_path = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+        array = dump_to_array(log_path, ['timestamp'], min_time=30.0)
+        self.assertEqual(array, None)
+
     def test_load(self):
         """Test dump_to_array() can load data."""
 
-        # Load UnitTestMessageA.
+        # Load UnitTestMessageA data.
         data = [msg for msg in log_data if msg['name'] == 'UnitTestMessageA']
 
         # Load logged data into a list.
         pth = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        arr = dump_to_array(pth, ['data', 'timestamp'])
+        arr = dump_to_array(pth, ['timestamp', 'data'])
 
         # Ensure loaded data is valid.
         self.assertEqual(arr.ndim, 2)
@@ -166,7 +175,7 @@ class DumpArrayTests(unittest.TestCase):
         pth = os.path.join(LOG_PATH, 'UnitTestMessageB.log')
         min_time = 0.15
         max_time = 0.95
-        arr = dump_to_array(pth, 'timestamp',
+        arr = dump_to_array(pth, ['timestamp'],
                             min_time=min_time,
                             max_time=max_time)
 
@@ -201,18 +210,26 @@ class DumpCSVTests(unittest.TestCase):
         if os.path.exists(TMP_PATH):
             shutil.rmtree(TMP_PATH)
 
-    def test_bad_key(self):
-        """Test dump_to_csv() throws an exception on missing keys."""
+    def test_bad_input(self):
+        """Test dump_to_csv() bad input."""
 
+        bad_path = os.path.join(LOG_PATH, 'UnitTestMessageC.log')
         log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
         csv_file = os.path.join(TMP_PATH, 'data.csv')
 
+        # Catch invalid path.
+        with self.assertRaises(IOError):
+            dump_to_csv(bad_path, csv_file, ['timestamp', 'data'])
+
+        # Catch non iterable keys.
         with self.assertRaises(TypeError):
             dump_to_csv(log_file, csv_file, 5)
 
+        # Catch non-string key.
         with self.assertRaises(TypeError):
             dump_to_csv(log_file, csv_file, ['error', 5])
 
+        # Catch non-existent key
         with self.assertRaises(KeyError):
             dump_to_csv(log_file, csv_file, ['error'])
 
@@ -221,7 +238,7 @@ class DumpCSVTests(unittest.TestCase):
 
         csv_file = os.path.join(TMP_PATH, 'data.csv')
         with self.assertRaises(TypeError):
-            dump_to_csv(LOG_PATH, csv_file, ['data', 'timestamp'])
+            dump_to_csv(LOG_PATH, csv_file, ['timestamp', 'data'])
 
     def test_dump(self):
         """Test dump_to_csv() can write data to CSV file."""

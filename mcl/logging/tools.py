@@ -19,16 +19,13 @@ import mcl.logging.file
 
 
 def _is_string_list(arg):
-    """Return True if input is a string or a list of strings."""
+    """Return True if input is a list of strings."""
 
-    if isinstance(arg, basestring):
-        return True
-    else:
-        try:
-            if all([isinstance(itm, basestring) for itm in arg]):
-                return True
-        except:
-            pass
+    try:
+        if all([isinstance(itm, basestring) for itm in arg]):
+            return True
+    except:
+        pass
 
     return False
 
@@ -146,9 +143,7 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
 
     """
 
-    # Default formatting of keys is a list of strings.
-    if isinstance(keys, basestring):
-        keys = [keys, ]
+    # Ensure input keys is a list of strings.
     if not _is_string_list(keys):
         raise TypeError("'keys' must be a list of strings.")
 
@@ -219,9 +214,7 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
 
     """
 
-    # Default formatting of keys is a list of strings.
-    if isinstance(keys, basestring):
-        keys = [keys, ]
+    # Ensure input keys is a list of strings.
     if not _is_string_list(keys):
         raise TypeError("'keys' must be a list of strings.")
 
