@@ -7,9 +7,9 @@ import textwrap
 import unittest
 
 import mcl.message.messages
-from mcl.logging.file import FileDump
 from mcl.logging.file import ReadFile
 from mcl.logging.file import WriteFile
+from mcl.logging.file import LogNetwork
 from mcl.logging.file import LogConnection
 from mcl.logging.file import ReadDirectory
 from mcl.network.network import RawBroadcaster
@@ -774,17 +774,17 @@ class ReadDirectoryTests(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                                  FileDump()
+#                                 LogNetwork()
 # -----------------------------------------------------------------------------
 
-class TestFileDump(SetupTestingDirectory, unittest.TestCase):
+class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
 
     def test_init(self):
-        """Test FileDump() initialisation."""
+        """Test LogNetwork() initialisation."""
 
         # Initialise network dump.
         messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = FileDump(messages, TMP_PATH)
+        dump = LogNetwork(messages, TMP_PATH)
 
         # Ensure properties can be accessed.
         self.assertEqual(dump.messages, messages)
@@ -797,28 +797,28 @@ class TestFileDump(SetupTestingDirectory, unittest.TestCase):
         self.assertEqual(dump.directory, None)
 
     def test_bad_init(self):
-        """Test FileDump() catches bad initialisation."""
+        """Test LogNetwork() catches bad initialisation."""
 
         messages = [UnitTestMessageA, UnitTestMessageB]
 
         # Ensure error is raised if the logging directory does not exist.
         with self.assertRaises(IOError):
-            FileDump(messages, directory='fail')
+            LogNetwork(messages, directory='fail')
 
         # Ensure max_entries is specified properly.
         with self.assertRaises(TypeError):
-            FileDump(messages, TMP_PATH, max_entries='a')
+            LogNetwork(messages, TMP_PATH, max_entries='a')
         with self.assertRaises(TypeError):
-            FileDump(messages, TMP_PATH, max_entries=0)
+            LogNetwork(messages, TMP_PATH, max_entries=0)
 
         # Ensure max_time is specified properly.
         with self.assertRaises(TypeError):
-            FileDump(messages, TMP_PATH, max_time='a')
+            LogNetwork(messages, TMP_PATH, max_time='a')
         with self.assertRaises(TypeError):
-            FileDump(messages, TMP_PATH, max_time=0)
+            LogNetwork(messages, TMP_PATH, max_time=0)
 
     def test_start_stop(self):
-        """Test FileDump() start/stop."""
+        """Test LogNetwork() start/stop."""
 
         # Create broadcasters.
         broadcaster_A = MessageBroadcaster(UnitTestMessageA)
@@ -826,7 +826,7 @@ class TestFileDump(SetupTestingDirectory, unittest.TestCase):
 
         # Initialise network dump.
         messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = FileDump(messages, TMP_PATH)
+        dump = LogNetwork(messages, TMP_PATH)
         self.assertEqual(dump.directory, None)
 
         # Ensure a log directory has NOT been created (Note a README file is

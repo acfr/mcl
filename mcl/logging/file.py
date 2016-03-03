@@ -1,14 +1,23 @@
 """Log network data.
 
 The :py:mod:`~.logging.file` module provides methods and objects designed to
-simplify logging (and reading logs of) network traffic.
+simplify writing and reading network traffic logs.
 
 The main objects responsible for logging network data are:
 
-    - :py:class:`.WriteFile` for writing network data to log file(s)
-    - :py:class:`.ReadFile` for reading network data from a log file
-    - :py:class:`.FileDump` for writing multiple network traffic to files
-    - :py:class:`.ReadDirectory` for reading network data from a directory
+    - :py:class:`.LogConnection` logs data from a single connection to log
+      file(s).
+    - :py:class:`.LogNetwork` logs data from multiple connections to a
+      directory of log files.
+
+The main objects responsible for writing and reading data to log files are:
+
+    - :py:class:`.WriteFile` for formatting and writing network data from a
+      single connection to log file(s).
+    - :py:class:`.ReadFile` for reading data from log file(s) representing a
+      single network connection.
+    - :py:class:`.ReadDirectory` for reading data from a directory of log files
+      representing multiple network connections.
 
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -1107,10 +1116,10 @@ class ReadFile(object):
             raise self.__next_message
 
 
-class FileDump(object):
+class LogNetwork(object):
     """Dump network traffic to files.
 
-    The :py:class:`.FileDump` object records network traffic to multiple log
+    The :py:class:`.LogNetwork` object records network traffic to multiple log
     files.  The input `directory` specifies the location to create a directory,
     using the following format::
 
