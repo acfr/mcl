@@ -87,11 +87,38 @@ class DumpListTests(unittest.TestCase):
             self.assertAlmostEqual(item['payload']['timestamp'],
                                    log_data[i + 1]['timestamp'])
 
+
 # -----------------------------------------------------------------------------
 #                               dump_to_array()
 # -----------------------------------------------------------------------------
 
 class DumpArrayTests(unittest.TestCase):
+
+    def test_bad_path(self):
+        """Test dump_to_list() bad path."""
+
+        with self.assertRaises(IOError):
+            dump_to_list(os.path.join(LOG_PATH, 'UnitTestMessageC.log'))
+
+    def test_bad_key(self):
+        """Test dump_to_array() throws an exception on missing keys."""
+
+        with self.assertRaises(KeyError):
+            dump_to_array(os.path.join(LOG_PATH, 'UnitTestMessageA.log'),
+                          ['error'])
+
+    def test_mixed_type(self):
+        """Test dump_to_list() mixed types."""
+
+        with self.assertRaises(TypeError):
+            dump_to_list(LOG_PATH, ['data', 'timestamp'])
+
+    def test_non_numeric(self):
+        """Test dump_to_list() throws an exception on non-numeric types."""
+
+        with self.assertRaises(TypeError):
+            dump_to_array(os.path.join(LOG_PATH, 'UnitTestMessageA.log'),
+                          ['name'])
 
     def test_load(self):
         """Test dump_to_array() can load data."""
@@ -137,16 +164,45 @@ class DumpArrayTests(unittest.TestCase):
 
 class DumpCSVTests(unittest.TestCase):
 
+    def setUp(self):
+        """Create logging path if it does not exist."""
+
+        # Make temporary directory for CSV data.
+        if not os.path.exists(TMP_PATH):
+            os.makedirs(TMP_PATH)
+
+        with open(os.path.join(TMP_PATH, 'README'), 'w') as f:
+            f.write('This directory was created automatically\n')
+            f.write('for unit-testing & can be safely deleted.\n')
+
+    def tearDown(self):
+        """Delete files created for test logging."""
+
+        # Remove temporary directory.
+        if os.path.exists(TMP_PATH):
+            shutil.rmtree(TMP_PATH)
+
+    def test_bad_key(self):
+        """Test dump_to_csv() throws an exception on missing keys."""
+
+        log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+        csv_file = os.path.join(TMP_PATH, 'data.csv')
+        with self.assertRaises(KeyError):
+            dump_to_csv(log_file, csv_file, ['error'])
+
+    def test_mixed_type(self):
+        """Test dump_to_csv() mixed types."""
+
+        csv_file = os.path.join(TMP_PATH, 'data.csv')
+        with self.assertRaises(TypeError):
+            dump_to_csv(LOG_PATH, csv_file, ['data', 'timestamp'])
+
     def test_dump(self):
         """Test dump_to_csv() can write data to CSV file."""
 
         # Create paths to files.
         log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
         csv_file = os.path.join(TMP_PATH, 'data.csv')
-
-        # Make temporary directory for CSV data.
-        if not os.path.exists(TMP_PATH):
-            os.makedirs(TMP_PATH)
 
         # Dump data to CSV file.
         keys = ['name', 'data', 'timestamp']
@@ -160,7 +216,3 @@ class DumpCSVTests(unittest.TestCase):
 
         # Ensure CSV data is in the expected format.
         self.assertEqual(write_data, expected_data)
-
-        # Remove temporary directory.
-        if os.path.exists(TMP_PATH):
-            shutil.rmtree(TMP_PATH)

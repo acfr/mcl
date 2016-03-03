@@ -125,15 +125,19 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
 
     Raises:
         IOError: If the input `source` does not exist.
-        TypeError: If the input `message` is not a string.
+        TypeError: If the input `keys` is not a string or list of strings. A
+            TypeError will also be raised if all loaded message packets are not
+            of the same type.
+        KeyError: If the input keys do not exist in the loaded objects.
 
     """
 
     # Default formatting of keys is a list of strings.
     if isinstance(keys, basestring):
         keys = [keys, ]
-    elif not isinstance(keys, collections.Iterable):
-        raise TypeError("'keys' must be a list of strings.")
+    elif len(keys) == 0 or not isinstance(keys, collections.Iterable):
+        if not all([isinstance(key, basestring) for key in keys]):
+            raise TypeError("'keys' must be a list of strings.")
 
     # Load network logs into a list.
     try:
@@ -158,14 +162,14 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
         if key not in message_list[0]:
             msg = "The key '%s' does not exist in the message objects "
             msg += "stored in '%s'."
-            raise Exception(msg % (key, source))
+            raise KeyError(msg % (key, source))
 
     # Ensure all messages are the same object.
     for message in message_list:
         if 'name' not in message or message['name'] != message_list[0]['name']:
             msg = "Found a '%s' message object. "
             msg += "Expected all message objects to be '%s' messages."
-            raise Exception(msg % (message['name'], message_list[0]['name']))
+            raise TypeError(msg % (message['name'], message_list[0]['name']))
 
     # Copy message fields into array.
     for (i, message) in enumerate(message_list):
@@ -173,11 +177,8 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
             row = np.array([float(message[key]) for key in keys])
             array[i, :] = row
         except:
-            array[i, :] = np.NaN
-            msg = '\nCould not convert keys in the message:'
-            msg += '\n\n%s\n\n'
-            msg += 'into an array. Row %i set to NaN.'
-            print msg % (str(message), i)
+            msg = "Could not convert the key '%s' to a float. "
+            raise TypeError(msg % key)
 
     return array
 
@@ -196,13 +197,21 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
         min_time (float): Minimum time to extract from dataset.
         max_time (float): Maximum time to extract from dataset.
 
+    Raises:
+        IOError: If the input `source` does not exist.
+        TypeError: If the input `keys` is not a string or list of strings. A
+            TypeError will also be raised if all loaded message packets are not
+            of the same type.
+        KeyError: If the input keys do not exist in the loaded objects.
+
     """
 
     # Default formatting of keys is a list of strings.
     if isinstance(keys, basestring):
         keys = [keys, ]
-    elif not isinstance(keys, collections.Iterable):
-        raise TypeError("'keys' must be a list of strings.")
+    elif len(keys) == 0 or not isinstance(keys, collections.Iterable):
+        if not all([isinstance(key, basestring) for key in keys]):
+            raise TypeError("'keys' must be a list of strings.")
 
     # Load message dumps into a list.
     try:
@@ -222,14 +231,14 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
         if key not in message_list[0]:
             msg = "The key '%s' does not exist in the message objects "
             msg += "stored in '%s'."
-            raise Exception(msg % (key, source))
+            raise KeyError(msg % (key, source))
 
     # Ensure all messages are the same object.
     for message in message_list:
         if 'name' not in message or message['name'] != message_list[0]['name']:
             msg = "Found a '%s' message object. "
             msg += "Expected all message objects to be '%s' messages."
-            raise Exception(msg % (message['name'], message_list[0]['name']))
+            raise TypeError(msg % (message['name'], message_list[0]['name']))
 
     # Copy message fields into array.
     with open(csv_file, 'wb') as f:
