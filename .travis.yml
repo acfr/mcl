@@ -3,7 +3,8 @@ python:
   - "2.7"
 
 # Command to install dependencies.
-install: "pip install ."
+install:
+  - pip install .
 
 # Command to run tests.
 script: make test
