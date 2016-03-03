@@ -1220,11 +1220,8 @@ class FileDump(object):
         self.__root_directory = directory
         self.__directory = None
 
-        # Objects for handling network data.
-        self.__filedumps = None
-        self.__listeners = None
-
         # Initial state is not running.
+        self.__loggers = None
         self.__is_alive = False
 
         # Save hostname of device.
@@ -1280,27 +1277,19 @@ class FileDump(object):
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            self.__filedumps = dict()
-            self.__listeners = dict()
+            self.__loggers = dict()
             self.__directory = directory
 
             # Attach listeners to broadcasts and dump their contents into
             # separate queues.
             for message in self.messages:
-                name = message.__name__
-
-                # Create queued listener.
-                self.__listeners[message] = mcl.network.network.QueuedListener(message.connection)
-
-                # Create file logger.
-                filename = os.path.join(directory, name)
-                self.__filedumps[message] = WriteFile(filename,
-                                                      message,
-                                                      time_origin=time_origin,
-                                                      max_entries=self.__max_entries,
-                                                      max_time=self.__max_time)
-
-                self.__listeners[message].subscribe(self.__filedumps[message].write)
+                filename = os.path.join(directory, message.__name__)
+                self.__loggers[message] = LogConnection(filename,
+                                                        message,
+                                                        time_origin=time_origin,
+                                                        max_entries=self.__max_entries,
+                                                        max_time=self.__max_time,
+                                                        open_init=True)
 
             self.__is_alive = True
             return True
@@ -1318,18 +1307,11 @@ class FileDump(object):
         """
 
         if self.is_alive:
-
-            # Request stop for network listeners.
             for message in self.messages:
-                self.__listeners[message].request_close()
-
-            # Join network listeners.
-            for message in self.messages:
-                self.__listeners[message].close()
-                self.__filedumps[message].close()
+                self.__loggers[message].close()
 
             self.__directory = None
-            self.__filedumps = None
+            self.__loggers = None
             self.__is_alive = False
             return True
         else:
