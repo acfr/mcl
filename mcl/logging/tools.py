@@ -19,6 +19,21 @@ import collections
 import mcl.logging.file
 
 
+def _is_string_list(arg):
+    """Return True if input is a string or a list of strings."""
+
+    if isinstance(arg, basestring):
+        return True
+    else:
+        try:
+            if all([isinstance(itm, basestring) for itm in arg]):
+                return True
+        except:
+            pass
+
+    return False
+
+
 def dump_to_list(source, min_time=None, max_time=None, message=False,
                  metadata=True):
     """Load log file data into a list.
@@ -135,9 +150,8 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
     # Default formatting of keys is a list of strings.
     if isinstance(keys, basestring):
         keys = [keys, ]
-    elif len(keys) == 0 or not isinstance(keys, collections.Iterable):
-        if not all([isinstance(key, basestring) for key in keys]):
-            raise TypeError("'keys' must be a list of strings.")
+    if not _is_string_list(keys):
+        raise TypeError("'keys' must be a list of strings.")
 
     # Load network logs into a list.
     try:
@@ -209,9 +223,8 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
     # Default formatting of keys is a list of strings.
     if isinstance(keys, basestring):
         keys = [keys, ]
-    elif len(keys) == 0 or not isinstance(keys, collections.Iterable):
-        if not all([isinstance(key, basestring) for key in keys]):
-            raise TypeError("'keys' must be a list of strings.")
+    if not _is_string_list(keys):
+        raise TypeError("'keys' must be a list of strings.")
 
     # Load message dumps into a list.
     try:

@@ -233,16 +233,13 @@ class _ConnectionMeta(type):
         dicttxt = ['%r: t[%d]' % (n, p) for p, n in enumerate(attrs)]
         dicttxt = ', '.join(dicttxt)
 
-        def execute_template(template, key, namespace={}, verbose=False):
+        def execute_template(template, key, namespace={}):
 
             template = textwrap.dedent(template)
             try:
                 exec template in namespace
             except SyntaxError, e:
                 raise SyntaxError(e.message + ':\n' + template)
-
-            if verbose:
-                print template
 
             return namespace[key]
 

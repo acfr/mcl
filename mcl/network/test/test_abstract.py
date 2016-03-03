@@ -91,6 +91,65 @@ class TestAbstractConnection(unittest.TestCase):
                 broadcaster = AbstractRawBroadcaster
                 listener = ('listener',)
 
+        # Ensure optional is a dictionary.
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                optional = 5
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Ensure each key in optional is a string.
+        with self.assertRaises(TypeError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A', 'B')
+                optional = {5: None, 'D': None}
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Ensure attributes only contain alphanumeric characters.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('C@T',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Ensure attributes cannot be keywords.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('def',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+        # Ensure attributes cannot start with a number.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('2shoes',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+       # Ensure attributes cannot be reserved names.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('broadcaster',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+       # Ensure attributes do not start with an underscore.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('_keyword',)
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
+       # Ensure attributes cannot be duplicated.
+        with self.assertRaises(ValueError):
+            class TestConnection(AbstractConnection):
+                mandatory = ('A',)
+                optional = {'A': None}
+                broadcaster = AbstractRawBroadcaster
+                listener = AbstractRawListener
+
     def test_bad_init(self):
         """Test abstract.Connection() can catch bad initialisations."""
 
@@ -188,7 +247,7 @@ class TestAbstractConnection(unittest.TestCase):
 class RawBroadcasterTests(unittest.TestCase):
 
     def test_abstract(self):
-        """Test abstract.RawBroadcaster() initialisation of abstract object."""
+        """Test abstract.RawBroadcaster() abstract instantiation."""
 
         # Ensure the abstract object RawBroadcaster() cannot be initialised
         # unless the abstract methods are defined.
@@ -199,8 +258,32 @@ class RawBroadcasterTests(unittest.TestCase):
         class TestRawBroadcaster(AbstractRawBroadcaster):
             def close(self): pass
 
+        # Ensure the incomplete TestRawBroadcaster() object cannot be
+        # initialised.
         with self.assertRaises(TypeError):
             TestRawBroadcaster()
+
+    def test_init(self):
+        """Test abstract.RawBroadcaster() initialisation."""
+
+        # Define valid RawBroadcaster().
+        class TestRawBroadcaster(AbstractRawBroadcaster):
+            def is_open(self): pass
+            def _open(self): pass
+            def publish(self): pass
+            def close(self): pass
+
+        # Ensure valid definitions can be instatiated.
+        TestRawBroadcaster(TestConnection(A='A', B='B'))
+        TestRawBroadcaster(TestConnection(A='A', B='B'), topic='topic')
+
+        # Ensure input is a connection object.
+        with self.assertRaises(TypeError):
+            TestRawBroadcaster('connection')
+
+        # Ensure topic is a string.
+        with self.assertRaises(TypeError):
+            TestRawBroadcaster(TestConnection(A='A', B='B'), topic=5)
 
 
 # -----------------------------------------------------------------------------
@@ -210,7 +293,7 @@ class RawBroadcasterTests(unittest.TestCase):
 class RawListenerTests(unittest.TestCase):
 
     def test_abstract(self):
-        """Test abstract.RawListener() initialisation of abstract object."""
+        """Test abstract.RawListener() abstract instantiationinheritance object."""
 
         # Ensure the abstract object RawListener() cannot be initialised
         # unless the abstract methods are defined.
@@ -221,5 +304,32 @@ class RawListenerTests(unittest.TestCase):
         class TestRawListener(AbstractRawListener):
             def close(self): pass
 
+        # Ensure the incomplete TestRawListener() object cannot be initialised.
         with self.assertRaises(TypeError):
             TestRawListener()
+
+    def test_init(self):
+        """Test abstract.RawListener() initialisation."""
+
+        # Define valid RawListener().
+        class TestRawListener(AbstractRawListener):
+            def is_open(self): pass
+            def _open(self): pass
+            def close(self): pass
+
+        # Ensure valid definitions can be instatiated.
+        TestRawListener(TestConnection(A='A', B='B'))
+        TestRawListener(TestConnection(A='A', B='B'), topics='topics')
+        TestRawListener(TestConnection(A='A', B='B'), topics=['A', 'B'])
+
+        # Ensure input is a connection object.
+        with self.assertRaises(TypeError):
+            TestRawListener('connection')
+
+        # Ensure topics is a string.
+        with self.assertRaises(TypeError):
+            TestRawListener(TestConnection(A='A', B='B'), topics=5)
+
+        # Ensure topics is a string.
+        with self.assertRaises(TypeError):
+            TestRawListener(TestConnection(A='A', B='B'), topics=['A', 5])

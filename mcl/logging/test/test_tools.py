@@ -103,9 +103,16 @@ class DumpArrayTests(unittest.TestCase):
     def test_bad_key(self):
         """Test dump_to_array() throws an exception on missing keys."""
 
+        log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+
+        with self.assertRaises(TypeError):
+            dump_to_array(log_file, 5)
+
+        with self.assertRaises(TypeError):
+            dump_to_array(log_file, ['error', 5])
+
         with self.assertRaises(KeyError):
-            dump_to_array(os.path.join(LOG_PATH, 'UnitTestMessageA.log'),
-                          ['error'])
+            dump_to_array(log_file, ['error'])
 
     def test_mixed_type(self):
         """Test dump_to_list() mixed types."""
@@ -187,6 +194,13 @@ class DumpCSVTests(unittest.TestCase):
 
         log_file = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
         csv_file = os.path.join(TMP_PATH, 'data.csv')
+
+        with self.assertRaises(TypeError):
+            dump_to_csv(log_file, csv_file, 5)
+
+        with self.assertRaises(TypeError):
+            dump_to_csv(log_file, csv_file, ['error', 5])
+
         with self.assertRaises(KeyError):
             dump_to_csv(log_file, csv_file, ['error'])
 
