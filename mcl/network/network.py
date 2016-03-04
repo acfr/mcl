@@ -630,6 +630,15 @@ class QueuedListener(mcl.network.abstract.RawListener):
         except:
             raise
 
+        # To catch errors early, test if the RawListener() object can be
+        # opened. RawListener() is created in the __enqueue method which is
+        # executed on another thread. Propagating errors from there is more
+        # difficult and occur later in the code execution.
+        try:
+            RawListener(self.__connection, topics=topics)
+        except:
+            raise
+
         # Create objects for inter-process communication.
         self.__queue = None
         self.__timeout = 0.1
