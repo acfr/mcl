@@ -128,7 +128,7 @@ import mcl.message.messages
 TIMEOUT = 10
 
 
-def _set_process_name(name):
+def _set_process_name(name):                                 # pragma: no cover
     """Function for setting the name of new processes."""
 
     # Set the name of a new process if 'setproctitle' exists.

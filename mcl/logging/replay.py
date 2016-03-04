@@ -66,9 +66,10 @@ import mcl.network.network
 import mcl.message.messages
 
 
-def _set_process_name(name):
-    """Function for attempting to set the name of new processes."""
+def _set_process_name(name):                                 # pragma: no cover
+    """Function for setting the name of new processes."""
 
+    # Set the name of a new process if 'setproctitle' exists.
     try:
         from setproctitle import getproctitle as getproctitle
         from setproctitle import setproctitle as setproctitle
@@ -77,6 +78,7 @@ def _set_process_name(name):
         name = current_name + ' -> ' + name
         setproctitle(name)
 
+    # If 'setproctitle' does not exist. Do nothing.
     except:
         pass
 

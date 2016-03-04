@@ -41,6 +41,25 @@ class UnitTestMessageB(mcl.message.messages.Message):
 # -----------------------------------------------------------------------------
 class TestBufferData(unittest.TestCase):
 
+    def test_reader(self):
+        """Test BufferData() reader input."""
+
+        # Create a fake reader with all methods.
+        class FakeReader():
+            def is_data_pending(self): pass
+            def read(self): pass
+
+        # Ensure any object with the correct methods can be used.
+        BufferData(FakeReader())
+
+        # Create a fake reader with missing methods.
+        class FakeReader():
+            def read(self): pass
+
+        # Ensure any object with the correct methods can be used.
+        with self.assertRaises(NameError):
+            BufferData(FakeReader())
+
     def test_init(self):
         """Test BufferData() instantiation."""
 
