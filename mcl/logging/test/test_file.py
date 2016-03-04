@@ -6,12 +6,14 @@ import datetime
 import textwrap
 import unittest
 
+from mcl import MCL_ROOT
 import mcl.message.messages
 from mcl.logging.file import ReadFile
 from mcl.logging.file import WriteFile
 from mcl.logging.file import LogNetwork
 from mcl.logging.file import LogConnection
 from mcl.logging.file import ReadDirectory
+from mcl.logging.file import retrieve_git_hash
 from mcl.network.network import RawBroadcaster
 from mcl.network.udp import Connection as Connection
 from mcl.network.network import MessageBroadcaster
@@ -67,6 +69,34 @@ class SetupTestingDirectory(object):
 
 
 # -----------------------------------------------------------------------------
+#                               retrieve_git_hash
+# -----------------------------------------------------------------------------
+class GitHashTests(unittest.TestCase):
+
+    def test_bad_input(self):
+        """Test retrieve_git_hash() catches directories that do not exist."""
+
+        with self.assertRaises(IOError):
+            repository_path = os.path.join(TMP_PATH, 'does', 'not', 'exist', )
+            retrieve_git_hash(repository_path)
+
+    def test_retrieve(self):
+        """Test retrieve_git_hash() can fetch git hash."""
+
+        # Valid path, valid repository.
+        repository_path = os.path.join(MCL_ROOT, '../', '.git')
+        hsh = retrieve_git_hash(repository_path)
+        self.assertNotEqual(hsh, None)
+        self.assertNotEqual(hsh, '')
+        self.assertGreaterEqual(len(hsh), 1)
+
+        # Valid path, no repository.
+        repository_path = os.path.join(MCL_ROOT)
+        hsh = retrieve_git_hash(repository_path)
+        self.assertEqual(hsh, None)
+
+
+# -----------------------------------------------------------------------------
 #                                  WriteFile()
 # -----------------------------------------------------------------------------
 
@@ -75,28 +105,64 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
     def test_bad_init(self):
         """Test WriteFile() catches bad initialisation."""
 
-        # Ensure max_entries is specified properly.
-        with self.assertRaises(IOError):
-            prefix = os.path.join(TMP_PATH, 'does', 'not', 'exist', )
-            WriteFile(prefix, UnitTestMessageA)
-
         prefix = os.path.join(TMP_PATH, 'unittest')
 
-        # Ensure connection is specified properly.
+        # Ensure 'prefix' is not a path.
+        with self.assertRaises(IOError):
+            WriteFile(TMP_PATH, UnitTestMessageA)
+
+        # Ensure path of 'prefix' exists.
+        with self.assertRaises(IOError):
+            bad_prefix = os.path.join(prefix, 'does', 'not', 'exist' )
+            WriteFile(bad_prefix, UnitTestMessageA)
+
+        # Ensure 'prefix' does not contain extension.
+        with self.assertRaises(TypeError):
+            bad_prefix = os.path.join(TMP_PATH, 'unittest.log')
+            WriteFile(bad_prefix, UnitTestMessageA)
+
+        # Ensure 'connection' is specified properly.
         with self.assertRaises(TypeError):
             WriteFile(prefix, 'connection')
 
-        # Ensure max_entries is specified properly.
+        # Ensure 'revision' is specified properly.
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessageA, revision=0)
+
+        # Ensure 'time_origin' is specified properly.
+        with self.assertRaises(TypeError):
+            WriteFile(prefix, UnitTestMessageA, time_origin=0)
+
+        # Ensure 'max_entries' is specified properly.
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_entries='a')
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_entries=0)
 
-        # Ensure max_time is specified properly.
+        # Ensure 'max_time' is specified properly.
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_time='a')
         with self.assertRaises(TypeError):
             WriteFile(prefix, UnitTestMessageA, max_time=0)
+
+    def test_initialisation_existing(self):
+        """Test WriteFile() initialisation with no existing file."""
+
+        # Create prefix for data log.
+        prefix = os.path.join(TMP_PATH, 'unittest')
+        tmp = prefix + '.tmp'
+
+        # Create a log file to clash with.
+        if not os.path.exists(tmp):
+            with open(tmp, 'w') as f:
+                f.write('This file was created for unit-testing.\n')
+
+        # Create logging object which will clash with existing data.
+        with self.assertRaises(IOError):
+            WriteFile(prefix, UnitTestMessageA.connection)
+
+        # Clean up.
+        self.delete_if_exists(tmp)
 
     def test_initialisation(self):
         """Test WriteFile() initialisation with no splitting."""
@@ -369,6 +435,11 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
             prefix = os.path.join(TMP_PATH, 'does', 'not', 'exist', )
             LogConnection(prefix, UnitTestMessageA)
 
+        # Ensure QueuedListener() can pass through errors.
+        with self.assertRaises(IOError):
+            prefix = os.path.join(TMP_PATH, 'unittest')
+            LogConnection(prefix, Connection('bad_url'))
+
     def test_init(self):
         """Test LogConnection() initialisation."""
 
@@ -454,6 +525,117 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
+#                                 LogNetwork()
+# -----------------------------------------------------------------------------
+
+class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
+
+    def test_bad_init(self):
+        """Test LogNetwork() catches bad initialisation."""
+
+        messages = [UnitTestMessageA, UnitTestMessageB]
+
+        # Ensure error is raised if the logging directory does not exist.
+        with self.assertRaises(IOError):
+            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
+
+        # Ensure error is raised if the input connections are wrong.
+        with self.assertRaises(TypeError):
+            LogNetwork('connection', TMP_PATH)
+        with self.assertRaises(TypeError):
+            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
+
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries=0)
+
+        # Ensure max_time is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time=0)
+
+    def test_init(self):
+        """Test LogNetwork() initialisation."""
+
+        # Ensure all valid connections can be instantiated.
+        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = LogNetwork(messages, TMP_PATH)
+
+        # Ensure properties can be accessed.
+        self.assertEqual(dump.messages, messages)
+        self.assertEqual(dump.root_directory, TMP_PATH)
+        self.assertEqual(dump.max_entries, None)
+        self.assertEqual(dump.max_time, None)
+
+        # The directory property is only created once logging has
+        # started. Ensure it is set to None initially.
+        self.assertEqual(dump.directory, None)
+
+    def test_start_stop(self):
+        """Test LogNetwork() start/stop."""
+
+        # Create broadcasters.
+        broadcaster_A = MessageBroadcaster(UnitTestMessageA)
+        broadcaster_B = MessageBroadcaster(UnitTestMessageB)
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = LogNetwork(messages, TMP_PATH)
+        self.assertEqual(dump.directory, None)
+
+        # Ensure a log directory has NOT been created (Note a README file is
+        # created in the /tmp directory).
+        self.assertEqual(len(os.listdir(TMP_PATH)), 1)
+
+        # Start network dump.
+        self.assertTrue(dump.start())
+        self.assertTrue(dump.is_alive)
+        self.assertFalse(dump.start())
+        self.assertNotEqual(dump.directory, None)
+
+        # Ensure a log directory as been created and it is empty.
+        directory = dump.directory
+        self.assertEqual(len(os.listdir(TMP_PATH)), 2)
+        self.assertEqual(len(os.listdir(directory)), 0)
+
+        # Broadcast messages for logging.
+        broadcaster_A.publish(UnitTestMessageA(data='A'))
+        broadcaster_B.publish(UnitTestMessageB(data='B'))
+
+        # Wait for log files to be created.
+        begin_time = time.time()
+        while len(os.listdir(dump.directory)) < 2:
+            time.sleep(0.1)
+            if time.time() - begin_time > TIME_OUT:
+                break
+
+        # Ensure the log files have been created and are in a logging state.
+        directory = dump.directory
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.tmp') in files)
+
+        # Stop network dump.
+        self.assertTrue(dump.stop())
+        self.assertFalse(dump.is_alive)
+        self.assertFalse(dump.stop())
+        self.assertEqual(dump.directory, None)
+
+        # Ensure the log files have been closed.
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.log') in files)
+
+
+# -----------------------------------------------------------------------------
 #                                  ReadFile()
 # -----------------------------------------------------------------------------
 
@@ -465,20 +647,34 @@ class ReadFileTests(unittest.TestCase):
         # Create file reader object.
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
 
-        # Create file reader for loading data into dictionaries
+        # Create file reader for loading data into DICTIONARIES
         rf = ReadFile(fname)
+        self.assertEqual(rf.header['type'], dict)
+
+        # Create file reader for loading data into MESSAGE objects.
+        rf = ReadFile(fname, message=True)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+
+    def test_header(self):
+        """Test ReadFile() header."""
+
+        # Load file with NO revision in the header.
+        rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageA.log'))
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
         self.assertEqual(rf.header['version'], '1.0')
-        self.assertEqual(rf.header['revision'], 'f9ab7811383ad9b67bdf495c88a8d86950520650')
+        self.assertEqual(rf.header['revision'], None)
         self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
         self.assertEqual(rf.header['type'], dict)
 
-        # Create file reader for loading data into message objects.
-        rf = ReadFile(fname, message=True)
+        # Load file with a revision in the header.
+        rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageB.log'))
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
-        self.assertEqual(rf.header['type'], UnitTestMessageA)
+        self.assertEqual(rf.header['version'], '1.0')
+        self.assertEqual(rf.header['revision'], 'ffff000000000000000000000000000000000000')
+        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
+        self.assertEqual(rf.header['type'], dict)
 
     def test_bad_init(self):
         """Test ReadFile() catches bad initialisation."""
@@ -794,114 +990,3 @@ class ReadDirectoryTests(unittest.TestCase):
         self.assertFalse(rd.is_data_pending())
         message = rd.read()
         self.assertEqual(message, None)
-
-
-# -----------------------------------------------------------------------------
-#                                 LogNetwork()
-# -----------------------------------------------------------------------------
-
-class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
-
-    def test_bad_init(self):
-        """Test LogNetwork() catches bad initialisation."""
-
-        messages = [UnitTestMessageA, UnitTestMessageB]
-
-        # Ensure error is raised if the logging directory does not exist.
-        with self.assertRaises(IOError):
-            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
-
-        # Ensure error is raised if the input connections are wrong.
-        with self.assertRaises(TypeError):
-            LogNetwork('connection', TMP_PATH)
-        with self.assertRaises(TypeError):
-            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
-
-        # Ensure max_entries is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries=0)
-
-        # Ensure max_time is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time=0)
-
-    def test_init(self):
-        """Test LogNetwork() initialisation."""
-
-        # Ensure all valid connections can be instantiated.
-        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
-
-        # Initialise network dump.
-        messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
-
-        # Ensure properties can be accessed.
-        self.assertEqual(dump.messages, messages)
-        self.assertEqual(dump.root_directory, TMP_PATH)
-        self.assertEqual(dump.max_entries, None)
-        self.assertEqual(dump.max_time, None)
-
-        # The directory property is only created once logging has
-        # started. Ensure it is set to None initially.
-        self.assertEqual(dump.directory, None)
-
-    def test_start_stop(self):
-        """Test LogNetwork() start/stop."""
-
-        # Create broadcasters.
-        broadcaster_A = MessageBroadcaster(UnitTestMessageA)
-        broadcaster_B = MessageBroadcaster(UnitTestMessageB)
-
-        # Initialise network dump.
-        messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
-        self.assertEqual(dump.directory, None)
-
-        # Ensure a log directory has NOT been created (Note a README file is
-        # created in the /tmp directory).
-        self.assertEqual(len(os.listdir(TMP_PATH)), 1)
-
-        # Start network dump.
-        self.assertTrue(dump.start())
-        self.assertTrue(dump.is_alive)
-        self.assertFalse(dump.start())
-        self.assertNotEqual(dump.directory, None)
-
-        # Ensure a log directory as been created and it is empty.
-        directory = dump.directory
-        self.assertEqual(len(os.listdir(TMP_PATH)), 2)
-        self.assertEqual(len(os.listdir(directory)), 0)
-
-        # Broadcast messages for logging.
-        broadcaster_A.publish(UnitTestMessageA(data='A'))
-        broadcaster_B.publish(UnitTestMessageB(data='B'))
-
-        # Wait for log files to be created.
-        begin_time = time.time()
-        while len(os.listdir(dump.directory)) < 2:
-            time.sleep(0.1)
-            if time.time() - begin_time > TIME_OUT:
-                break
-
-        # Ensure the log files have been created and are in a logging state.
-        directory = dump.directory
-        files = os.listdir(directory)
-        self.assertEqual(len(files), 2)
-        for message in messages:
-            self.assertTrue((message.name + '.tmp') in files)
-
-        # Stop network dump.
-        self.assertTrue(dump.stop())
-        self.assertFalse(dump.is_alive)
-        self.assertFalse(dump.stop())
-        self.assertEqual(dump.directory, None)
-
-        # Ensure the log files have been closed.
-        files = os.listdir(directory)
-        self.assertEqual(len(files), 2)
-        for message in messages:
-            self.assertTrue((message.name + '.log') in files)

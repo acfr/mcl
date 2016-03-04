@@ -32,7 +32,6 @@ import datetime
 import textwrap
 import subprocess
 
-from mcl import MCL_ROOT
 import mcl.network.network
 import mcl.network.abstract
 import mcl.message.messages
@@ -53,6 +52,37 @@ COMMENT_BLOCK = COMMENT_CHARACTER + '-' * 65
 VERSION_MARKER = '--'
 CONNECTION_MARKER = '>>'
 MESSAGE_MARKER = '>>>'
+
+
+def retrieve_git_hash(repository_path):
+    """Retrieve git hash from repository.
+
+    Args:
+        repository_path (str): Path to git repository (.git)
+
+    Returns:
+        str: Current hash of git repository. If the git hash coult not be
+            retrieved, :data:`None` is returned.
+
+    Raises:
+        IOError: If the repository path does not exist.
+
+    """
+
+    # Path does not exist.
+    if not os.path.exists(repository_path):
+        raise IOError("The path '%s' does not exist." % repository_path)
+
+    # Get repository version.
+    try:
+        git_dir = '--git-dir=' + repository_path
+        git_hash = subprocess.check_output(['git', git_dir,
+                                            'rev-parse', 'HEAD'])
+        return git_hash.strip()
+
+    # Could not get git hash, mark as unknown.
+    except:
+        return None
 
 
 class WriteFile(object):
@@ -94,12 +124,19 @@ class WriteFile(object):
         connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
             an instance of a MCL connection object or a reference to a MCL
             message type to record to log file(s).
-        time_origin (datetime.datetime): Time origin used to calculate elapsed
-            time during logging (time data was received - time origin). This
-            option allows the time origin to be synchronised across multiple
-            log files. If set to :py:data:`.None`, the time origin will be set
-            to the time the first logged message was received. This results in
-            the first logged item having an elapsed time of zero.
+        revision (str): Revision of code used to generate logs. For instance,
+           the hash identifying a commit in a Git repository, can be used to
+           record what version of code was used during logging. The function
+           :py:func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :py:data:`.None` (default), no revision will be
+           recorded in the log header.
+        time_origin (datetime.datetime): UTC time origin used to calculate
+            elapsed time during logging (time data was received - time
+            origin). This option allows the time origin to be synchronised
+            across multiple log files. If set to :py:data:`.None`, the time
+            origin will be set to the time the first logged message was
+            received. This results in the first logged item having an elapsed
+            time of zero.
         max_entries (int): Maximum number of entries to record per log file. If
             set, a new log file will be created once the maximum number of
             entries has been recorded. Files follow the naming scheme
@@ -127,15 +164,25 @@ class WriteFile(object):
 
     """
 
-    def __init__(self, prefix, connection, time_origin=None, max_entries=None,
-                 max_time=None):
+    def __init__(self, prefix, connection, revision=None, time_origin=None,
+                 max_entries=None, max_time=None):
         """Document the __init__ method at the class level."""
 
+        # 'prefix' must not be the name of a directory.
+        if os.path.isdir(prefix):
+            msg = "The input '%s' is a directory. Please add a file prefix."
+            raise IOError(msg % prefix)
+
         # Ensure filename is valid.
-        prefix = os.path.abspath(prefix)
-        dir_name = os.path.dirname(prefix)
+        self.__prefix = prefix
+        dir_name = os.path.dirname(os.path.abspath(prefix))
         if not os.path.isdir(dir_name):
             raise IOError('The directory %s does not exist.' % dir_name)
+
+        # Ensure no extension has been included.
+        if prefix.endswith('.tmp') or prefix.endswith('.log'):
+            msg = '%s: Do not include the file extention in the prefix.'
+            raise TypeError(msg % prefix)
 
         # 'connection' is a Connection() instance.
         if isinstance(connection, mcl.network.abstract.Connection):
@@ -152,15 +199,20 @@ class WriteFile(object):
             msg += "or a Message() subclass."
             raise TypeError(msg)
 
-        # Store file objects.
-        self.__prefix = prefix
-        self.__header = False
-        self.__time_origin = time_origin
+        # Validate 'revision'.
+        self.__revision = revision
+        if self.__revision is None:
+            self.__revision = ''
+        if not isinstance(self.__revision, basestring):
+            msg = "'revision' must be a string"
+            raise TypeError(msg)
 
-        # Store objects for splitting files.
-        self.__file_number = 0
-        self.__file_time = None
-        self.__file_entries = 0
+        # Validate time_origin.
+        self.__time_origin = time_origin
+        if ((time_origin is not None) and
+            (not isinstance(time_origin, datetime.datetime))):
+            msg = "'time_origin' must be a datetime.datetime object."
+            raise TypeError(msg)
 
         # Ensure max_entries is properly specified.
         if ((max_entries is None) or
@@ -177,6 +229,12 @@ class WriteFile(object):
         else:
             msg = "The '%s' parameter must be a non-zero number."
             raise TypeError(msg % 'max_time')
+
+        # Store objects for splitting files.
+        self.__header = None
+        self.__file_number = 0
+        self.__file_time = None
+        self.__file_entries = 0
 
         # Ensure the file (first split) does not exist.
         if os.path.exists(self.__get_filename()):
@@ -236,8 +294,8 @@ class WriteFile(object):
         try:
             os.rename(self.__get_filename(), filename)
 
-        # Re-attempt renaming operation.
-        except:
+        # Re-attempt renaming operation (handle a very unlikely corner case).
+        except:                                              # pragma: no cover
             try:
                 os.rename(self.__get_filename(), filename)
 
@@ -263,17 +321,6 @@ class WriteFile(object):
 
         """
 
-        # Get repository version.
-        try:
-            git_dir = '--git-dir=' + os.path.join(MCL_ROOT, '../', '.git')
-            git_hash = subprocess.check_output(['git', git_dir,
-                                                'rev-parse', 'HEAD'])
-            git_hash = git_hash.strip()
-
-        # Could not get git hash, mark as unknown.
-        except:
-            git_hash = '<unknown>'
-
         # Create format of file header.
         header = textwrap.dedent("""\
         NETWORK_DUMP
@@ -295,7 +342,7 @@ class WriteFile(object):
 
         # Create version details.
         version = '%s version     %1.1f' % (VERSION_MARKER, VERSION)
-        revision = '%s revision    %s' % (VERSION_MARKER, git_hash)
+        revision = '%s revision    %s' % (VERSION_MARKER, self.__revision)
         created = '%s created     %s' % (VERSION_MARKER,
                                          str(self.__time_origin))
 
@@ -473,6 +520,12 @@ class LogConnection(object):
             incremented for each new split log).
         connection (:py:class:`~.abstract.Connection`): MCL
             :py:class:`.Message` object to record to log file(s).
+        revision (str): Revision of code used to generate logs. For instance,
+           the hash identifying a commit in a Git repository, can be used to
+           record what version of code was used during logging. The function
+           :py:func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :py:data:`.None` (default), no revision will be
+           recorded in the log header.
         time_origin (datetime.datetime): Time origin used to calculate elapsed
             time during logging (time data was received - time origin). This
             option allows the time origin to be synchronised across multiple
@@ -503,23 +556,21 @@ class LogConnection(object):
 
     """
 
-    def __init__(self, prefix, connection, time_origin=None, max_entries=None,
-                 max_time=None, open_init=False):
+    def __init__(self,
+                 prefix,
+                 connection,
+                 revision=None,
+                 time_origin=None,
+                 max_entries=None,
+                 max_time=None,
+                 open_init=False):
         """Document the __init__ method at the class level."""
-
-        # # Store type of recorded data.
-        # if issubclass(connection, mcl.message.messages.Message):
-        #     connection = connection.connection
-
-        # # Ensure 'connection' is a Connection() object.
-        # if not isinstance(connection, mcl.network.abstract.Connection):
-        #     msg = "'connection' must reference a Connection() instance."
-        #     raise TypeError(msg)
 
         # Create file logger.
         try:
             self.__file = WriteFile(prefix,
                                     connection,
+                                    revision,
                                     time_origin=time_origin,
                                     max_entries=max_entries,
                                     max_time=max_time)
@@ -601,6 +652,225 @@ class LogConnection(object):
             return False
 
 
+class LogNetwork(object):
+    """Dump network traffic to files.
+
+    The :py:class:`.LogNetwork` object records network traffic to multiple log
+    files.  The input `directory` specifies the location to create a directory,
+    using the following format::
+
+        <year><month><day>T<hours><minutes><seconds>_<hostname>
+
+    for logging network traffic. The input `messages` specifies a list of MCL
+    :py:class:`.Message` objects to record. A log file is created for each
+    message specified in the input `messages`. For instance if `message`
+    specifies a configuration for receiving ``MessageA`` and ``MessageB``
+    objects, the following directory tree will be created (almost midnight on
+    December 31st 1999)::
+
+        directory/19991231T235959_host/
+                                      |-MessageA.log
+                                      |-MessageB.log
+
+    If split logging has been enabled (by the number of entries, elapsed time
+    or both) the log files will be appended with an incrementing counter::
+
+        directory/19991231T235959_host/
+                                      |-MessageA_000.log
+                                      |-MessageA_001.log
+                                      |-MessageB_000.log
+                                      |-MessageB_001.log
+                                      |-MessageB_002.log
+                                      |-MessageB_003.log
+
+    Args:
+        messages (list): List of :py:class:`.Message` objects specifying the
+            network traffic to be logged.
+        directory (str): Path to record a directory of network traffic.
+        revision (str): Revision of code used to generate logs. For instance,
+           the hash identifying a commit in a Git repository, can be used to
+           record what version of code was used during logging. The function
+           :py:func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :py:data:`.None` (default), no revision will be
+           recorded in the log header.
+        max_entries (int): Maximum number of entries to record per log file. If
+            set, a new log file will be created once the maximum number of
+            entries has been recorded. If set to :py:data:`.None` all data will
+            be logged to a single file. This option can be used in combination
+            with `max_time`.
+        max_time (int): Maximum length of time, in seconds, to log data. If
+            set, a new log file will be created after the maximum length of
+            time has elapsed. If set to :py:data:`.None` all data will be
+            logged to a single file. This option can be used in combination
+            with `max_entries`.
+
+    Attributes:
+        messages (list): List of :py:class:`.Message` objects specifying which
+            network traffic is being logged.
+        root_directory (str): Location where new log directories are
+            created. This path returns the input specified by the optional
+            `directory` argument.
+        directory (str): String specifying the directory where data is being
+            recorded. This attribute is set to none :py:data:`.None` if the
+            data is NOT being logged to file (stopped state). If the logger is
+            recording data, this attribute is returned as a full path to a
+            newly created directory in the specified `directory` input using
+            the following the format::
+
+                <year><month><day>T<hours><minutes><seconds>_<hostname>
+
+        max_entries (int): Maximum number of entries to record per log file. If
+            set to :py:data:`.None` all data will be logged to a single
+            file.
+        max_time (int): Maximum length of time, in seconds, to log data. If set
+            to :py:data:`.None` all data will be logged to a single file.
+
+        Raises:
+            IOError: If the log directory does not exist.
+            TypeError: If the any of the inputs are an incorrect type.
+
+    """
+
+    def __init__(self,
+                 messages,
+                 directory,
+                 revision=None,
+                 max_entries=None,
+                 max_time=None):
+        """Document the __init__ method at the class level."""
+
+        # Ensure directory exists.
+        if directory and not os.path.isdir(directory):
+            raise IOError("The directory '%s' does not exist." % directory)
+
+        # Input is not an iterable.
+        if not isinstance(messages, (list, tuple)):
+            msg = "The '%s' parameter must be a list/tuple of Connection() "
+            msg += "or Message() objects."
+            raise TypeError(msg % 'messages')
+
+        # Create empty variable for storing the path to the current log
+        # directory. This is a combination of 'self.__root_directory' and a
+        # string representing the ISO date string of when logging started.
+        self.__messages = messages
+        self.__root_directory = directory
+        self.__revision = revision
+        self.__max_entries = max_entries
+        self.__max_time = max_time
+
+        # Initial state is not running.
+        self.__directory = None
+        self.__loggers = None
+        self.__is_alive = False
+
+        # Save hostname of device.
+        self.__hostname = socket.gethostname().strip()
+        if not self.__hostname:                              # pragma: no cover
+            self.__hostname = 'unknown'
+
+        # Catch errors early: ensure each item in the iterable can create a
+        # logger.
+        for message in self.messages:
+            try:
+                LogConnection(os.path.join(directory, 'test'),
+                              message,
+                              revision=self.__revision,
+                              max_entries=self.__max_entries,
+                              max_time=self.__max_time,
+                              open_init=False)
+            except:
+                raise
+
+    @property
+    def messages(self):
+        return self.__messages
+
+    @property
+    def root_directory(self):
+        return self.__root_directory
+
+    @property
+    def directory(self):
+        return self.__directory
+
+    @property
+    def max_entries(self):
+        return self.__max_entries
+
+    @property
+    def max_time(self):
+        return self.__max_time
+
+    @property
+    def is_alive(self):
+        return self.__is_alive
+
+    def start(self):
+        """Start logging network data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if logging was started. If
+                network data is currently being logged, the request is ignored
+                and the method returns :data:`False`.
+
+        """
+
+        if not self.is_alive:
+
+            # Note: The time of initialisation is used in ALL files as the
+            #       origin. This is used to help synchronise the timing between
+            #       files.
+            time_origin = datetime.datetime.utcnow()
+
+            # Create directory with current time stamp.
+            start_time = time.strftime('%Y%m%dT%H%M%S')
+            directory = os.path.join(self.__root_directory, start_time)
+            directory += '_' + self.__hostname
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+            self.__loggers = dict()
+            self.__directory = directory
+
+            # Attach listeners to broadcasts and dump their contents into
+            # separate queues.
+            for message in self.messages:
+                filename = os.path.join(directory, message.__name__)
+                self.__loggers[message] = LogConnection(filename,
+                                                        message,
+                                                        revision=self.__revision,
+                                                        time_origin=time_origin,
+                                                        max_entries=self.__max_entries,
+                                                        max_time=self.__max_time,
+                                                        open_init=True)
+
+            self.__is_alive = True
+            return True
+        else:
+            return False
+
+    def stop(self):
+        """Stop logging network data.
+
+        Returns:
+            :class:`bool`: Returns :data:`True` if logging was stopped. If
+                network data is currently NOT being logged, the request is
+                ignored and the method returns :data:`False`.
+
+        """
+
+        if self.is_alive:
+            for message in self.messages:
+                self.__loggers[message].close()
+
+            self.__directory = None
+            self.__loggers = None
+            self.__is_alive = False
+            return True
+        else:
+            return False
+
+
 class ReadFile(object):
     """Read data from a log file.
 
@@ -677,7 +947,11 @@ class ReadFile(object):
 
     """
 
-    def __init__(self, filename, min_time=None, max_time=None, message=False):
+    def __init__(self,
+                 filename,
+                 min_time=None,
+                 max_time=None,
+                 message=False):
         """Document the __init__ method at the class level."""
 
         # Variables for monitoring file reads.
@@ -1015,8 +1289,12 @@ class ReadFile(object):
             line = line.replace(COMMENT_CHARACTER, '')
             line = line.replace(VERSION_MARKER, '')
             line = line.strip()
-            item, parameter[i] = line.split(None, 1)
-            if item != name:
+            tokens = line.split(None, 1)
+            if len(tokens) > 1:
+                parameter[i] = tokens[1]
+            else:
+                parameter[i] = None
+            if tokens[0] != name:
                 raise IOError(error_msg)
 
         # Fast forward to recorded broadcasts.
@@ -1124,225 +1402,6 @@ class ReadFile(object):
             raise self.__next_message
 
 
-class LogNetwork(object):
-    """Dump network traffic to files.
-
-    The :py:class:`.LogNetwork` object records network traffic to multiple log
-    files.  The input `directory` specifies the location to create a directory,
-    using the following format::
-
-        <year><month><day>T<hours><minutes><seconds>_<hostname>
-
-    for logging network traffic. The input `messages` specifies a list of MCL
-    :py:class:`.Message` objects to record. A log file is created for each
-    message specified in the input `messages`. For instance if `message`
-    specifies a configuration for receiving ``MessageA`` and ``MessageB``
-    objects, the following directory tree will be created (almost midnight on
-    December 31st 1999)::
-
-        directory/19991231T235959_host/
-                                      |-MessageA.log
-                                      |-MessageB.log
-
-    If split logging has been enabled (by the number of entries, elapsed time
-    or both) the log files will be appended with an incrementing counter::
-
-        directory/19991231T235959_host/
-                                      |-MessageA_000.log
-                                      |-MessageA_001.log
-                                      |-MessageB_000.log
-                                      |-MessageB_001.log
-                                      |-MessageB_002.log
-                                      |-MessageB_003.log
-
-    Args:
-        messages (list): List of :py:class:`.Message` objects specifying the
-            network traffic to be logged.
-        directory (str): Path to record a directory of network traffic.
-        max_entries (int): Maximum number of entries to record per log file. If
-            set, a new log file will be created once the maximum number of
-            entries has been recorded. If set to :py:data:`.None` all data will
-            be logged to a single file. This option can be used in combination
-            with `max_time`.
-        max_time (int): Maximum length of time, in seconds, to log data. If
-            set, a new log file will be created after the maximum length of
-            time has elapsed. If set to :py:data:`.None` all data will be
-            logged to a single file. This option can be used in combination
-            with `max_entries`.
-
-    Attributes:
-        messages (list): List of :py:class:`.Message` objects specifying which
-            network traffic is being logged.
-        root_directory (str): Location where new log directories are
-            created. This path returns the input specified by the optional
-            `directory` argument.
-        directory (str): String specifying the directory where data is being
-            recorded. This attribute is set to none :py:data:`.None` if the
-            data is NOT being logged to file (stopped state). If the logger is
-            recording data, this attribute is returned as a full path to a
-            newly created directory in the specified `directory` input using
-            the following the format::
-
-                <year><month><day>T<hours><minutes><seconds>_<hostname>
-
-        max_entries (int): Maximum number of entries to record per log file. If
-            set to :py:data:`.None` all data will be logged to a single
-            file.
-        max_time (int): Maximum length of time, in seconds, to log data. If set
-            to :py:data:`.None` all data will be logged to a single file.
-
-        Raises:
-            IOError: If the log directory does not exist.
-            TypeError: If the any of the inputs are an incorrect type.
-
-    """
-
-    def __init__(self, messages, directory, max_entries=None, max_time=None):
-        """Document the __init__ method at the class level."""
-
-        # Ensure directory exists.
-        if directory and not os.path.isdir(directory):
-            raise IOError("The directory '%s' does not exist." % directory)
-
-        # Input is not an iterable.
-        if not isinstance(messages, (list, tuple)):
-            msg = "The '%s' parameter must be a list/tuple of Connection() "
-            msg += "or Message() objects."
-            raise TypeError(msg % 'messages')
-
-        # Catch errors early: ensure each item in the iterable can create a
-        # logger.
-        else:
-            self.__message = True
-            self.__messages = messages
-            for message in self.messages:
-                try:
-                    LogConnection(os.path.join(directory, 'test'),
-                                  message,
-                                  open_init=False)
-                except:
-                    raise
-
-        # Ensure max_entries is properly specified.
-        if ((max_entries is None) or
-            (isinstance(max_entries, (int, long)) and max_entries > 0)):
-            self.__max_entries = max_entries
-        else:
-            msg = "The '%s' parameter must be a non-zero, positive integer."
-            raise TypeError(msg % 'max_entries')
-
-        # Ensure max_time is properly specified.
-        if ((max_time is None) or
-            (isinstance(max_time, (int, long, float)) and max_time > 0)):
-            self.__max_time = max_time
-        else:
-            msg = "The '%s' parameter must be a non-zero number."
-            raise TypeError(msg % 'max_time')
-
-        # Create empty variable for storing the path to the current log
-        # directory. This is a combination of 'self.__root_directory' and a
-        # string representing the ISO date string of when logging started.
-        self.__root_directory = directory
-        self.__directory = None
-
-        # Initial state is not running.
-        self.__loggers = None
-        self.__is_alive = False
-
-        # Save hostname of device.
-        self.__hostname = socket.gethostname().strip()
-        if not self.__hostname:
-            self.__hostname = 'unknown'
-
-    @property
-    def messages(self):
-        return self.__messages
-
-    @property
-    def root_directory(self):
-        return self.__root_directory
-
-    @property
-    def directory(self):
-        return self.__directory
-
-    @property
-    def max_entries(self):
-        return self.__max_entries
-
-    @property
-    def max_time(self):
-        return self.__max_time
-
-    @property
-    def is_alive(self):
-        return self.__is_alive
-
-    def start(self):
-        """Start logging network data.
-
-        Returns:
-            :class:`bool`: Returns :data:`True` if logging was started. If
-                network data is currently being logged, the request is ignored
-                and the method returns :data:`False`.
-
-        """
-
-        if not self.is_alive:
-
-            # Note: The time of initialisation is used in ALL files as the
-            #       origin. This is used to help synchronise the timing between
-            #       files.
-            time_origin = datetime.datetime.utcnow()
-
-            # Create directory with current time stamp.
-            start_time = time.strftime('%Y%m%dT%H%M%S')
-            directory = os.path.join(self.__root_directory, start_time)
-            directory += '_' + self.__hostname
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-
-            self.__loggers = dict()
-            self.__directory = directory
-
-            # Attach listeners to broadcasts and dump their contents into
-            # separate queues.
-            for message in self.messages:
-                filename = os.path.join(directory, message.__name__)
-                self.__loggers[message] = LogConnection(filename,
-                                                        message,
-                                                        time_origin=time_origin,
-                                                        max_entries=self.__max_entries,
-                                                        max_time=self.__max_time,
-                                                        open_init=True)
-
-            self.__is_alive = True
-            return True
-        else:
-            return False
-
-    def stop(self):
-        """Stop logging network data.
-
-        Returns:
-            :class:`bool`: Returns :data:`True` if logging was stopped. If
-                network data is currently NOT being logged, the request is
-                ignored and the method returns :data:`False`.
-
-        """
-
-        if self.is_alive:
-            for message in self.messages:
-                self.__loggers[message].close()
-
-            self.__directory = None
-            self.__loggers = None
-            self.__is_alive = False
-            return True
-        else:
-            return False
-
-
 class ReadDirectory(object):
     """Read data from multiple log files in time order.
 
@@ -1388,7 +1447,11 @@ class ReadDirectory(object):
 
     """
 
-    def __init__(self, source, min_time=None, max_time=None, message=False):
+    def __init__(self,
+                 source,
+                 min_time=None,
+                 max_time=None,
+                 message=False):
         """Document the __init__ method at the class level."""
 
         # Ensure source is specified as a string.
