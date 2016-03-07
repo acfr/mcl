@@ -254,10 +254,14 @@ class BroadcasterTests(object):
 
         # Ensure non-string topics are caught.
         with self.assertRaises(TypeError):
-            MessageBroadcaster(self.Message, topic=5)
+            MessageBroadcaster(self.Message, topic=False)
 
     def test_message_publish(self):
         """Test %s MessageBroadcaster() publish."""
+
+        # Test publish fails if the input is not a Message().
+        with self.assertRaises(TypeError):
+            MessageBroadcaster(dict)
 
         # Create an instance of MessageBroadcaster().
         message = self.Message()
@@ -266,11 +270,11 @@ class BroadcasterTests(object):
         # Test publish succeeds with default topic.
         broadcaster.publish(message)
 
-        # Test publish fails if the input is not a Message().
+        # Ensure attempts to publish a non-message type raises an exception.
         with self.assertRaises(TypeError):
-            broadcaster.publish(42)
+            broadcaster.publish(False)
 
-        # Ensure attempts to publish on a closed connection raised an
+        # Ensure attempts to publish on a closed connection raises an
         # exception.
         broadcaster.close()
         with self.assertRaises(IOError):
@@ -278,7 +282,7 @@ class BroadcasterTests(object):
 
 
 # -----------------------------------------------------------------------------
-#                            Raw/Message Listener()
+#                         Raw/Message/Queued Listener()
 # -----------------------------------------------------------------------------
 
 class _ListenerTestsMeta(type):
@@ -376,13 +380,6 @@ class ListenerTests(object):
         result = listener.close()
         self.assertFalse(result)
 
-    def test_factory(self):
-        """Test %s RawListener() from connection."""
-
-        # Manufacture an instance of RawListener() from the connection object.
-        listener = RawListener(self.connection)
-        listener.close()
-
     def test_bad_init(self):
         """Test %s RawListener() catches bad initialisation inputs."""
 
@@ -431,18 +428,29 @@ class ListenerTests(object):
         self.assertFalse(listener.is_subscribed(callback))
         self.assertEqual(listener.num_subscriptions(), 0)
 
+    def test_factory(self):
+        """Test %s RawListener() from connection."""
+
+        # Manufacture an instance of RawListener() from the connection object.
+        listener = RawListener(self.connection)
+        listener.close()
+
+        # Test instantiation fails if input is not a 'connection' object.
+        with self.assertRaises(TypeError):
+            RawListener('connection')
+
     def test_message_init(self):
         """Test %s MessageListener() initialisation."""
+
+        # Ensure non-Message() inputs are caught.
+        with self.assertRaises(TypeError):
+            MessageListener(dict)
 
         # Create an instance of MessageListener() with defaults.
         listener = MessageListener(self.Message)
         self.assertEqual(listener.topics, None)
         self.assertTrue(listener.is_open)
         listener.close()
-
-        # Ensure non-Message() inputs are caught.
-        with self.assertRaises(TypeError):
-            MessageListener(None)
 
         # Create an instance of MessageListener() with a specific topic.
         listener = MessageListener(self.Message, topics=TOPIC)
@@ -452,7 +460,7 @@ class ListenerTests(object):
 
         # Ensure non-string topics are caught.
         with self.assertRaises(TypeError):
-            MessageListener(self.Message, topics=5)
+            MessageListener(self.Message, topics=False)
 
 
     # --------------------------------------------------------------------------
@@ -484,6 +492,8 @@ class ListenerTests(object):
         # object.
         with self.assertRaises(TypeError):
             QueuedListener('connection')
+        with self.assertRaises(TypeError):
+            QueuedListener(dict)
 
         # Ensure instantiation fails if the topic input is not a string or list
         # of strings.

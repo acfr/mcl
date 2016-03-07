@@ -608,19 +608,22 @@ class QueuedListener(mcl.network.abstract.RawListener):
     def __init__(self, connection, topics=None, open_init=True):
         """Document the __init__ method at the class level."""
 
-        # 'connection' is a Connection() instance.
-        if isinstance(connection, mcl.network.abstract.Connection):
-            self.__connection = connection
-            self.__message_type = None
-
-        # 'connection is a reference to a Message() subclass.
-        elif issubclass(connection, mcl.message.messages.Message):
-            self.__connection = connection.connection
-            self.__message_type = connection
-
-        else:
+        try:
             msg = "'connection' must reference a Connection() instance "
             msg += "or a Message() subclass."
+
+            # 'connection' is a Connection() instance.
+            if isinstance(connection, mcl.network.abstract.Connection):
+                self.__connection = connection
+                self.__message_type = None
+
+            # 'connection is a reference to a Message() subclass.
+            elif issubclass(connection, mcl.message.messages.Message):
+                self.__connection = connection.connection
+                self.__message_type = connection
+            else:
+                raise TypeError(msg)
+        except:
             raise TypeError(msg)
 
         # Attempt to initialise listener base-class.
@@ -719,10 +722,8 @@ class QueuedListener(mcl.network.abstract.RawListener):
         while run_event.is_set():
             try:
                 time.sleep(0.25)
-            except KeyboardInterrupt:
+            except KeyboardInterrupt:                        # pragma: no cover
                 break
-            except:
-                raise
 
         # Stop listening for data.
         listener.close()
@@ -747,15 +748,15 @@ class QueuedListener(mcl.network.abstract.RawListener):
                     try:
                         data['payload'] = self.__message_type(data['payload'])
                         self.__trigger__(data)
+
+                    # Error during publishing.
                     except:
                         self.request_close()
                         raise
 
+            # No data in queue.
             except Queue.Empty:
                 pass
-
-            except:
-                raise
 
     def _open(self):
         """Open connection to queued listener and start publishing broadcasts.
@@ -795,22 +796,22 @@ class QueuedListener(mcl.network.abstract.RawListener):
             start_wait = time.time()
             self.__reader.start()
             while not self.__reader_run_event.is_set():
-                if (time.time() - start_wait) > TIMEOUT:
+                if (time.time() - start_wait) > TIMEOUT:     # pragma: no cover
                     msg = '%s - timed out waiting for thread to start.'
                     msg = msg % str(self.__connection)
                     raise Exception(msg)
-                else:
+                else:                                        # pragma: no cover
                     time.sleep(0.01)
 
             # Wait for queue WRITER to start.
             start_wait = time.time()
             self.__writer.start()
             while not self.__writer_run_event.is_set():
-                if (time.time() - start_wait) > TIMEOUT:
+                if (time.time() - start_wait) > TIMEOUT:     # pragma: no cover
                     msg = '%s - timed out waiting for process to start.'
                     msg = msg % str(self.__connection)
                     raise Exception(msg)
-                else:
+                else:                                        # pragma: no cover
                     time.sleep(0.01)
 
             self.__is_alive = True
@@ -830,12 +831,6 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         """
         return self._open()
-
-    def request_close(self):
-
-        if self.is_open():
-            self.__writer_run_event.clear()
-            self.__reader_run_event.clear()
 
     def close(self):
         """Close connection to queued listener.
@@ -857,14 +852,14 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
             # Wait for queue READER to terminate.
             self.__reader.join(TIMEOUT)
-            if self.__reader.is_alive():
+            if self.__reader.is_alive():                     # pragma: no cover
                 msg = "%s - timed out waiting for thread to stop."
                 msg = msg % str(self.__connection)
                 raise Exception(msg)
 
             # Wait for queue WRITER to terminate.
             self.__writer.join(TIMEOUT)
-            if self.__writer.is_alive():
+            if self.__writer.is_alive():                     # pragma: no cover
                 msg = "%s - timed out waiting for process to stop."
                 msg = msg % str(self.__connection)
                 raise Exception(msg)

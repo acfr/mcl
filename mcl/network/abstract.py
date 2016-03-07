@@ -475,7 +475,7 @@ class RawBroadcaster(object):
 
         # Broadcasters can only store ONE default topic. Enforce this behaviour
         # by only accepting a string.
-        if topic and not isinstance(topic, basestring):
+        if topic is not None and not isinstance(topic, basestring):
             raise TypeError("The argument 'topic' must be None or a string.")
 
         # Save connection parameters.
@@ -588,7 +588,7 @@ class RawListener(mcl.event.event.Event):
 
         # Broadcasters can only store ONE default topic. Enforce this behaviour
         # by only accepting a string.
-        if topics and not isinstance(topics, basestring) and not \
+        if topics is not None and not isinstance(topics, basestring) and not \
            all(isinstance(item, basestring) for item in topics):
             msg = "The argument 'topics' must be None, a string or a list of "
             msg += "string."
