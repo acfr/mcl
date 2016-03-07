@@ -38,6 +38,7 @@ from mcl.network.test.common import PublishSubscribeTests
 # pylint: disable=R0904
 
 URL = 'ff15::c75d:ce41:ea8e:000a'
+BAD_URL = 'this::is::invalid'
 
 
 # -----------------------------------------------------------------------------
@@ -89,7 +90,7 @@ class ConnectionTests(unittest.TestCase):
 class TestBroadcaster(BroadcasterTests):
     broadcaster = RawBroadcaster
     connection = Connection(URL)
-
+    bad_connection = Connection(BAD_URL)
 
 # -----------------------------------------------------------------------------
 #                                  Listener()
@@ -98,6 +99,7 @@ class TestBroadcaster(BroadcasterTests):
 class TestListener(ListenerTests):
     listener = RawListener
     connection = Connection(URL)
+    bad_connection = Connection(BAD_URL)
 
 
 # -----------------------------------------------------------------------------

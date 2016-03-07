@@ -102,6 +102,12 @@ class _BroadcasterTestsMeta(type):
                         "The attribute 'connection' must be an instance of " +
                         "a abstract.Connection() sub-class.")
 
+        # Ensure 'connection' is a Connection().
+        attr_isinstance(dct, 'bad_connection', AbstractConnection,
+                        "The attribute 'bad_connection' must be an instance " +
+                        "of a abstract.Connection() sub-class that will " +
+                        "fail to connection.")
+
         # Create name from module origin and object name.
         module_name = '%s' % dct['broadcaster'].__module__.split('.')[-1]
 
@@ -146,7 +152,12 @@ class BroadcasterTests(object):
             mandatory = ('A', 'B',)
             connection = self.connection
 
+        class UnitTestBadMessage(mcl.message.messages.Message):
+            mandatory = ('A', 'B',)
+            connection = self.bad_connection
+
         self.Message = UnitTestMessage
+        self.BadMessage = UnitTestBadMessage
 
     def tearDown(self):
         """Clear known messages after testing."""
@@ -229,6 +240,10 @@ class BroadcasterTests(object):
         broadcaster = RawBroadcaster(self.connection)
         broadcaster.close()
 
+        # Ensure errors are propagated.
+        with self.assertRaises(Exception):
+            RawBroadcaster(self.bad_connection)
+
         # Test instantiation fails if input is not a 'connection' object.
         with self.assertRaises(TypeError):
             RawBroadcaster('connection')
@@ -236,15 +251,19 @@ class BroadcasterTests(object):
     def test_message_init(self):
         """Test %s MessageBroadcaster() initialisation."""
 
+        # Ensure non-Message() inputs are caught.
+        with self.assertRaises(TypeError):
+            MessageBroadcaster(None)
+
+        # Ensure errors are propagated.
+        with self.assertRaises(Exception):
+            MessageBroadcaster(self.BadMessage)
+
         # Create an instance of MessageBroadcaster() with defaults.
         broadcaster = MessageBroadcaster(self.Message)
         self.assertEqual(broadcaster.topic, None)
         self.assertTrue(broadcaster.is_open)
         broadcaster.close()
-
-        # Ensure non-Message() inputs are caught.
-        with self.assertRaises(TypeError):
-            MessageBroadcaster(None)
 
         # Create an instance of MessageBroadcaster() with a specific topic.
         broadcaster = MessageBroadcaster(self.Message, topic=TOPIC)
@@ -308,6 +327,12 @@ class _ListenerTestsMeta(type):
                         "The attribute 'connection' must be an instance of " +
                         "a abstract.Connection() sub-class.")
 
+        # Ensure 'connection' is a Connection().
+        attr_isinstance(dct, 'bad_connection', AbstractConnection,
+                        "The attribute 'bad_connection' must be an instance " +
+                        "of a abstract.Connection() sub-class that will " +
+                        "fail to connection.")
+
         # Create name from module origin and object name.
         module_name = '%s' % dct['listener'].__module__.split('.')[-1]
 
@@ -352,7 +377,12 @@ class ListenerTests(object):
             mandatory = ('A', 'B',)
             connection = self.connection
 
+        class UnitTestBadMessage(mcl.message.messages.Message):
+            mandatory = ('A', 'B',)
+            connection = self.bad_connection
+
         self.Message = UnitTestMessage
+        self.BadMessage = UnitTestBadMessage
 
     def tearDown(self):
         """Clear known messages after testing."""
@@ -435,6 +465,10 @@ class ListenerTests(object):
         listener = RawListener(self.connection)
         listener.close()
 
+        # Ensure errors are propagated.
+        with self.assertRaises(Exception):
+            RawListener(self.bad_connection)
+
         # Test instantiation fails if input is not a 'connection' object.
         with self.assertRaises(TypeError):
             RawListener('connection')
@@ -445,6 +479,10 @@ class ListenerTests(object):
         # Ensure non-Message() inputs are caught.
         with self.assertRaises(TypeError):
             MessageListener(dict)
+
+        # Ensure errors are propagated.
+        with self.assertRaises(Exception):
+            MessageListener(self.BadMessage)
 
         # Create an instance of MessageListener() with defaults.
         listener = MessageListener(self.Message)
@@ -487,6 +525,10 @@ class ListenerTests(object):
             self.assertTrue(listener.close())
             self.assertFalse(listener.is_open())
             self.assertFalse(listener.close())
+
+        # Ensure errors are propagated.
+        with self.assertRaises(Exception):
+            QueuedListener(self.BadMessage)
 
         # Ensure instantiation fails if the input is not a MCL connection.
         # object.
