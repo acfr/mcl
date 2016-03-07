@@ -281,6 +281,8 @@ class BroadcasterTests(object):
         # Test publish fails if the input is not a Message().
         with self.assertRaises(TypeError):
             MessageBroadcaster(dict)
+        with self.assertRaises(TypeError):
+            MessageBroadcaster(0)
 
         # Create an instance of MessageBroadcaster().
         message = self.Message()
@@ -479,6 +481,8 @@ class ListenerTests(object):
         # Ensure non-Message() inputs are caught.
         with self.assertRaises(TypeError):
             MessageListener(dict)
+        with self.assertRaises(TypeError):
+            MessageListener(0)
 
         # Ensure errors are propagated.
         with self.assertRaises(Exception):

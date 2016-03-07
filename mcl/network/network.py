@@ -413,6 +413,18 @@ class MessageListener(object):
     For a list of available methods and attributes in the returned object, see
     :py:class:`~.abstract.RawListener`.
 
+    .. warning::
+
+        :py:class:`.MessageListener` objects expect the transmitted data to be
+        formatted as MCL :py:class:`.Message` objects. If the received data
+        cannot be converted into a MCL :py:class:`.Message`, an exception will
+        be raised on the I/O loop (thread) of the base
+        :py:class:`~.abstract.RawListener`. This will prevent exceptions from
+        being raised on the main thread and messages from being published. If
+        no messages are being received, check the connections, ensure the data
+        is being formatted correctly prior to transmission and refer to any
+        stack-traces being printed on stdout.
+
     Args:
         message (:py:class:`.Message`): MCL message object.
         topics (str): List of strings containing topics
@@ -454,10 +466,14 @@ class MessageListener(object):
                 """Distribute MCL message to subscribed callbacks."""
 
                 # Attempt to serialise input data.
+                #
+                # Note: Errors encountered during recieve will likely occur in
+                #       the I/O loop of a network interface - and cannot be
+                #       caught here.
                 try:
                     data['payload'] = message_type(data['payload'])
                     super(MessageListener, self).__trigger__(data)
-                except:
+                except:                                      # pragma: no cover
                     raise
 
         return MessageListener(message.connection, topics=topics)

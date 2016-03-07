@@ -462,9 +462,14 @@ class RawListener(mcl.network.abstract.RawListener):
 
             # Data fits into one frame. Publish data immediately.
             if complete:
-                self.__trigger__({'topic': topic,
-                                  'payload': payload})
-                continue
+                try:
+                    self.__trigger__({'topic': topic,
+                                      'payload': payload})
+                    continue
+                except Exception as e:
+                    msg = '\nCould not service UDP recieve callback. The '
+                    msg += 'following exception was raised:\n\n%s\n'
+                    raise Exception(msg % e.message)
 
             # Data fits into multiple frames. The code from this point forwards
             # remarshalls the data frames into a single payload.
