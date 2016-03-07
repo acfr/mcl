@@ -60,10 +60,13 @@ is shown below::
 
 import time
 import Queue
-import threading
 import multiprocessing
 import mcl.network.network
 import mcl.message.messages
+
+
+# Time to wait for process to terminate.
+PROCESS_TIMEOUT = 1.0
 
 
 def _set_process_name(name):                                 # pragma: no cover
@@ -153,7 +156,7 @@ class BufferData(object):
             raise TypeError(msg % 'length')
 
         # Initialise process for buffering data.
-        self.__run_event = threading.Event()
+        self.__run_event = multiprocessing.Event()
         self.__is_ready = multiprocessing.Event()
         self.__is_data_pending = multiprocessing.Event()
         self.__is_ready.clear()
@@ -250,8 +253,9 @@ class BufferData(object):
             self.__buffer_worker.daemon = True
             self.__buffer_worker.start()
 
+            # Wait for buffer to start.
             while not self.is_alive():
-                time.sleep(0.01)
+                time.sleep(0.1)                              # pragma: no cover
 
             return True
         else:
@@ -274,11 +278,6 @@ class BufferData(object):
 
         """
 
-        # Time to wait for process to terminate. This parameter could be
-        # exposed to the user as a kwarg. Currently it is viewed as an
-        # unnecessary tuning parameter.
-        timeout = 1.0
-
         if self.is_alive():
 
             # Send signal to stop asynchronous object.
@@ -286,11 +285,12 @@ class BufferData(object):
 
             # Wait for process to join.
             start_wait = time.time()
-            while self.__buffer_worker.is_alive():
-                if (time.time() - start_wait) > timeout:
-                    break
+            while self.__buffer_worker.is_alive():           # pragma: no cover
+                if (time.time() - start_wait) > PROCESS_TIMEOUT:
+                    msg = 'timed out waiting for process to stop.'
+                    raise Exception(msg)
                 else:
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
             self.__is_ready.clear()
             self.__is_data_pending.set()
@@ -404,7 +404,7 @@ class BufferData(object):
                     is_ready.set()
                     time.sleep(0.1)
 
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:                            # pragma: no cover
             pass
 
 
@@ -492,15 +492,16 @@ class ScheduleBroadcasts(object):
         if not self.is_alive():
 
             self.__run_event.set()
-            self.__worker = threading.Thread(target=self.__inject,
-                                             args=(self.__run_event,
-                                                   self.__queue,
-                                                   self.__speed,))
+            self.__worker = multiprocessing.Process(target=self.__inject,
+                                                    args=(self.__run_event,
+                                                          self.__queue,
+                                                          self.__speed,))
             self.__worker.daemon = True
             self.__worker.start()
 
+            # Wait for broadcasts to start.
             while not self.is_alive():
-                time.sleep(0.01)
+                time.sleep(0.1)                              # pragma: no cover
 
             return True
         else:
@@ -516,11 +517,6 @@ class ScheduleBroadcasts(object):
 
         """
 
-        # Time to wait for process to terminate. This parameter could be
-        # exposed to the user as a kwarg. Currently it is viewed as an
-        # unnecessary tuning parameter.
-        timeout = 1.0
-
         if self.is_alive():
 
             # Send signal to stop asynchronous object.
@@ -528,11 +524,12 @@ class ScheduleBroadcasts(object):
 
             # Wait for process to join.
             start_wait = time.time()
-            while self.__worker.is_alive():
-                if (time.time() - start_wait) > timeout:
-                    break
+            while self.__worker.is_alive():                  # pragma: no cover
+                if (time.time() - start_wait) > PROCESS_TIMEOUT:
+                    msg = 'timed out waiting for process to stop.'
+                    raise Exception(msg)
                 else:
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
             self.__worker = None
             return True
@@ -617,7 +614,7 @@ class ScheduleBroadcasts(object):
                 while time.time() < schedule and run_event.is_set():
                     pass
 
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:                            # pragma: no cover
             pass
 
 
@@ -709,11 +706,6 @@ class Replay(object):
 
         """
 
-        # Time to wait for process to terminate. This parameter could be
-        # exposed to the user as a kwarg. Currently it is viewed as an
-        # unnecessary tuning parameter.
-        timeout = 1.0
-
         # Only start replay if the replay is in a paused or stopped state.
         if not self.is_alive():
 
@@ -727,10 +719,10 @@ class Replay(object):
             # starting broadcasts.
             self.__buffer.start()
             start_wait = time.time()
-            while True:
+            while True:                                      # pragma: no cover
                 if self.__buffer.is_ready():
                     break
-                elif (time.time() - start_wait) > timeout:
+                elif (time.time() - start_wait) > PROCESS_TIMEOUT:
                     msg = 'Could not buffering data.'
                     raise Exception(msg)
                 else:
@@ -741,10 +733,10 @@ class Replay(object):
 
             # Wait for scheduling processes to start.
             start_wait = time.time()
-            while True:
+            while True:                                      # pragma: no cover
                 if self.__scheduler.is_alive():
                     break
-                elif (time.time() - start_wait) > timeout:
+                elif (time.time() - start_wait) > PROCESS_TIMEOUT:
                     msg = 'Could not start objects for replay.'
                     raise Exception(msg)
                 else:
@@ -768,10 +760,10 @@ class Replay(object):
         if self.is_alive():
 
             # Send signal to stop asynchronous objects.
-            self.__broadcaster.stop()
+            self.__scheduler.stop()
             self.__buffer.stop()
 
-            if self.__buffer.is_alive() and self.__scheduler.is_alive():
+            if self.__buffer.is_alive() or self.__scheduler.is_alive():
                 msg = 'Could not stop asynchronous objects in replay.'
                 raise Exception(msg)
 
@@ -799,12 +791,12 @@ class Replay(object):
 
             # Stop broadcasts.
             self.__scheduler.stop()
-            while self.__scheduler.is_alive():
+            while self.__scheduler.is_alive():               # pragma: no cover
                 time.sleep(0.1)
 
             # Reset data reader.
             self.__buffer.reset()
-            while not (self.is_data_pending() and self.__buffer.queue.qsize() == 0):
+            while self.__buffer.is_alive():                  # pragma: no cover
                 time.sleep(0.1)
 
             return True

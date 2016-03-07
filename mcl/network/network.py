@@ -811,24 +811,24 @@ class QueuedListener(mcl.network.abstract.RawListener):
             # Wait for queue READER to start.
             start_wait = time.time()
             self.__reader.start()
-            while not self.__reader_run_event.is_set():
-                if (time.time() - start_wait) > TIMEOUT:     # pragma: no cover
+            while not self.__reader_run_event.is_set():      # pragma: no cover
+                if (time.time() - start_wait) > TIMEOUT:
                     msg = '%s - timed out waiting for thread to start.'
                     msg = msg % str(self.__connection)
                     raise Exception(msg)
-                else:                                        # pragma: no cover
-                    time.sleep(0.01)
+                else:
+                    time.sleep(0.1)
 
             # Wait for queue WRITER to start.
             start_wait = time.time()
             self.__writer.start()
-            while not self.__writer_run_event.is_set():
-                if (time.time() - start_wait) > TIMEOUT:     # pragma: no cover
+            while not self.__writer_run_event.is_set():      # pragma: no cover
+                if (time.time() - start_wait) > TIMEOUT:
                     msg = '%s - timed out waiting for process to start.'
                     msg = msg % str(self.__connection)
                     raise Exception(msg)
-                else:                                        # pragma: no cover
-                    time.sleep(0.01)
+                else:
+                    time.sleep(0.1)
 
             self.__is_alive = True
             return True

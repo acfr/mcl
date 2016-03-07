@@ -18,8 +18,8 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 # -----------------------------------------------------------------------------
 #                           Objects for unit-testing
 # -----------------------------------------------------------------------------
-URL_A = 'ff15::c75e:ce41:ea8e:000d'
-URL_B = 'ff15::c75e:ce41:ea8e:000e'
+URL_A = 'ff15::c75e:ce42:ec8e:000d'
+URL_B = 'ff15::c75e:ce42:ec8e:000e'
 
 # WARNING: this should not be deployed in production code. It is an
 #          abuse that has been used for the purposes of unit-testing.
@@ -188,6 +188,15 @@ class TestBufferData(unittest.TestCase):
         # Initialise buffer object.
         buf = BufferData(reader, length=10)
 
+        # Start buffering data and reset without stopping. BufferData should
+        # stop and flush the queue.
+        buf.start()
+        self.assertTrue(buf.is_alive())
+        time.sleep(0.05)
+        buf.reset()
+        self.assertFalse(buf.is_alive())
+        self.assertEqual(buf.queue.qsize(), 0)
+
         # Start buffering data and wait until buffer is full.
         buf.start()
         start_wait = time.time()
@@ -327,8 +336,8 @@ class TestScheduleBroadcasts(unittest.TestCase):
         start_wait = time.time()
         while True:
             duration = time.time() - start_wait
-            if scheduler.is_alive() and duration < run_time:
-                time.sleep(0.05)
+            if scheduler.is_alive() and duration < 2.0 * run_time:
+                time.sleep(0.1)
             else:
                 break
 
@@ -366,12 +375,19 @@ class TestReplay(unittest.TestCase):
         # Create object for replay.
         Replay(reader)
 
-        # Initialise Replay and ensure the speed argument is valid.
-        with self.assertRaises(TypeError):
+        # Create object for replay with a non-default speed.
+        self.assertEqual(Replay(reader, speed=5).speed, 5)
+
+        # Ensure the reader object is validated.
+        with self.assertRaises(Exception):
+            Replay(dict)
+
+        # Ensure the speed argument is validated.
+        with self.assertRaises(Exception):
             Replay(reader, speed=-1.0)
 
-    def test_start_stop(self):
-        """Test Replay() start/stop."""
+    def test_start_pause_stop(self):
+        """Test Replay() start/pause/stop."""
 
         # Create objects for reading data.
         reader = ReadDirectory(LOG_PATH, message=True)
@@ -383,6 +399,12 @@ class TestReplay(unittest.TestCase):
         self.assertTrue(replay.start())
         self.assertTrue(replay.is_alive())
         self.assertFalse(replay.start())
+
+        # Pause replaying data.
+        self.assertTrue(replay.pause())
+        self.assertFalse(replay.is_alive())
+        self.assertFalse(replay.pause())
+        self.assertTrue(replay.start())
 
         # Stop replaying data.
         self.assertTrue(replay.stop())
@@ -421,7 +443,7 @@ class TestReplay(unittest.TestCase):
         start_wait = time.time()
         while True:
             duration = time.time() - start_wait
-            if replay.is_alive() and duration < run_time:
+            if replay.is_alive() and duration < 2.0 * run_time:
                 time.sleep(0.05)
             else:
                 break
@@ -432,6 +454,12 @@ class TestReplay(unittest.TestCase):
         # Ensure timing is approximately correct.
         self.assertGreaterEqual(duration, 0.5 * run_time)
         self.assertLessEqual(duration, 2.0 * run_time)
+
+        # Ensure replay can be restarted successfully after finishing a replay.
+        self.assertTrue(replay.start())
+        time.sleep(0.05)
+        self.assertTrue(replay.is_alive())
+        self.assertTrue(replay.stop())
 
     def test_replay(self):
         """Test Replay() at normal speed."""
