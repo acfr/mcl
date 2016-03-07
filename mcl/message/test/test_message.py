@@ -97,6 +97,12 @@ class RegisterMeta(unittest.TestCase):
                 mandatory = ('connection',)
                 connection = TestConnection(0, 1)
 
+        # Attribute names cannot repeat.
+        with self.assertRaises(ValueError):
+            class TestMessageD(BaseMessage):
+                mandatory = ('A', 'A', 'A')
+                connection = TestConnection(0, 1)
+
         # Ensure the argument 'connection' is an instance of a Connection()
         # subclass.
         with self.assertRaises(TypeError):
@@ -210,6 +216,12 @@ class ListMessages(ManufactureMessages):
         messages = list_messages(include=['TestMessageA', 'TestMessageB'])
         self.assertEqual(messages, [self.TestMessageA, self.TestMessageB])
 
+        # Ensure exception is raised on non-string input.
+        with self.assertRaises(TypeError):
+            list_messages(include=False)
+        with self.assertRaises(TypeError):
+            list_messages(include=['TestMessageA', False])
+
     def test_list_messages_exclude(self):
         """Test list_messages() can exclude specified messages."""
 
@@ -222,6 +234,12 @@ class ListMessages(ManufactureMessages):
         # Test list input.
         messages = list_messages(exclude=['TestMessageA', 'TestMessageB'])
         self.assertEqual(messages, [self.TestMessageC, self.TestMessageD])
+
+        # Ensure exception is raised on non-string input.
+        with self.assertRaises(TypeError):
+            list_messages(exclude=False)
+        with self.assertRaises(TypeError):
+            list_messages(exclude=['TestMessageA', False])
 
     def test_list_messages_include_exclude(self):
         """Test list_messages() can include and excluded specified messages."""
@@ -244,6 +262,12 @@ class GetMessageObjects(ManufactureMessages):
         message = get_message_objects('TestMessageA')
         self.assertEqual(message, self.TestMessageA)
 
+        # Ensure exception is raised on non-string input.
+        with self.assertRaises(TypeError):
+            get_message_objects(False)
+        with self.assertRaises(TypeError):
+            get_message_objects(['TestMessageA', False])
+
     def test_get_messages(self):
         """Test get_message_objects() can retrieve multiple messages."""
 
@@ -259,6 +283,16 @@ class GetMessageObjects(ManufactureMessages):
                           self.TestMessageB,
                           self.TestMessageD])
 
+        # Ensure an exception is raised if a message that does not exists is
+        # requested.
+        with self.assertRaises(NameError):
+            get_message_objects('TestMessageDoesNotExist')
+
+        # Ensure errors with list inputs are propagated.
+        message_names.append('TestMessageDoesNotExist')
+        with self.assertRaises(Exception):
+            get_message_objects(message_names)
+
     def test_get_duplicates(self):
         """Test get_message_objects() can detect duplicate messages."""
 
@@ -268,6 +302,8 @@ class GetMessageObjects(ManufactureMessages):
         # Bypass the name checking mechanism in _RegisterMeta().
         TestMessageE.__name__ = 'TestMessageA'
 
+        # Ensure an exception is raised if multiple messages with the same name
+        # exist.
         with self.assertRaises(NameError):
             get_message_objects('TestMessageA')
 
@@ -440,9 +476,10 @@ class CommonMessageTests(object):
 
         # Ensure name is read-only.
         msg = self.message()
-        for key in ['name']:
-            with self.assertRaises(ValueError):
-                msg[key] = None
+        with self.assertRaises(ValueError):
+            msg['name'] = None
+        with self.assertRaises(ValueError):
+            msg.update(name=None)
 
     def test_dict(self):
         """Test %s() can be initialised/updated with a mapping object."""
@@ -563,6 +600,10 @@ class CommonMessageTests(object):
         msgA['newfieldB'] = 'B'
         msgB.update(msgA.encode())
         self.compare(msgA, msgB)
+
+        # Test arbitrary serialised data raises exceptions.
+        with self.assertRaises(Exception):
+            self.message(msgpack.dumps('invalid_type'))
 
         # Test serialised incomplete dictionaries raise exceptions.
         dct = self.items.copy()

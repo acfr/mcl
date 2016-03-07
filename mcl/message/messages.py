@@ -445,16 +445,20 @@ def list_messages(include=None, exclude=None):
     # Save includes.
     if isinstance(include, basestring):
         include = [include, ]
-    elif include and not hasattr(include, '__iter__'):
-        msg = "'include' must be a string or a list of strings.'"
-        raise TypeError(msg)
+    elif include is not None:
+        if ((not hasattr(include, '__iter__')) or
+            (not all([isinstance(itm, basestring) for itm in include]))):
+            msg = "'include' must be a string or a list of strings.'"
+            raise TypeError(msg)
 
     # Save excludes.
     if isinstance(exclude, basestring):
         exclude = [exclude, ]
-    elif exclude and not hasattr(exclude, '__iter__'):
-        msg = "'exclude' must be a string or a list of strings.'"
-        raise TypeError(msg)
+    elif exclude is not None:
+        if ((not hasattr(exclude, '__iter__')) or
+            (not all([isinstance(itm, basestring) for itm in exclude]))):
+            msg = "'exclude' must be a string or a list of strings.'"
+            raise TypeError(msg)
 
     # Filter available messages.
     messages = list()
@@ -522,7 +526,8 @@ def get_message_objects(names):
         return matches[0][0]
 
     # Input is a list or tuple.
-    elif isinstance(names, (list, tuple)):
+    elif ((isinstance(names, (list, tuple))) and
+          (all([isinstance(itm, basestring) for itm in names]))):
 
         messages = list()
         for name in names:
