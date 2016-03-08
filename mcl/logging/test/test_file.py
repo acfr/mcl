@@ -655,6 +655,12 @@ class ReadFileTests(unittest.TestCase):
         rf = ReadFile(fname, message=True)
         self.assertEqual(rf.header['type'], UnitTestMessageA)
 
+        # Test methods of specifying message type.
+        ReadFile(fname, message=UnitTestMessageA)
+        ReadFile(fname, message='UnitTestMessageA')
+        with self.assertRaises(TypeError):
+            ReadFile(fname, message='missing_message')
+
     def test_header(self):
         """Test ReadFile() header."""
 
@@ -707,19 +713,33 @@ class ReadFileTests(unittest.TestCase):
 
         # Create file reader object.
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-        rf = ReadFile(fname)
 
-        # Ensure items in file can be read correctly.
-        for i in range(10):
-            self.assertTrue(rf.is_data_pending())
+        # Create file readers with different message types.
+        file_readers = [ReadFile(fname),
+                        ReadFile(fname, message=True),
+                        ReadFile(fname, message=UnitTestMessageB)]
+
+        # Type returned by each file reader.
+        #
+        # Note: We can cast UnitTestMessageA data into UnitTestMessageB data
+        #       because the data structure is the same.)
+        types = [dict, UnitTestMessageA, UnitTestMessageB]
+
+        # Iterate through readers.
+        for rf, dtype in zip(file_readers, types):
+
+            # Ensure items in file can be read correctly.
+            for i in range(10):
+                self.assertTrue(rf.is_data_pending())
+                message = rf.read()
+                self.assertEqual(type(message['payload']), dtype)
+                self.assertEqual(round(100 * message['elapsed_time']), i)
+                self.assertEqual(round(100 * message['payload']['timestamp']), i)
+
+            # Ensure None is returned when all data has been read.
+            self.assertFalse(rf.is_data_pending())
             message = rf.read()
-            self.assertEqual(round(100 * message['elapsed_time']), i)
-            self.assertEqual(round(100 * message['payload']['timestamp']), i)
-
-        # Ensure None is returned when all data has been read.
-        self.assertFalse(rf.is_data_pending())
-        message = rf.read()
-        self.assertEqual(message, None)
+            self.assertEqual(message, None)
 
     def test_read_time(self):
         """Test ReadFile() read min/max time."""

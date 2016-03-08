@@ -1194,6 +1194,7 @@ class ReadFile(object):
 
                     # Force a message type.
                     else:
+                        message.pop('name', None)
                         message = self.__message(message)
 
                 # Package up data in a dictionary
