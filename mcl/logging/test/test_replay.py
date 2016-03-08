@@ -353,6 +353,42 @@ class TestScheduleBroadcasts(unittest.TestCase):
         with self.assertRaises(TypeError):
             ScheduleBroadcasts('queue')
 
+    def test_buffer(self):
+        """Test ScheduleBroadcasts() multiprocessing target function."""
+
+        # Alias multi-process target function.
+        schedule = ScheduleBroadcasts._ScheduleBroadcasts__inject
+
+        # Create inputs to process.
+        run_event = multiprocessing.Event()
+        queue = multiprocessing.Queue()
+        speed = 1.0
+
+        # Ensure process can exist when the run_event() is clear.
+        run_event.clear()
+        schedule(run_event,
+                 queue,
+                 speed)
+
+        # Listen for message broadcasts.
+        data_buffer = list()
+        listener = MessageListener(UnitTestMessageA)
+        listener.subscribe(lambda data: data_buffer.append(data))
+
+        # Create data for testing.
+        data = {'elapsed_time': 0.0,
+                'topic': '',
+                'payload': UnitTestMessageA(data=0.0)}
+
+        # Ensure process can exist when the run_event() is clear.
+        queue.put(data)
+        run_event.set()
+        schedule(run_event,
+                 queue,
+                 speed)
+        self.assertEqual(len(data_buffer), 1)
+        self.assertDictEqual(data['payload'], data_buffer[0]['payload'])
+
     def test_init_speed(self):
         """Test ScheduleBroadcasts() speed instantiation."""
 
