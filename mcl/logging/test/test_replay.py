@@ -75,6 +75,111 @@ class TestBufferData(unittest.TestCase):
         with self.assertRaises(TypeError):
             BufferData(reader, length='100')
 
+    def test_buffer(self):
+        """Test BufferData() multiprocessing target function."""
+
+        # Alias multi-process target function.
+        buffer_data = BufferData._BufferData__buffer_data
+
+        # Create inputs to process.
+        run_event = multiprocessing.Event()
+        queue = multiprocessing.Queue()
+        is_ready = multiprocessing.Event()
+        is_data_pending = multiprocessing.Event()
+
+        # Ensure process can exist when the run_event() is clear.
+        run_event.clear()
+        buffer_data(run_event,
+                    queue,
+                    None,
+                    is_ready,
+                    is_data_pending)
+
+        class EndResource(object):
+            def read(self):
+                return None
+
+        # Ensure process can exist when the resource returns None.
+        run_event.set()
+        is_ready.clear()
+        is_data_pending.set()
+        buffer_data(run_event,
+                    queue,
+                    EndResource(),
+                    is_ready,
+                    is_data_pending)
+        self.assertTrue(is_ready.is_set())
+        self.assertFalse(is_data_pending.is_set())
+
+        class BadResource(object):
+            def read(self):
+                return list()
+
+        # Ensure the process raises an error if the data is not a dictionary.
+        run_event.set()
+        is_ready.clear()
+        is_data_pending.set()
+        with self.assertRaises(TypeError):
+            buffer_data(run_event,
+                        queue,
+                        BadResource(),
+                        is_ready,
+                        is_data_pending)
+
+        class PartialKeysResource(object):
+            def read(self):
+                return {'elapsed_time': 0, 'payload': None}
+
+        # Ensure the process raises an error if the data is missing a key.
+        with self.assertRaises(NameError):
+            buffer_data(run_event,
+                        queue,
+                        PartialKeysResource(),
+                        is_ready,
+                        is_data_pending)
+
+        class BadPayloadResource(object):
+            def read(self):
+                return {'elapsed_time': 0, 'topic': '', 'payload': list()}
+
+        # Ensure the process raises an error if the data is missing a key.
+        with self.assertRaises(TypeError):
+            buffer_data(run_event,
+                        queue,
+                        BadPayloadResource(),
+                        is_ready,
+                        is_data_pending)
+
+        class Resource(object):
+            def __init__(self, max_items):
+                self.max_items = max_items
+                self.counter = -1
+
+            def read(self):
+                self.counter += 1
+                if self.counter < self.max_items:
+                    return {'elapsed_time': self.counter,
+                            'topic': '',
+                            'payload': UnitTestMessageA(data=self.counter)}
+                else:
+                    return None
+
+        # Ensure the process can buffer correctly format data.
+        items = 5
+        buffer_data(run_event,
+                    queue,
+                    Resource(items),
+                    is_ready,
+                    is_data_pending)
+        self.assertTrue(run_event.is_set())
+        self.assertTrue(is_ready.is_set())
+        self.assertFalse(is_data_pending.is_set())
+        self.assertEqual(queue.qsize(), items)
+        for i in range(items):
+            data = queue.get()
+            self.assertEqual(data['elapsed_time'], i)
+            self.assertEqual(data['payload']['data'], i)
+
     def test_start_stop(self):
         """Test BufferData() start/stop."""
 
@@ -98,8 +203,8 @@ class TestBufferData(unittest.TestCase):
         # Allow threads to fully shut down.
         time.sleep(0.1)
 
-    def test_buffer(self):
-        """Test BufferData() buffering functionality."""
+    def test_read(self):
+        """Test BufferData() can buffer data from resource."""
 
         # Create data reader object.
         reader = ReadDirectory(LOG_PATH, message=True)
@@ -136,7 +241,7 @@ class TestBufferData(unittest.TestCase):
             self.assertEqual(int(10 * message['elapsed_time']), i + 1)
 
     def test_read_blocks(self):
-        """Test BufferData() can read data in blocks and start/stop."""
+        """Test BufferData() can buffer data from resource in blocks (start/stop)."""
 
         # Create data reader object.
         reader = ReadDirectory(LOG_PATH, message=True)
