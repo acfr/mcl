@@ -311,7 +311,7 @@ class _ConnectionMeta(type):
             return result
         """ % (name, attrs), '_replace')
 
-        def __getnewargs__(self):
+        def __getnewargs__(self):                            # pragma: no cover
             return tuple(self)
 
         # Remove specification.
@@ -492,7 +492,7 @@ class RawBroadcaster(object):
 
     @abc.abstractproperty
     def is_open(self):
-        pass
+        pass                                                 # pragma: no cover
 
     @abc.abstractmethod
     def _open(self):
@@ -504,7 +504,7 @@ class RawBroadcaster(object):
                 request is ignored and the method returns :data:`False`.
 
         """
-        pass
+        pass                                                 # pragma: no cover
 
     @abc.abstractmethod
     def publish(self, data):
@@ -515,7 +515,7 @@ class RawBroadcaster(object):
                 interface.
 
         """
-        pass
+        pass                                                 # pragma: no cover
 
     @abc.abstractmethod
     def close(self):
@@ -527,7 +527,7 @@ class RawBroadcaster(object):
                 request is ignored and the method returns :data:`False`.
 
         """
-        pass
+        pass                                                 # pragma: no cover
 
 
 class RawListener(mcl.event.event.Event):
@@ -611,7 +611,7 @@ class RawListener(mcl.event.event.Event):
 
     @abc.abstractproperty
     def is_open(self):
-        pass
+        pass                                                 # pragma: no cover
 
     @abc.abstractmethod
     def _open(self):
@@ -623,7 +623,7 @@ class RawListener(mcl.event.event.Event):
                 request is ignored and the method returns :data:`False`.
 
         """
-        pass
+        pass                                                 # pragma: no cover
 
     @abc.abstractmethod
     def close(self):
@@ -635,4 +635,4 @@ class RawListener(mcl.event.event.Event):
                 request is ignored and the method returns :data:`False`.
 
         """
-        pass
+        pass                                                 # pragma: no cover

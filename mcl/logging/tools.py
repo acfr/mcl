@@ -251,7 +251,7 @@ def dump_to_csv(source, csv_file, keys, min_time=None, max_time=None):
         for message in message_list:
             try:
                 csv_writer.writerow([message[key] for key in keys])
-            except:
+            except:                                          # pragma: no cover
                 msg = 'Could not convert keys in the message:'
                 msg += '\n\n%s\n\n'
                 msg += 'into an array.'
