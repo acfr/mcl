@@ -388,7 +388,7 @@ class RawListener(mcl.network.abstract.RawListener):
 
             # Wait for thread to start.
             while not self.__listen_thread.is_alive:
-                time.sleep(0.01)
+                time.sleep(0.1)                              # pragma: no cover
 
             self.__is_open = True
             return True

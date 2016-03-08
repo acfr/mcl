@@ -201,6 +201,10 @@ class BroadcasterTests(object):
         with self.assertRaises(TypeError):
             self.broadcaster(self.connection, topic=TOPICS)
 
+        # Test instantiation fails if the broadcaster cannot connect.
+        with self.assertRaises(IOError):
+            self.broadcaster(self.bad_connection)
+
     def test_init_topic(self):
         """Test %s RawBroadcaster() 'topic' parameter at initialisation."""
 
@@ -402,6 +406,7 @@ class ListenerTests(object):
 
         # Ensure listener has established a connection.
         self.assertTrue(listener.is_open)
+        self.assertFalse(listener._open())
 
         # Close listener.
         result = listener.close()
@@ -427,6 +432,10 @@ class ListenerTests(object):
         # Test instantiation fails if 'topics' is not an array of strings.
         with self.assertRaises(TypeError):
             self.listener(self.connection, topics=['topic', 10])
+
+        # Test instantiation fails if the listener cannot connect.
+        with self.assertRaises(IOError):
+            self.listener(self.bad_connection)
 
     def test_init_topics(self):
         """Test %s RawListener() 'topics' parameter at initialisation."""

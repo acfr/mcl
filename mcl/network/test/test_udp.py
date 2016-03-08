@@ -92,6 +92,7 @@ class TestBroadcaster(BroadcasterTests):
     connection = Connection(URL)
     bad_connection = Connection(BAD_URL)
 
+
 # -----------------------------------------------------------------------------
 #                                  Listener()
 # -----------------------------------------------------------------------------
