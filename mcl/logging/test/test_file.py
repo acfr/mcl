@@ -30,6 +30,56 @@ URL_C = 'ff15::c75d:ce41:ea8e:00cc'
 
 
 # -----------------------------------------------------------------------------
+#                       Hard-coded headers for testing
+# -----------------------------------------------------------------------------
+RAW_HEADER = """\
+#-----------------------------------------------------------------
+# MCL_LOG
+#     -- version     1.0
+#     -- revision    0123456789abcdef0123456789abcdef01234567
+#     -- created     1970-01-01 00:00:00
+#
+# Each line of this file records a packet of data transmitted over the
+# network. The columns in this file are:
+#
+#     1) The time when the data frame was received relative
+#        to when this file was created.
+#     2) The topic associated with the data frame.
+#     3) The binary data stored as a hex string.
+#
+# The following data type was recorded in this file:
+#
+#      >>> None
+#
+#     <Time>    <Topic>     <Payload>
+#-----------------------------------------------------------------"""
+RAW_HEADER = textwrap.dedent(RAW_HEADER).splitlines()
+
+MESSAGE_TEMPLATE = """\
+#-----------------------------------------------------------------
+# MCL_LOG
+#     -- version     1.0
+#     -- revision    0123456789abcdef0123456789abcdef01234567
+#     -- created     1970-01-01 00:00:00
+#
+# Each line of this file records a packet of data transmitted over the
+# network. The columns in this file are:
+#
+#     1) The time when the data frame was received relative
+#        to when this file was created.
+#     2) The topic associated with the data frame.
+#     3) The binary data stored as a hex string.
+#
+# The following data type was recorded in this file:
+#
+#      >>> UnitTestMessageA
+#
+#     <Time>    <Topic>     <Payload>
+#-----------------------------------------------------------------"""
+MESSAGE_TEMPLATE = textwrap.dedent(MESSAGE_TEMPLATE).splitlines()
+
+
+# -----------------------------------------------------------------------------
 #                           Objects for unit-testing
 # -----------------------------------------------------------------------------
 
@@ -232,53 +282,11 @@ class WriteFileTests(SetupTestingDirectory, unittest.TestCase):
 
         # Use hard-coded example for raw connections.
         if isinstance(connection, mcl.network.abstract.Connection):
-            template = textwrap.dedent("""\
-                #-----------------------------------------------------------------
-                # NETWORK_DUMP
-                #     -- version     1.0
-                #     -- revision    0123456789abcdef0123456789abcdef01234567
-                #     -- created     1970-01-01 00:00:00
-                #
-                # Each line of this file records a packet of data transmitted over the
-                # network. The columns in this file are:
-                #
-                #     1) The time when the data frame was received relative
-                #        to when this file was created.
-                #     2) The topic associated with the data frame.
-                #     3) The binary data stored as a hex string.
-                #
-                # The following connection was recorded in this file:
-                #
-                #      >> Connection(url='ff15::c75d:ce41:ea8e:000b', port=26000)
-                #
-                #     <Time>    <Topic>     <Payload>
-                #-----------------------------------------------------------------"""
-            ).splitlines()
+            template = RAW_HEADER
 
         # Use hard-coded example for messages.
         else:
-            template = textwrap.dedent("""\
-                #-----------------------------------------------------------------
-                # NETWORK_DUMP
-                #     -- version     1.0
-                #     -- revision    0123456789abcdef0123456789abcdef01234567
-                #     -- created     1970-01-01 00:00:00
-                #
-                # Each line of this file records a packet of data transmitted over the
-                # network. The columns in this file are:
-                #
-                #     1) The time when the data frame was received relative
-                #        to when this file was created.
-                #     2) The topic associated with the data frame.
-                #     3) The binary data stored as a hex string.
-                #
-                # The following message was recorded in this file:
-                #
-                #      >>> UnitTestMessageA
-                #
-                #     <Time>    <Topic>     <Payload>
-                #-----------------------------------------------------------------"""
-            ).splitlines()
+            template = MESSAGE_TEMPLATE
 
         # Make sure header is correctly formatted.
         for i, (line, template_line) in enumerate(zip(lines, template)):
@@ -664,17 +672,7 @@ class ReadFileTests(unittest.TestCase):
     def test_header(self):
         """Test ReadFile() header."""
 
-        # Load file with NO revision in the header.
         rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageA.log'))
-        self.assertEqual(rf.min_time, None)
-        self.assertEqual(rf.max_time, None)
-        self.assertEqual(rf.header['version'], '1.0')
-        self.assertEqual(rf.header['revision'], None)
-        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
-        self.assertEqual(rf.header['type'], dict)
-
-        # Load file with a revision in the header.
-        rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageB.log'))
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
         self.assertEqual(rf.header['version'], '1.0')

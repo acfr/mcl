@@ -5,17 +5,20 @@ simplify writing and reading network traffic logs.
 
 The main objects responsible for logging network data are:
 
-    - :py:class:`.LogConnection` logs data from a single connection to log
-      file(s).
-    - :py:class:`.LogNetwork` logs data from multiple connections to a
-      directory of log files.
-
-The main objects responsible for writing and reading data to log files are:
-
     - :py:class:`.WriteFile` for formatting and writing network data from a
       single connection to log file(s).
     - :py:class:`.ReadFile` for reading data from log file(s) representing a
       single network connection.
+    - :py:class:`.LogConnection` logs data from a single connection to log
+      file(s).
+
+These objects can write/read arbitrary data to/from a log file(s). The network
+connection can be specified by either a :py:class:`~.abstract.Connection` or
+MCL :py:class:`~.messages.Message` object. These following objects can only
+write/read :py:class:`~.messages.Message` objects to/from a log file(s):
+
+    - :py:class:`.LogNetwork` logs data from multiple connections to a
+      directory of log files.
     - :py:class:`.ReadDirectory` for reading data from a directory of log files
       representing multiple network connections.
 
@@ -50,7 +53,6 @@ TOPIC_PADDING = 8
 COMMENT_CHARACTER = '#'
 COMMENT_BLOCK = COMMENT_CHARACTER + '-' * 65
 VERSION_MARKER = '--'
-CONNECTION_MARKER = '>>'
 MESSAGE_MARKER = '>>>'
 
 
@@ -323,7 +325,7 @@ class WriteFile(object):
 
         # Create format of file header.
         header = textwrap.dedent("""\
-        NETWORK_DUMP
+        MCL_LOG
             %s
             %s
             %s
@@ -347,16 +349,15 @@ class WriteFile(object):
                                          str(self.__time_origin))
 
         # Record raw broadcast.
+        broadcast = 'The following data type was recorded in this file:\n'
+        broadcast += '\n     %s %s'
         if self.__message_type is None:
-            broadcast = 'The following connection was recorded in this file:\n'
-            broadcast += '\n     %s %s' % (CONNECTION_MARKER,
-                                           self.__connection)
+            broadcast = broadcast % (MESSAGE_MARKER, str(None))
 
         # Record message broadcast.
         else:
-            broadcast = 'The following message was recorded in this file:\n'
-            broadcast += '\n     %s %s' % (MESSAGE_MARKER,
-                                           self.__message_type.__name__)
+            broadcast = broadcast % (MESSAGE_MARKER,
+                                     self.__message_type.__name__)
 
         # Adjust padding on column names for pretty printing.
         time_padding = TIME_PADDING - len(COMMENT_CHARACTER + ' ')
@@ -1267,13 +1268,12 @@ class ReadFile(object):
         elif line != COMMENT_BLOCK:
             raise IOError(error_msg)
 
-        # Get NETWORK_DUMP title. Expect title to be specified in the
-        # following format:
+        # Get log title. Expect title to be specified in the following format:
         #
-        #     # NETWORK_DUMP
+        #     # MCL_LOG
         #
         line = self.__readline()[0]
-        if line.strip() != '# NETWORK_DUMP':
+        if line.strip() != '# MCL_LOG':
             raise IOError(error_msg)
 
         # Get network dump version parameters. Expect parameters to be
@@ -1299,7 +1299,7 @@ class ReadFile(object):
                 raise IOError(error_msg)
 
         # Fast forward to recorded broadcasts.
-        while (CONNECTION_MARKER not in line) or (MESSAGE_MARKER not in line):
+        while MESSAGE_MARKER not in line:
             line = self.__readline()[0]
             if not line:
                 raise IOError(error_msg)

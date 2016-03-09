@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# NETWORK_DUMP
+# MCL_LOG
 #     -- version     1.0
 #     -- revision    
 #     -- created     1970-01-01 00:00:00
@@ -12,7 +12,7 @@
 #     2) The topic associated with the data frame.
 #     3) The binary data stored as a hex string.
 # 
-# The following message objects were recorded in this file:
+# The following data type was recorded in this file:
 # 
 #      >>> UnitTestMessageA
 # 
