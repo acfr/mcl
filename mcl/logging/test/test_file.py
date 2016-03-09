@@ -610,7 +610,7 @@ class ReadFileTests(unittest.TestCase):
     def test_read_raw(self):
         """Test ReadFile() read raw file."""
 
-        rf = ReadFile(os.path.join(LOG_PATH, '../RawUnitTestData.log'))
+        rf = ReadFile(os.path.join(LOG_PATH, 'RawUnitTestData.log'))
         self.assertEqual(rf.min_time, None)
         self.assertEqual(rf.max_time, None)
         self.assertEqual(rf.header['version'], '1.0')
@@ -765,6 +765,8 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
             LogNetwork('connection', TMP_PATH)
         with self.assertRaises(TypeError):
             LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
+        with self.assertRaises(TypeError):
+            LogNetwork([UnitTestMessageA, UnitTestMessageA.connection], TMP_PATH)
 
         # Ensure max_entries is specified properly.
         with self.assertRaises(TypeError):
@@ -887,6 +889,10 @@ class ReadDirectoryTests(unittest.TestCase):
 
     def test_bad_init(self):
         """Test ReadDirectory() catches bad initialisation."""
+
+        # Raise error when raw logs are encountered.
+        with self.assertRaises(TypeError):
+            ReadDirectory(LOG_PATH, ignore_raw=False)
 
         # Ensure failure if source is not a string.
         with self.assertRaises(TypeError):

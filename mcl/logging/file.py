@@ -1322,6 +1322,11 @@ class LogNetwork(object):
         # logger.
         for message in self.messages:
             try:
+                if not issubclass(message, mcl.message.messages.Message):
+                    msg = "The '%s' parameter must be a list/tuple of "
+                    msg += "Message() objects."
+                    raise TypeError(msg % 'messages')
+
                 LogConnection(os.path.join(directory, 'test'),
                               message,
                               revision=self.__revision,
@@ -1447,11 +1452,16 @@ class ReadDirectory(object):
         source (str): Path to directory containing log files.
         min_time (float): Minimum time to extract from log file in seconds.
         max_time (float): Maximum time to extract from log file in seconds.
-        message (bool): If set to :py:data:`.True` messages will automatically
-            be decoded into the MCL message type stored in the log file. If set
-            to :py:data:`.False` (default), message data is returned as a
-            dictionary. Note: to read data as MCL messages, the messages must
-            be loaded into the namespace.
+        message (bool): If set to :py:data:`.False` (default), the logged data
+            is returned 'raw'. If set to :py:data:`.True` logged data will
+            automatically be decoded into the MCL message type stored in the
+            log file header. *Note*: to read data as MCL messages, the messages
+            must be loaded into the namespace.
+        ignore_raw (bool): If set to :py:data:`.True` (default), any raw log
+            files in the path `source` will be ignored. If set to
+            :py:data:`.False` an exception will be raised if any raw logs are
+            encountered.
+
 
     Attributes:
         messages (list): List of :py:class:`.Message` object stored in the
@@ -1470,7 +1480,8 @@ class ReadDirectory(object):
                  source,
                  min_time=None,
                  max_time=None,
-                 message=False):
+                 message=False,
+                 ignore_raw=True):
         """Document the __init__ method at the class level."""
 
         # Ensure source is specified as a string.
@@ -1489,6 +1500,11 @@ class ReadDirectory(object):
             self.__message = message
         else:
             msg = "'message' must be a boolean."
+            raise TypeError(msg)
+
+        # Ignore raw log files.
+        if not isinstance(ignore_raw, bool):
+            msg = "'ignore_raw' must be a boolean."
             raise TypeError(msg)
 
         # Get all files in directory.
@@ -1516,8 +1532,6 @@ class ReadDirectory(object):
                                         min_time=min_time,
                                         max_time=max_time,
                                         message=self.__message)
-                        self.__log_files.append(item)
-                        self.__dumps.append(dump)
                     except:
                         raise
 
@@ -1526,6 +1540,20 @@ class ReadDirectory(object):
                         msg = "The dump file '%s' must have a header block."
                         raise ValueError(msg % os.path.join(source, f))
 
+                    # Store message objects recorded in each log file.
+                    if dump.header['type'] is None:
+                        if ignore_raw:
+                            continue
+                        else:
+                            msg = "The file '%s' contains raw data and cannot"
+                            msg += "be loaded."
+                            raise TypeError(msg % item)
+
+                    # Save logging items.
+                    self.__log_files.append(item)
+                    self.__dumps.append(dump)
+                    self.__messages.append(dump.header['type'])
+
                     # The header blocks must be created at the same time.
                     if not time_origin:
                         time_origin = dump.header['created']
@@ -1533,10 +1561,6 @@ class ReadDirectory(object):
                         msg = "The dump files have inconsistent header blocks."
                         msg += " Cannot continue."
                         raise ValueError(msg)
-
-                    # Store message objects recorded in each log file.
-                    if self.__message:
-                        self.__messages.append(dump.header['type'])
 
         # Store max/min time.
         self.__min_time = min_time
