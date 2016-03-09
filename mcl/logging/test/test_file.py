@@ -650,40 +650,11 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
 class ReadFileTests(unittest.TestCase):
 
     def test_initialisation(self):
-        """Test ReadFile() initialisation."""
+        """Test ReadFile() type specification."""
 
         # Create file reader object.
         fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
-
-        # Create file reader for loading data into DICTIONARIES
-        rf = ReadFile(fname)
-        self.assertEqual(rf.header['type'], dict)
-
-        # Create file reader for loading data into MESSAGE objects.
-        rf = ReadFile(fname, message=True)
-        self.assertEqual(rf.header['type'], UnitTestMessageA)
-
-        # Test methods of specifying message type.
-        ReadFile(fname, message=UnitTestMessageA)
-        ReadFile(fname, message='UnitTestMessageA')
-        with self.assertRaises(TypeError):
-            ReadFile(fname, message='missing_message')
-
-    def test_header(self):
-        """Test ReadFile() header."""
-
-        rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageA.log'))
-        self.assertEqual(rf.min_time, None)
-        self.assertEqual(rf.max_time, None)
-        self.assertEqual(rf.header['version'], '1.0')
-        self.assertEqual(rf.header['revision'], 'ffff000000000000000000000000000000000000')
-        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
-        self.assertEqual(rf.header['type'], dict)
-
-    def test_bad_init(self):
-        """Test ReadFile() catches bad initialisation."""
-
-        fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+        ReadFile(fname)
 
         # Ensure failure on files that do not exit.
         with self.assertRaises(IOError):
@@ -704,7 +675,65 @@ class ReadFileTests(unittest.TestCase):
         # Ensure initialisation fails on non-boolean or string input for
         # message.
         with self.assertRaises(TypeError):
-            ReadFile(fname, message=dict())
+            ReadFile(fname, message=list())
+
+        # Attempt to load message that does not exist.
+        with self.assertRaises(TypeError):
+            ReadFile(fname, message='missing_message')
+
+    def test_header(self):
+        """Test ReadFile() header."""
+
+        rf = ReadFile(os.path.join(LOG_PATH, 'UnitTestMessageA.log'))
+        self.assertEqual(rf.min_time, None)
+        self.assertEqual(rf.max_time, None)
+        self.assertEqual(rf.header['version'], '1.0')
+        self.assertEqual(rf.header['revision'], 'ffff000000000000000000000000000000000000')
+        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+
+    def test_type(self):
+        """Test ReadFile() type specification."""
+
+        # Create file reader object.
+        fname = os.path.join(LOG_PATH, 'UnitTestMessageA.log')
+
+        # Load raw data.
+        rf = ReadFile(fname)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+        self.assertEqual(type(rf.read()['payload']), dict)
+
+        # Load data into message object specified in the log header.
+        rf = ReadFile(fname, message=True)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+        self.assertEqual(type(rf.read()['payload']), UnitTestMessageA)
+
+        # Load data into message object specified by MCL object.
+        rf = ReadFile(fname, message=UnitTestMessageA)
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+        self.assertEqual(type(rf.read()['payload']), UnitTestMessageA)
+
+        # Load data into message object specified by string.
+        rf = ReadFile(fname, message='UnitTestMessageB')
+        self.assertEqual(rf.header['type'], UnitTestMessageA)
+        self.assertEqual(type(rf.read()['payload']), UnitTestMessageB)
+
+    def test_read_raw(self):
+        """Test ReadFile() read raw file."""
+
+        rf = ReadFile(os.path.join(LOG_PATH, '../RawUnitTestData.log'))
+        self.assertEqual(rf.min_time, None)
+        self.assertEqual(rf.max_time, None)
+        self.assertEqual(rf.header['version'], '1.0')
+        self.assertEqual(rf.header['revision'], None)
+        self.assertEqual(rf.header['created'], '1970-01-01 00:00:00')
+        self.assertEqual(rf.header['type'], None)
+
+        # Verify content.
+        for i in range(10):
+            message = rf.read()
+            self.assertEqual(message['elapsed_time'], i + 1)
+            self.assertEqual(message['payload'], (i * range(i)))
 
     def test_read_single(self):
         """Test ReadFile() read single file."""

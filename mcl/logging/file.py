@@ -544,15 +544,15 @@ class ReadFile(object):
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
         message (bool or str or :py:class:`.Message`): If set to
-            :py:data:`.True` messages will automatically be decoded into the
-            MCL message type stored in the log file. If set to
-            :py:data:`.False` (default), message data is returned as a
-            dictionary. To force the reader to unpack messages as a specific
-            MCL message type, set this field the :py:class:`.Message` type or
-            to the string name of the message type. This option can be useful
-            for reading unnamed messages or debugging log files. Use with
-            caution. *Note*: to read data as MCL messages, the messages must be
-            loaded into the namespace.
+            :py:data:`.False` (default), the logged data is returned 'raw'. If
+            set to :py:data:`.True` logged data will automatically be decoded
+            into the MCL message type stored in the log file header. To force
+            the reader to unpack logged data as a specific MCL message type,
+            set this argument to the required :py:class:`.Message` type or to
+            the string name of the required message type. This option can be
+            useful for reading unnamed messages or debugging log files. Use
+            with caution. *Note*: to read data as MCL messages, the messages
+            must be loaded into the namespace.
 
     Attributes:
         header (dict): Contents of the log file header. If the log file header
@@ -564,7 +564,7 @@ class ReadFile(object):
                        'version': string,
                        'revision': string,
                        'created': string,
-                       'type': dict or :py:class:`.Message`}
+                       'type': :py:data:`.None` or :py:class:`.Message`}
 
             where:
                 - <text> is the header text
@@ -572,8 +572,9 @@ class ReadFile(object):
                 - <version> Version used to record log files
                 - <revision> Git hash of version used to log data
                 - <created> Time when log file was created
-                - <message> is the type used to represent the logged data
-                  (either dict or :py:class:`.Message`)
+                - <message> is the type, recorded in the header, used to
+                  represent the logged data (either :py:data:`.None` or
+                  :py:class:`.Message`)
 
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
@@ -630,12 +631,21 @@ class ReadFile(object):
             raise ValueError(msg)
 
         # Force message type.
-        self.__message = message
         try:
+            # Force message type specified by MCL object.
             if issubclass(message, mcl.message.messages.Message):
                 self.__message = message
         except:
-            if isinstance(message, basestring):
+            # Return raw data.
+            if message is False:
+                self.__message = None
+
+            # Return message contained in log file header.
+            elif message is True:
+                self.__message = True
+
+            # Force message type specified by string.
+            elif isinstance(message, basestring):
                 try:
                     self.__message = mcl.message.messages.get_message_objects(message)
                 except:
@@ -821,7 +831,7 @@ class ReadFile(object):
                 message = msgpack.loads(payload.decode('hex'))
 
                 # Convert data into MCL message.
-                if self.__message is not False:
+                if self.__message is not None:
 
                     # Load message type from header
                     if self.__message is True:
@@ -947,15 +957,23 @@ class ReadFile(object):
         #     >>> <Message>
         #
         # Remove comment character and '>>>' bullet point.
-        message = dict
-        if self.__message is not False:
-            line = line.replace(COMMENT_CHARACTER, '').strip()
-            if line.startswith(MESSAGE_MARKER):
-                message_name = line.replace(MESSAGE_MARKER, '').strip()
-                try:
-                    message = mcl.message.messages.get_message_objects(message_name)
-                except:
-                    raise
+        line = line.replace(COMMENT_CHARACTER, '').strip()
+        if not line.startswith(MESSAGE_MARKER):
+            raise IOError(error_msg)
+
+        # Parse message type from header.
+        message = line.replace(MESSAGE_MARKER, '').strip()
+        if message == 'None':
+            message = None
+        else:
+            try:
+                message = mcl.message.messages.get_message_objects(message)
+            except:
+                raise
+
+        # User specified returning log data as the type stored in the header.
+        if self.__message is True:
+            self.__message = message
 
         # Find end of header block.
         while line.strip() != COMMENT_BLOCK:
@@ -1277,8 +1295,8 @@ class LogNetwork(object):
 
         # Input is not an iterable.
         if not isinstance(messages, (list, tuple)):
-            msg = "The '%s' parameter must be a list/tuple of Connection() "
-            msg += "or Message() objects."
+            msg = "The '%s' parameter must be a list/tuple of Message() "
+            msg += "objects."
             raise TypeError(msg % 'messages')
 
         # Create empty variable for storing the path to the current log
