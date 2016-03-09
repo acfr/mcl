@@ -533,117 +533,6 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-#                                 LogNetwork()
-# -----------------------------------------------------------------------------
-
-class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
-
-    def test_bad_init(self):
-        """Test LogNetwork() catches bad initialisation."""
-
-        messages = [UnitTestMessageA, UnitTestMessageB]
-
-        # Ensure error is raised if the logging directory does not exist.
-        with self.assertRaises(IOError):
-            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
-
-        # Ensure error is raised if the input connections are wrong.
-        with self.assertRaises(TypeError):
-            LogNetwork('connection', TMP_PATH)
-        with self.assertRaises(TypeError):
-            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
-
-        # Ensure max_entries is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries=0)
-
-        # Ensure max_time is specified properly.
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time='a')
-        with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time=0)
-
-    def test_init(self):
-        """Test LogNetwork() initialisation."""
-
-        # Ensure all valid connections can be instantiated.
-        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
-
-        # Initialise network dump.
-        messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
-
-        # Ensure properties can be accessed.
-        self.assertEqual(dump.messages, messages)
-        self.assertEqual(dump.root_directory, TMP_PATH)
-        self.assertEqual(dump.max_entries, None)
-        self.assertEqual(dump.max_time, None)
-
-        # The directory property is only created once logging has
-        # started. Ensure it is set to None initially.
-        self.assertEqual(dump.directory, None)
-
-    def test_start_stop(self):
-        """Test LogNetwork() start/stop."""
-
-        # Create broadcasters.
-        broadcaster_A = MessageBroadcaster(UnitTestMessageA)
-        broadcaster_B = MessageBroadcaster(UnitTestMessageB)
-
-        # Initialise network dump.
-        messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
-        self.assertEqual(dump.directory, None)
-
-        # Ensure a log directory has NOT been created (Note a README file is
-        # created in the /tmp directory).
-        self.assertEqual(len(os.listdir(TMP_PATH)), 1)
-
-        # Start network dump.
-        self.assertTrue(dump.start())
-        self.assertTrue(dump.is_alive)
-        self.assertFalse(dump.start())
-        self.assertNotEqual(dump.directory, None)
-
-        # Ensure a log directory as been created and it is empty.
-        directory = dump.directory
-        self.assertEqual(len(os.listdir(TMP_PATH)), 2)
-        self.assertEqual(len(os.listdir(directory)), 0)
-
-        # Broadcast messages for logging.
-        broadcaster_A.publish(UnitTestMessageA(data='A'))
-        broadcaster_B.publish(UnitTestMessageB(data='B'))
-
-        # Wait for log files to be created.
-        begin_time = time.time()
-        while len(os.listdir(dump.directory)) < 2:
-            time.sleep(0.1)
-            if time.time() - begin_time > TIME_OUT:
-                break
-
-        # Ensure the log files have been created and are in a logging state.
-        directory = dump.directory
-        files = os.listdir(directory)
-        self.assertEqual(len(files), 2)
-        for message in messages:
-            self.assertTrue((message.name + '.tmp') in files)
-
-        # Stop network dump.
-        self.assertTrue(dump.stop())
-        self.assertFalse(dump.is_alive)
-        self.assertFalse(dump.stop())
-        self.assertEqual(dump.directory, None)
-
-        # Ensure the log files have been closed.
-        files = os.listdir(directory)
-        self.assertEqual(len(files), 2)
-        for message in messages:
-            self.assertTrue((message.name + '.log') in files)
-
-
-# -----------------------------------------------------------------------------
 #                                  ReadFile()
 # -----------------------------------------------------------------------------
 
@@ -854,6 +743,117 @@ class ReadFileTests(unittest.TestCase):
         self.assertFalse(rf.is_data_pending())
         message = rf.read()
         self.assertEqual(message, None)
+
+
+# -----------------------------------------------------------------------------
+#                                 LogNetwork()
+# -----------------------------------------------------------------------------
+
+class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
+
+    def test_bad_init(self):
+        """Test LogNetwork() catches bad initialisation."""
+
+        messages = [UnitTestMessageA, UnitTestMessageB]
+
+        # Ensure error is raised if the logging directory does not exist.
+        with self.assertRaises(IOError):
+            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
+
+        # Ensure error is raised if the input connections are wrong.
+        with self.assertRaises(TypeError):
+            LogNetwork('connection', TMP_PATH)
+        with self.assertRaises(TypeError):
+            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
+
+        # Ensure max_entries is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_entries=0)
+
+        # Ensure max_time is specified properly.
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time='a')
+        with self.assertRaises(TypeError):
+            LogNetwork(messages, TMP_PATH, max_time=0)
+
+    def test_init(self):
+        """Test LogNetwork() initialisation."""
+
+        # Ensure all valid connections can be instantiated.
+        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = LogNetwork(messages, TMP_PATH)
+
+        # Ensure properties can be accessed.
+        self.assertEqual(dump.messages, messages)
+        self.assertEqual(dump.root_directory, TMP_PATH)
+        self.assertEqual(dump.max_entries, None)
+        self.assertEqual(dump.max_time, None)
+
+        # The directory property is only created once logging has
+        # started. Ensure it is set to None initially.
+        self.assertEqual(dump.directory, None)
+
+    def test_start_stop(self):
+        """Test LogNetwork() start/stop."""
+
+        # Create broadcasters.
+        broadcaster_A = MessageBroadcaster(UnitTestMessageA)
+        broadcaster_B = MessageBroadcaster(UnitTestMessageB)
+
+        # Initialise network dump.
+        messages = [UnitTestMessageA, UnitTestMessageB]
+        dump = LogNetwork(messages, TMP_PATH)
+        self.assertEqual(dump.directory, None)
+
+        # Ensure a log directory has NOT been created (Note a README file is
+        # created in the /tmp directory).
+        self.assertEqual(len(os.listdir(TMP_PATH)), 1)
+
+        # Start network dump.
+        self.assertTrue(dump.start())
+        self.assertTrue(dump.is_alive)
+        self.assertFalse(dump.start())
+        self.assertNotEqual(dump.directory, None)
+
+        # Ensure a log directory as been created and it is empty.
+        directory = dump.directory
+        self.assertEqual(len(os.listdir(TMP_PATH)), 2)
+        self.assertEqual(len(os.listdir(directory)), 0)
+
+        # Broadcast messages for logging.
+        broadcaster_A.publish(UnitTestMessageA(data='A'))
+        broadcaster_B.publish(UnitTestMessageB(data='B'))
+
+        # Wait for log files to be created.
+        begin_time = time.time()
+        while len(os.listdir(dump.directory)) < 2:
+            time.sleep(0.1)
+            if time.time() - begin_time > TIME_OUT:
+                break
+
+        # Ensure the log files have been created and are in a logging state.
+        directory = dump.directory
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.tmp') in files)
+
+        # Stop network dump.
+        self.assertTrue(dump.stop())
+        self.assertFalse(dump.is_alive)
+        self.assertFalse(dump.stop())
+        self.assertEqual(dump.directory, None)
+
+        # Ensure the log files have been closed.
+        files = os.listdir(directory)
+        self.assertEqual(len(files), 2)
+        for message in messages:
+            self.assertTrue((message.name + '.log') in files)
 
 
 # -----------------------------------------------------------------------------
