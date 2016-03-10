@@ -1,5 +1,75 @@
 """Object specification for creating messages in MCL.
 
+The :py:mod:`~.message.messages` module provides a means for implementing MCL
+message objects. This is done through the :py:class:`.Message` object.  Since
+:py:class:`.Message` objects derive from python dictionaries, they operate
+near identically.
+
+:py:class:`.Message` objects are a specification of what structure of data is
+being transmitted on a particular :py:class:`.abstract.Connection`. As a result
+:py:class:`.Message` objects are defined by:
+
+    - mandatory message attributes that must be present when instances of the
+      new :py:class:`.Message` objects are created
+
+    - a :py:class:`~.abstract.Connection` object instance specifying where the
+      message can be broadcast and received
+
+Creating MCL :py:class:`.Message` objects is simple and is demonstrated in the
+following example:
+
+.. testcode::
+
+    from mcl import Message
+    from mcl.network.udp import Connection as UdpConnection
+
+    # Define a message.
+    class ExampleMessage(Message):
+        mandatory = ('text', )
+        connection = UdpConnection('ff15::a')
+
+    # Create instance of message.
+    msg = ExampleMessage(text='hello world')
+    print msg
+
+    # Messages objects contain the a 'timestamp' key which records the UTC time
+    # of when the message object was instantiated. To update the timestamp and
+    # message attributes, use the update() method.
+    msg.update(text="I'm a lumberjack")
+    print msg
+
+    # To update a message attribute without updating the timestamp, set it
+    # directly.
+    msg['text'] = 'Spam! Spam!'
+    print msg
+
+    # Serialise message into a msgpack binary string. Hex-ify the string for
+    # demonstration and printability.
+    print msg.encode().encode('hex')
+
+    # The message can also be encoded as a JSON object.
+    print msg.to_json()
+
+.. testoutput::
+   :hide:
+
+   {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'hello world'}
+   {'timestamp': ..., 'name': 'ExampleMessage', 'text': "I'm a lumberjack"}
+   {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'Spam! Spam!'}
+   ...
+
+The following functions can be used to retrieve and manipulate
+:py:class:`.Message` objects:
+
+    - :py:func:`~.messages.get_message_objects` return :py:class:`.Message`
+      object(s) from name(s)
+
+    - :py:func:`~.messages.list_messages` list message objects derived from
+      :py:class:`.Message`
+
+    - :py:func:`~.messages.remove_message_object` de-register a
+      :py:class:`.Message` object from the list of known messages
+
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -7,8 +77,8 @@
 """
 import sets
 import json
+import time
 import msgpack
-import datetime
 import mcl.network.abstract
 
 
@@ -23,7 +93,7 @@ class _MessageMeta(type):
     The :py:class:`._MessageMeta` object is a meta-class designed to
     manufacture MCL :py:class:`.Message` classes. The meta-class works by
     dynamically adding mandatory attributes to a class definition at run time
-    if and ONLY if the class inherits from :py:class:`.onnection`.
+    if and ONLY if the class inherits from :py:class:`.abstract.Connection`.
 
     Classes that inherit from :py:class:`.Message` must implement the
     `mandatory` and `connection` attributes where:
@@ -241,16 +311,24 @@ class Message(dict):
     def __set_time(self):
         """Update the CPU time-stamp in milliseconds from UTC epoch.
 
-        Note: This method should be platform independent and provide more
-        precision than the time.time() method. See:
-
-        https://docs.python.org/2/library/datetime.html#datetime.datetime.now
-
         """
-        time_now = datetime.datetime.utcnow()
-        time_origin = datetime.datetime.utcfromtimestamp(0)
-        timestamp = (time_now - time_origin).total_seconds()
-        super(Message, self).__setitem__('timestamp', timestamp)
+
+        # Return the time in seconds since the epoch as a floating point
+        # number. Note that even though the time is always returned as a
+        # floating point number, not all systems provide time with a better
+        # precision than 1 second. While this function normally returns
+        # non-decreasing values, it can return a lower value than a previous
+        # call if the system clock has been set back between the two calls.
+        #
+        # Note: The datetime documentation claims datetime.datetime.now()
+        #       supplies more precision than can be gotten from time.time()
+        #       timestamp if possible. To simplify the code
+        #
+        # From:
+        #     https://docs.python.org/2/library/time.html#time.time
+        #     https://docs.python.org/2/library/datetime.html#datetime.datetime.now
+        #
+        super(Message, self).__setitem__('timestamp', time.time())
 
     def to_json(self):
         """Return the contents of the message as a JSON string.
@@ -325,8 +403,27 @@ class Message(dict):
         representation of the message contents, it is unpacked and used to
         update the contents of the message.
 
+        .. testcode::
+
+            serialised = ExampleMessage(text='hello world')
+            print ExampleMessage(serialised)
+
+        .. testoutput::
+           :hide:
+
+           {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'hello world'}
+
         If a positional argument is given and it is a mapping object, the
         message is updated with the same key-value pairs as the mapping object.
+
+        .. testcode::
+
+            print ExampleMessage({'text': 'hello world'})
+
+        .. testoutput::
+           :hide:
+
+           {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'hello world'}
 
         If the positional argument is an iterable object. Each item in the
         iterable must itself be an iterable with exactly two objects. The first
@@ -334,8 +431,26 @@ class Message(dict):
         object the corresponding value. If a key occurs more than once, the
         last value for that key becomes the corresponding value in the message.
 
+        .. testcode::
+
+            print ExampleMessage(zip(('text',), ('hello world',)))
+
+        .. testoutput::
+           :hide:
+
+           {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'hello world'}
+
         If keyword arguments are given, the keyword arguments and their values
         are used to update the contents of the message
+
+        .. testcode::
+
+            print ExampleMessage(text='hello world')
+
+        .. testoutput::
+           :hide:
+
+           {'timestamp': ..., 'name': 'ExampleMessage', 'text': 'hello world'}
 
         If the key 'timestamp' is present in the input, the timestamp of the
         message is set to the input value. If no 'timestamp' value is
@@ -402,15 +517,15 @@ class Message(dict):
 
 
 def remove_message_object(name):
-    """De-register Message() object from list of known messages.
+    """De-register a :py:class:`.Message` object from the list of known messages.
 
     Args:
-        name (string): Name of message object to de-register.
+        name (string): Name of the :py:class:`.Message` object to de-register.
 
     Returns:
-        bool: :py:data:`.True` if the Message() object was
-            de-registered. :py:data:`.False` if the Message() object does not
-            exist.
+        bool: :py:data:`.True` if the :py:class:`.Message` object was
+            de-registered. :py:data:`.False` if the :py:class:`.Message` object
+            does not exist.
 
     """
 
@@ -430,7 +545,7 @@ def remove_message_object(name):
 
 
 def list_messages(include=None, exclude=None):
-    """List message objects derived from Message.
+    """List objects derived from :py:class:`.Message`.
 
     Args:
         include (list): list of message object names to include.
@@ -478,7 +593,7 @@ def list_messages(include=None, exclude=None):
 
 
 def get_message_objects(names):
-    """Return message object(s) from name(s).
+    """Return :py:class:`.Message` object(s) from name(s).
 
     Args:
         name (:py:obj:`python:string` or :py:obj:`python:list`): The name (as a

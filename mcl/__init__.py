@@ -15,5 +15,6 @@ multiple packages within the MCL namespace.
 import os
 MCL_ROOT = os.path.dirname(__file__)
 
-# Import Event() into root namespace.
+# Import core objects into root namespace.
 from mcl.event.event import Event
+from mcl.message.messages import Message
