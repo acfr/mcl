@@ -1,12 +1,12 @@
 """Tools for handling logged network data.
 
-The :py:mod:`~.logging.tools` module provides methods and objects designed to
+The :mod:`~.logging.tools` module provides methods and objects designed to
 simplify loading and handling logged network data. The following methods are
 available:
 
-    - :py:func:`.dump_to_list`  for loading log file data into a list
-    - :py:func:`.dump_to_array` for loading log file data into a numpy array
-    - :py:func:`.dump_to_csv`   for writing log file data to a CSV file
+    - :func:`.dump_to_list`  for loading log file data into a list
+    - :func:`.dump_to_array` for loading log file data into a numpy array
+    - :func:`.dump_to_csv`   for writing log file data to a CSV file
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -34,7 +34,7 @@ def dump_to_list(source, min_time=None, max_time=None, message=False,
                  metadata=True):
     """Load log file data into a list.
 
-    The :py:func:`.dump_to_list` function parses a log file or directory of log
+    The :func:`.dump_to_list` function parses a log file or directory of log
     files into a list. Each element in the list is returned as it is recorded
     in the log file(s) (see `metadata`)::
 
@@ -50,7 +50,7 @@ def dump_to_list(source, min_time=None, max_time=None, message=False,
         min_time (float): Minimum time to extract from dataset.
         max_time (float): Maximum time to extract from dataset.
         message (bool): If set to :data:`True` messages will automatically be
-            decoded into the MCL :py:class:`.Message` type stored in the log
+            decoded into the MCL :class:`.Message` type stored in the log
             file(s). If set to :data:`False` (default), message data is
             returned as a dictionary. Note: to read data as MCL messages, the
             messages must be loaded into the namespace and recorded in the log
@@ -93,7 +93,7 @@ def dump_to_list(source, min_time=None, max_time=None, message=False,
         #
         #    {'elapsed_time': float(),
         #     'topic': str(),
-        #     'message': dict or <:py:class:`.Message`>}
+        #     'message': dict or <:class:`.Message`>}
         #
         message = dumps.read()
 
@@ -112,11 +112,11 @@ def dump_to_list(source, min_time=None, max_time=None, message=False,
 def dump_to_array(source, keys, min_time=None, max_time=None):
     """Load log file data into a numpy array.
 
-    The :py:func:`.dump_to_array` function parses network data logs into a
-    :py:obj:`numpy:numpy.array`. To parse data into a
-    :py:obj:`numpy:numpy.array`, the following conditions must be met:
+    The :func:`.dump_to_array` function parses network data logs into a
+    :obj:`numpy:numpy.array`. To parse data into a :obj:`numpy:numpy.array`,
+    the following conditions must be met:
 
-        - All messages loaded must be the same MCL :py:class:`.Message` type.
+        - All messages loaded must be the same MCL :class:`.Message` type.
         - All logged messages must contain the specified keys.
         - The contents of the message keys must be convertible to a float.
 
@@ -131,8 +131,8 @@ def dump_to_array(source, keys, min_time=None, max_time=None):
         max_time (float): Maximum time to extract from dataset.
 
     Returns:
-        numpy.array: A :py:obj:`numpy:numpy.array` containing the requested
-            keys (columns) from each message (rows) in the network log.
+        numpy.array: A :obj:`numpy:numpy.array` containing the requested keys
+            (columns) from each message (rows) in the network log.
 
     Raises:
         IOError: If the input `source` does not exist.

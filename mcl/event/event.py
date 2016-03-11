@@ -1,12 +1,12 @@
 """Module for implementing the event-driven programming paradigm.
 
-The :py:mod:`~.event.event` module provides a means for implementing
-event-driven programming. This is done through the :py:class:`.Event` object.
+The :mod:`~.event.event` module provides a means for implementing event-driven
+programming. This is done through the :class:`.Event` object.
 
-The :py:class:`.Event` object allows data to be communicated to callback
-methods via the :py:meth:`.__trigger__` method. Callback methods can
-un/subscribe to the :py:class:`.Event` object via the :py:meth:`.unsubscribe`
-and :py:meth:`.subscribe` methods.
+The :class:`.Event` object allows data to be communicated to callback methods
+via the :meth:`.__trigger__` method. Callback methods can un/subscribe to the
+:class:`.Event` object via the :meth:`.unsubscribe` and :meth:`.subscribe`
+methods.
 
 Example usage:
 
@@ -47,8 +47,8 @@ class Event(object):
             callback (function): The callback to test for registration.
 
         Returns:
-            bool: Returns :py:data:`.True` if the callback has been registered
-                with this object. Returns :py:data:`.False` if the callback has
+            bool: Returns :data:`.True` if the callback has been registered
+                with this object. Returns :data:`.False` if the callback has
                 NOT been registered with this object.
 
         """
@@ -62,14 +62,14 @@ class Event(object):
             callback (function): The callback to execute on a event.
 
         Returns:
-            bool: Returns :py:data:`.True` if the callback was successfully
+            bool: Returns :data:`.True` if the callback was successfully
                 registered. If the callback already exists in the list of
-                callbacks, it will not be registered again and
-                :py:data:`.False` will be returned.
+                callbacks, it will not be registered again and :data:`.False`
+                will be returned.
 
         Raises:
             TypeError: If the input callback does not have a '__call__' method,
-                a :py:exc:`.TypeError` is raised.
+                a :exc:`.TypeError` is raised.
 
         """
 
@@ -95,9 +95,9 @@ class Event(object):
                 notifications.
 
         Returns:
-            bool: Returns :py:data:`.True` if the callback was successfully
+            bool: Returns :data:`.True` if the callback was successfully
                 removed. If the callback does not exist in the list of
-                callbacks, it will not be removed and :py:data:`.False` will be
+                callbacks, it will not be removed and :data:`.False` will be
                 returned.
 
         """

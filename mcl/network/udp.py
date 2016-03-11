@@ -77,19 +77,18 @@ READ_TIMEOUT = 200
 class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
     """Send data over the network using a UDP socket.
 
-    The :py:class:`~.udp.RawBroadcaster` object allows data to be published
-    over a UDP socket. The object marshalls broadcasts and ensures large items
-    will be fragmented into smaller sub-packets which obey the network maximum
+    The :class:`~.udp.RawBroadcaster` object allows data to be published over a
+    UDP socket. The object marshalls broadcasts and ensures large items will be
+    fragmented into smaller sub-packets which obey the network maximum
     transmission unit (MTU) constraints.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:class:`.Connection`): Connection object.
         topic (str): Topic to associate with UDP broadcasts.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
-        topic (str): Topic associated with :py:class:`.RawBroadcaster`
-            broadcasts.
+        connection (:class:`.Connection`): Connection object.
+        topic (str): Topic associated with :class:`.RawBroadcaster` broadcasts.
         is_open (bool): Return whether the UDP socket is open.
 
     Raises:
@@ -162,8 +161,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         """Send data over UDP interface.
 
         Large data is fragmented into smaller MTU sized packets. The protocol
-        used during publishing is documented in
-        :py:class:`~.udp.RawBroadcaster`.
+        used during publishing is documented in :class:`~.udp.RawBroadcaster`.
 
         Args:
             data (obj): Serialisable object to broadcast over UDP.
@@ -259,9 +257,9 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 class RawListener(mcl.network.abstract.RawListener):
     """Receive data from the network using a UDP socket.
 
-    The :py:class:`~.udp.RawListener` object subscribes to a UDP socket and
-    issues publish events when UDP data are received. Network data are made
-    available to other objects by issuing callbacks in the following format::
+    The :class:`~.udp.RawListener` object subscribes to a UDP socket and issues
+    publish events when UDP data are received. Network data are made available
+    to other objects by issuing callbacks in the following format::
 
         {'topic': str(),
          'payload': obj()}
@@ -273,27 +271,27 @@ class RawListener(mcl.network.abstract.RawListener):
 
         - **<payload>** is the received (serialisable) data.
 
-    The :py:class:`~.udp.RawListener` marshalls broadcasts and ensures
-    multiple, fragmented packets will be recomposed into a single packet before
-    issuing a publish event.
+    The :class:`~.udp.RawListener` marshalls broadcasts and ensures multiple,
+    fragmented packets will be recomposed into a single packet before issuing a
+    publish event.
 
     .. note::
 
-        :py:class:`~.udp.RawListener` does not interpret the received data in
+        :class:`~.udp.RawListener` does not interpret the received data in
         anyway. Code receiving the data must be aware of how to handle it. A
         method for simplifying data handling is to pair a specific data type
         with a unique network address. By adopting this paradigm, handling the
         data is trivial if the network address is known.
 
     Args:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:class:`.Connection`): Connection object.
         topics (str or list): Topics associated with the
-            :py:class:`~.udp.RawListener` interface.
+            :class:`~.udp.RawListener` interface.
 
     Attributes:
-        connection (:py:class:`.Connection`): Connection object.
+        connection (:class:`.Connection`): Connection object.
         topics (str or list): Topics associated with the
-            :py:class:`~.udp.RawListener` interface.
+            :class:`~.udp.RawListener` interface.
         is_open (bool): Return whether the UDP socket is open.
 
     """
@@ -338,8 +336,8 @@ class RawListener(mcl.network.abstract.RawListener):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the socket was created. If
-                           the socket already exists, the request is ignored
-                           and the method returns :data:`False`.
+                the socket already exists, the request is ignored and the
+                method returns :data:`False`.
 
         """
 

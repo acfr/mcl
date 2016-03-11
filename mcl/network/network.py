@@ -1,9 +1,9 @@
 """Generic interface for publishing and receiving data in MCL.
 
 This module provides generic methods and objects for creating network
-broadcasters and listeners from :py:class:`~.abstract.Connection` or
-:py:class:`.Message` objects. Since the details of interface connections are
-encapsulated by :py:class:`~.abstract.Connection` objects, the specific
+broadcasters and listeners from :class:`~.abstract.Connection` or
+:class:`.Message` objects. Since the details of interface connections are
+encapsulated by :class:`~.abstract.Connection` objects, the specific
 implementation of broadcasters and listeners can be abstracted
 away. Broadcasting and receiving data from MCL networks can be handled by
 generic functions and objects.
@@ -11,13 +11,13 @@ generic functions and objects.
 The functions and objects provided in this module provide generic tools for
 interacting with MCL network interfaces. The only implementation specific
 objects that need to be used, when writing applications, are
-:py:class:`~.abstract.Connection` objects (e.g. :py:class:`.udp.Connection`).
+:class:`~.abstract.Connection` objects (e.g. :class:`.udp.Connection`).
 
 Broadcasters and listeners can be created using a
-:py:class:`~.abstract.Connection` object with the following functions:
+:class:`~.abstract.Connection` object with the following functions:
 
-    - :py:func:`.RawBroadcaster`
-    - :py:func:`.RawListener`
+    - :func:`.RawBroadcaster`
+    - :func:`.RawListener`
 
 Example usage:
 
@@ -52,10 +52,10 @@ Example usage:
    hello world
 
 Similarly, *message* broadcasters and listeners can be created using a
-:py:class:`.Message` object with the following objects:
+:class:`.Message` object with the following objects:
 
-    - :py:class:`.MessageBroadcaster`
-    - :py:class:`.MessageListener`
+    - :class:`.MessageBroadcaster`
+    - :class:`.MessageListener`
 
 Example usage:
 
@@ -99,9 +99,9 @@ Example usage:
 
    hello world
 
-The object :py:class:`.QueuedListener` can operate as a :py:func:`.RawListener`
-or a :py:class:`.MessageListener` depending on the input. This object differs
-from other listener objects by receiving network data on a separate process and
+The object :class:`.QueuedListener` can operate as a :func:`.RawListener` or a
+:class:`.MessageListener` depending on the input. This object differs from
+other listener objects by receiving network data on a separate process and
 inserting the data to a multi-processing queue. Callbacks are issued on a
 separate thread. The intention is to use a light-weight process for receiving
 data so as to achieve more accurate timing by avoiding restrictions of the GIL
@@ -167,11 +167,11 @@ def RawBroadcaster(connection, topic=None):
         broadcaster.close()
 
     Args:
-        connection (:py:class:`~.abstract.Connection`): Connection object.
+        connection (:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface.
 
     Attributes:
-        connection (:py:class:`~.abstract.Connection`): Connection object.
+        connection (:class:`~.abstract.Connection`): Connection object.
         topic (str): Topic associated with the network interface broadcasts.
         is_open (bool): Returns :data:`True` if the network interface is
             open. Otherwise returns :data:`False`.
@@ -196,7 +196,7 @@ def RawBroadcaster(connection, topic=None):
 def RawListener(connection, topics=None):
     """Return an object for receiving data over a network interface.
 
-    Objects returned by :py:func:`.RawListener` make network data available to
+    Objects returned by :func:`.RawListener` make network data available to
     subscribers by issuing callbacks, when data arrives, in the following
     format::
 
@@ -230,12 +230,12 @@ def RawListener(connection, topics=None):
         listener.close()
 
     Args:
-        connection (:py:class:`~.abstract.Connection`): Connection object.
+        connection (:class:`~.abstract.Connection`): Connection object.
         topics (str or list): Topics associated with the network interface
             represented as either a string or list of strings.
 
     Attributes:
-        connection (:py:class:`~.abstract.Connection`): Connection object.
+        connection (:class:`~.abstract.Connection`): Connection object.
         topics (str or list): Topics associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
             open. Otherwise returns :data:`False`.
@@ -260,13 +260,12 @@ def RawListener(connection, topics=None):
 class MessageBroadcaster(object):
     """Send messages over a network interface.
 
-    The :py:class:`.MessageBroadcaster` object is a factory which manufactures
-    objects for broadcasting MCL :py:class:`.Message` objects over a
-    network. The returned object overloads the
-    :py:meth:`~.abstract.RawBroadcaster.publish` of a
-    :py:class:`~.abstract.RawBroadcaster` object to serialise the contents of a
-    :py:class:`.Message` before transmission. `Message pack
-    <http://msgpack.org/index.html>`_ is used to serialise :py:class:`.Message`
+    The :class:`.MessageBroadcaster` object is a factory which manufactures
+    objects for broadcasting MCL :class:`.Message` objects over a network. The
+    returned object overloads the :meth:`~.abstract.RawBroadcaster.publish` of
+    a :class:`~.abstract.RawBroadcaster` object to serialise the contents of a
+    :class:`.Message` before transmission. `Message pack
+    <http://msgpack.org/index.html>`_ is used to serialise :class:`.Message`
     objects into byte string.
 
     Example usage:
@@ -298,10 +297,10 @@ class MessageBroadcaster(object):
         broadcaster.close()
 
     For a list of available methods and attributes in the returned object, see
-    :py:class:`~.abstract.RawBroadcaster`.
+    :class:`~.abstract.RawBroadcaster`.
 
     Args:
-        message (:py:class:`.Message`): MCL message object.
+        message (:class:`.Message`): MCL message object.
         topic (str): Topic associated with the network interface.
 
     """
@@ -324,17 +323,17 @@ class MessageBroadcaster(object):
         class MessageBroadcaster(message.connection.broadcaster):
             """Send messages over a network interface.
 
-            The :py:class:`.MessageBroadcaster` object provides an interface
-            for broadcasting MCL :py:class:`.Message` objects over a
-            network. :py:class:`.MessageBroadcaster` establishes a network
+            The :class:`.MessageBroadcaster` object provides an interface for
+            broadcasting MCL :class:`.Message` objects over a
+            network. :class:`.MessageBroadcaster` establishes a network
             connection using the information contained within the input
-            :py:class:`.Message` type.
+            :class:`.Message` type.
 
             For a list of available methods and attributes, see
-            :py:class:`~.abstract.RawBroadcaster`.
+            :class:`~.abstract.RawBroadcaster`.
 
             Args:
-                message (:py:class:`.Message`): MCL message object.
+                message (:class:`.Message`): MCL message object.
                 topic (str): Topic associated with the network interface.
 
             """
@@ -343,7 +342,7 @@ class MessageBroadcaster(object):
                 """Send an MCL message over the network.
 
                 Args:
-                    message (:py:class:`.Message`): MCL message object.
+                    message (:class:`.Message`): MCL message object.
 
                 Raises:
                     TypeError: If the input message type differs from the
@@ -365,11 +364,11 @@ class MessageBroadcaster(object):
 class MessageListener(object):
     """Receive messages over a network interface.
 
-    The :py:class:`.MessageListener` object is a factory which manufactures
-    objects for receiving MCL :py:class:`.Message` objects over a network. The
-    returned object inherits from the :py:class:`~.abstract.RawListener`
-    class. When data is received, it is decoded into a :py:class:`.Message`
-    object before an event is raised to forward the received data to subscribed
+    The :class:`.MessageListener` object is a factory which manufactures
+    objects for receiving MCL :class:`.Message` objects over a network. The
+    returned object inherits from the :class:`~.abstract.RawListener`
+    class. When data is received, it is decoded into a :class:`.Message` object
+    before an event is raised to forward the received data to subscribed
     callbacks in the following format::
 
         {'topic': str,
@@ -380,7 +379,7 @@ class MessageListener(object):
         - **<topic>** is a string containing the topic associated with the
           received data.
 
-        - **<payload>** is the received :py:class:`.Message` object.
+        - **<payload>** is the received :class:`.Message` object.
 
     Example usage:
 
@@ -411,24 +410,24 @@ class MessageListener(object):
         listener.close()
 
     For a list of available methods and attributes in the returned object, see
-    :py:class:`~.abstract.RawListener`.
+    :class:`~.abstract.RawListener`.
 
     .. warning::
 
-        :py:class:`.MessageListener` objects expect the transmitted data to be
-        formatted as MCL :py:class:`.Message` objects. If the received data
-        cannot be converted into a MCL :py:class:`.Message`, an exception will
-        be raised on the I/O loop (thread) of the base
-        :py:class:`~.abstract.RawListener`. This will prevent exceptions from
+        :class:`.MessageListener` objects expect the transmitted data to be
+        formatted as MCL :class:`.Message` objects. If the received data cannot
+        be converted into a MCL :class:`.Message`, an exception will be raised
+        on the I/O loop (thread) of the base
+        :class:`~.abstract.RawListener`. This will prevent exceptions from
         being raised on the main thread and messages from being published. If
         no messages are being received, check the connections, ensure the data
         is being formatted correctly prior to transmission and refer to any
         stack-traces being printed on stdout.
 
     Args:
-        message (:py:class:`.Message`): MCL message object.
+        message (:class:`.Message`): MCL message object.
         topics (str): List of strings containing topics
-                      :py:class:`.MessageListener` will receive and process.
+                      :class:`.MessageListener` will receive and process.
 
     """
 
@@ -447,17 +446,17 @@ class MessageListener(object):
         class MessageListener(message.connection.listener):
             """Receive messages over a network interface.
 
-            The :py:class:`.MessageListener` object provides an interface for
-            receiving MCL :py:class:`.Message` objects over a
-            network. :py:class:`.MessageListener` establishes a network
-            connection using the information contained within the input
-            :py:class:`.Message` type.
+            The :class:`.MessageListener` object provides an interface for
+            receiving MCL :class:`.Message` objects over a
+            network. :class:`.MessageListener` establishes a network connection
+            using the information contained within the input :class:`.Message`
+            type.
 
             For a list of available methods and attributes, see
-            :py:class:`~.abstract.RawListener`.
+            :class:`~.abstract.RawListener`.
 
             Args:
-                message (:py:class:`.Message`): MCL message object.
+                message (:class:`.Message`): MCL message object.
                 topic (str): Topic associated with the network interface.
 
             """
@@ -482,8 +481,8 @@ class MessageListener(object):
 class QueuedListener(mcl.network.abstract.RawListener):
     """Open a broadcast address and listen for data.
 
-    The :py:class:`.QueuedListener` object subscribes to a network
-    broadcast and issues publish events when data is received.
+    The :class:`.QueuedListener` object subscribes to a network broadcast and
+    issues publish events when data is received.
 
     The difference between this object and other network listeners is that
     network data is received on a separate process and written to a
@@ -491,8 +490,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
     achieve more accurate timing by avoiding the GIL. Resource allocation is
     left to the operating system.
 
-    A summary of the :py:class:`.QueuedListener` object is shown
-    below::
+    A summary of the :class:`.QueuedListener` object is shown below::
 
                  Data broadcast           Data republished
                  (over network)           (local callbacks)
@@ -539,7 +537,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
         - **<time_received>** is a datetime object containing the time the data
           was received and queued.
 
-    Example usage emulating objects returned from :py:func:`.RawListener`:
+    Example usage emulating objects returned from :func:`.RawListener`:
 
     .. testcode:: queuedlistener-raw
 
@@ -571,7 +569,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
        hello world
 
     Example usage emulating objects returned from
-    :py:func:`.MessageListener`. Note how the interface is the same as the
+    :func:`.MessageListener`. Note how the interface is the same as the
     previous example but only the input object has changed:
 
     .. testcleanup:: queuedlistener-message
@@ -612,7 +610,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
        hello world
 
     Args:
-        connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
+        connection (:class:`~.abstract.Connection` or :class:`~.messages.Message`):
             an instance of a MCL connection object or a reference to a MCL
             message type.
         topics (str or list): Topics associated with the network interface
@@ -779,9 +777,8 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         Returns:
             :class:`bool`: Returns :data:`True` if a connection to the queued
-                           listener is opened. If the queued listener is
-                           already open, the request is ignored and the method
-                           returns :data:`False`.
+                listener is opened. If the queued listener is already open, the
+                request is ignored and the method returns :data:`False`.
 
         """
 
@@ -841,9 +838,8 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         Returns:
             :class:`bool`: Returns :data:`True` if a connection to the queued
-                           listener is opened. If the queued listener is
-                           already open, the request is ignored and the method
-                           returns :data:`False`.
+                listener is opened. If the queued listener is already open, the
+                request is ignored and the method returns :data:`False`.
 
         """
         return self._open()
@@ -853,9 +849,8 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         Returns:
             :class:`bool`: Returns :data:`True` if the queued listener was
-                           closed. If the queued listener was already closed,
-                           the request is ignored and the method returns
-                           :data:`False`.
+                closed. If the queued listener was already closed, the request
+                is ignored and the method returns :data:`False`.
 
         """
 

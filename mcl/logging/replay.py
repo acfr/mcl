@@ -3,34 +3,33 @@
 The network replay module provides methods and objects designed to replay
 logged network data.
 
-The main object responsible for replaying network data is the
-:py:class:`.Replay` object. The :py:class:`.Replay` object depends on the
-remaining objects:
+The main object responsible for replaying network data is the :class:`.Replay`
+object. The :class:`.Replay` object depends on the remaining objects:
 
-    - :py:class:`.BufferData`
-    - :py:class:`.ScheduleBroadcasts`
+    - :class:`.BufferData`
+    - :class:`.ScheduleBroadcasts`
 
 Replay of network data works by launching a process to read data from log files
 and insert them into a multiprocess queue. This is done using the
-:py:class:`.BufferData` object which reads data from the log files using the
-:py:class:`.ReadDirectory` object. The data is formatted as a dictionary using
-the following fields::
+:class:`.BufferData` object which reads data from the log files using the
+:class:`.ReadDirectory` object. The data is formatted as a dictionary using the
+following fields::
 
     {'elapsed_time: <float>,
      'topic': <string>,
-     'payload': <dict or :py:class:`.Message`>}
+     'payload': <dict or :class:`.Message`>}
 
 where:
     - `topic` is the topic that was associated with the message.
     - `message`: is the network message, delivered as a MCL
-      :py:class:`.Message` object.
+      :class:`.Message` object.
 
 A process is launched to read the data (stored as dictionaries) from the
 multiprocess queue and broadcast them as if they were occurring in real-time.
-This is done using the :py:class:`.ScheduleBroadcasts` object. The broadcasts
-are scheduled such that they occur in time order and follow the timing
-specified by `elapsed_time`. A summary of the :py:class:`.NetworkReplay` object
-is shown below::
+This is done using the :class:`.ScheduleBroadcasts` object. The broadcasts are
+scheduled such that they occur in time order and follow the timing specified by
+`elapsed_time`. A summary of the :class:`.NetworkReplay` object is shown
+below::
 
                 Log files                         Broadcasts
                     |                                 ^
@@ -89,7 +88,7 @@ def _set_process_name(name):                                 # pragma: no cover
 class BufferData(object):
     """Asynchronously buffer historic data to a queue.
 
-    The :py:class:`.BufferData` asynchronously reads historic data and inserts
+    The :class:`.BufferData` asynchronously reads historic data and inserts
     each message into a multiprocessing.Queue::
 
                ReaderObject()               BufferData.queue.get()
@@ -124,7 +123,7 @@ class BufferData(object):
             can be placed in the queue.
 
     Attributes:
-        queue(:py:class:`python:multiprocessing.Queue`): Queue used to buffer
+        queue(:class:`python:multiprocessing.Queue`): Queue used to buffer
             data loaded from the log files.
         length (int): Sets the upperbound limit on the number of items that can
             be placed in the queue.
@@ -177,7 +176,7 @@ class BufferData(object):
         This property returns :data:`True` when all data has been read from the
         source or if the queue is full - whichever condition is reached
         first. Otherwise :data:`False` is returned. Once set to :data:`True`,
-        the flag will not reset until the :py:meth:`.reset` method is called.
+        the flag will not reset until the :meth:`.reset` method is called.
 
         This property can be used to delay processes that read from the buffer
         until the buffer is full.
@@ -220,18 +219,18 @@ class BufferData(object):
     def start(self):
         """Start buffering logged data on a new process.
 
-        The :py:meth:`.start` method starts buffering data from log files to a
+        The :meth:`.start` method starts buffering data from log files to a
         multiprocessing.Queue. Data is retrieved using a
-        :py:class:`.ReadDirectory` object. The format of data inserted into the
-        queue is documented in :py:meth:`.ReadDirectory.read`.
+        :class:`.ReadDirectory` object. The format of data inserted into the
+        queue is documented in :meth:`.ReadDirectory.read`.
 
         Note::
 
             This method will start buffering data to the end of the queue. If
-            the process has been stopped (:py:meth:`.stop`) and restarted, it
-            will recommence from where it left off. To start buffering data
-            from the beginning of the log files, the queue must be cleared by
-            calling :py:meth:`.reset`.
+            the process has been stopped (:meth:`.stop`) and restarted, it will
+            recommence from where it left off. To start buffering data from the
+            beginning of the log files, the queue must be cleared by calling
+            :meth:`.reset`.
 
         Returns:
             :class:`bool`: Returns :data:`True` if started buffering logged
@@ -264,12 +263,12 @@ class BufferData(object):
     def stop(self):
         """Stop buffering logged data.
 
-        The :py:meth:`.stop` method stops data from being buffered to the
+        The :meth:`.stop` method stops data from being buffered to the
         queue. It can be used to pause buffering. The read location in the log
         files and items in the queue are not reset when this method is called.
 
         To reset the buffer and start buffering from the beginning, call the
-        :py:meth:`.reset` method.
+        :meth:`.reset` method.
 
         Returns:
             :class:`bool`: Returns :data:`True` if stopped buffering logged
@@ -355,7 +354,7 @@ class BufferData(object):
                     #
                     #     dct = {'elapsed_time: <float>,
                     #            'topic': <string>,
-                    #            'payload': dict or <:py:class:`.Message` object>}
+                    #            'payload': dict or <:class:`.Message` object>}
                     data = resource.read()
 
                     # The only reason candidate data should be falsy (None) is
@@ -411,7 +410,7 @@ class BufferData(object):
 class ScheduleBroadcasts(object):
     """Re-broadcast messages in a queue on a new process.
 
-    The :py:class:`.ScheduleBroadcasts` object reads messages from a
+    The :class:`.ScheduleBroadcasts` object reads messages from a
     multiprocessing queue and rebroadcasts the data in simulated real-time (on
     a new process). If the hooks options is specified, the messages will not be
     re-broadcast over the network. Instead they will be replayed through the
@@ -579,7 +578,7 @@ class ScheduleBroadcasts(object):
                     #
                     #     dct = {'elapsed_time: <float>,
                     #            'topic': <string>,
-                    #            'payload': dict or <:py:class:`.Message` object>}
+                    #            'payload': dict or <:class:`.Message` object>}
                     #
                     data = queue.get(timeout=0.1)
                     elapsed_time = data['elapsed_time']
@@ -621,7 +620,7 @@ class ScheduleBroadcasts(object):
 class Replay(object):
     """Re-broadcast historic data.
 
-    The :py:class:`.NetworkReplay` object replays MCL messages in real-time. To
+    The :class:`.NetworkReplay` object replays MCL messages in real-time. To
     replay data from log files::
 
         # Initialise object and commence replay from files.

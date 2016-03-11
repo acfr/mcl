@@ -1,27 +1,29 @@
 """Log network data.
 
-The :py:mod:`~.logging.file` module provides methods and objects designed to
+The :mod:`~.logging.file` module provides methods and objects designed to
 simplify writing and reading network traffic logs.
 
 The main objects responsible for logging network data are:
 
-    - :py:class:`.WriteFile` for formatting and writing network data from a
-      single connection to log file(s).
-    - :py:class:`.ReadFile` for reading data from log file(s) representing a
+    - :class:`.WriteFile` for formatting and writing network data from a single
+      connection to log file(s).
+
+    - :class:`.ReadFile` for reading data from log file(s) representing a
       single network connection.
-    - :py:class:`.LogConnection` logs data from a single connection to log
+
+    - :class:`.LogConnection` logs data from a single connection to log
       file(s).
 
 These objects can write/read arbitrary data to/from a log file(s). The network
-connection can be specified by either a :py:class:`~.abstract.Connection` or
-MCL :py:class:`~.messages.Message` object. These following objects can only
-write/read :py:class:`~.messages.Message` objects to/from a log file(s):
+connection can be specified by either a :class:`~.abstract.Connection` or MCL
+:class:`~.messages.Message` object. These following objects can only write/read
+:class:`~.messages.Message` objects to/from a log file(s):
 
-    - :py:class:`.LogNetwork` logs data from multiple connections to a
-      directory of log files.
-    - :py:class:`.ReadDirectory` for reading data from a directory of log files
+    - :class:`.LogNetwork` logs data from multiple connections to a directory
+      of log files.
+
+    - :class:`.ReadDirectory` for reading data from a directory of log files
       representing multiple network connections.
-
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -90,19 +92,19 @@ def retrieve_git_hash(repository_path):
 class WriteFile(object):
     """Write network messages to log file(s).
 
-    The :py:class:`.WriteFile` object is used for writing network messages to
-    log file(s). To log data to a single file, use::
+    The :class:`.WriteFile` object is used for writing network messages to log
+    file(s). To log data to a single file, use::
 
         wf = WriteFile(fname, Message)
 
-    :py:class:`.WriteFile` can be configures to split the log files by
-    number of entries or time. To configure :py:class:`.WriteFile` to split log
-    files according to the number of entries, instantiate the object using::
+    :class:`.WriteFile` can be configures to split the log files by number of
+    entries or time. To configure :class:`.WriteFile` to split log files
+    according to the number of entries, instantiate the object using::
 
         wf = WriteFile(fname, Message, max_entries=10)
 
     in the above example, each log file will accumulate 10 entries before
-    closing and starting a new log file. To configure :py:class:`.WriteFile` to
+    closing and starting a new log file. To configure :class:`.WriteFile` to
     split log files according to time, instantiate the object using::
 
         wf = WriteFile(fname, Message, max_time=60)
@@ -118,41 +120,40 @@ class WriteFile(object):
 
     Args:
         prefix (str): Prefix used for log file(s). The extension is excluded
-            and is handled by :py:class:`.WriteFile` (to facilitate split
+            and is handled by :class:`.WriteFile` (to facilitate split
             logs). For example the prefix './data/TestMessage' will log data to
             the file './data/TestMessage.log' and will log data to the files
             './data/TestMessage_<NNN>.log' for split log files (where NNN is
             incremented for each new split log).
-        connection (:py:class:`~.abstract.Connection` or :py:class:`~.messages.Message`):
+        connection (:class:`~.abstract.Connection` or :class:`~.messages.Message`):
             an instance of a MCL connection object or a reference to a MCL
             message type to record to log file(s).
         revision (str): Revision of code used to generate logs. For instance,
            the hash identifying a commit in a Git repository, can be used to
            record what version of code was used during logging. The function
-           :py:func:`.retrieve_git_hash` can be used for this purpose. If
-           `revision` is set to :py:data:`.None` (default), no revision will be
+           :func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :data:`.None` (default), no revision will be
            recorded in the log header.
         time_origin (datetime.datetime): UTC time origin used to calculate
             elapsed time during logging (time data was received - time
             origin). This option allows the time origin to be synchronised
-            across multiple log files. If set to :py:data:`.None`, the time
-            origin will be set to the time the first logged message was
-            received. This results in the first logged item having an elapsed
-            time of zero.
+            across multiple log files. If set to :data:`.None`, the time origin
+            will be set to the time the first logged message was received. This
+            results in the first logged item having an elapsed time of zero.
         max_entries (int): Maximum number of entries to record per log file. If
             set, a new log file will be created once the maximum number of
             entries has been recorded. Files follow the naming scheme
             '<prefix>_<NNN>.log' where NNN is incremented for each new log
-            file. If set to :py:data:`.None` all data will be logged to a
-            single file called '<prefix>.log'. This option can be used in
-            combination with `max_time`.
+            file. If set to :data:`.None` all data will be logged to a single
+            file called '<prefix>.log'. This option can be used in combination
+            with `max_time`.
         max_time (int): Maximum length of time, in seconds, to log data. If
             set, a new log file will be created after the maximum length of
             time has elapsed. Files follow the naming scheme
             '<prefix>_<NNN>.log' where NNN is incremented for each new log
-            file. If set to :py:data:`.None` all data will be logged to a
-            single file called '<prefix>.log'. This option can be used in
-            combination with `max_entries`.
+            file. If set to :data:`.None` all data will be logged to a single
+            file called '<prefix>.log'. This option can be used in combination
+            with `max_entries`.
 
     Attributes:
         max_entries (int): Maximum number of entries to record per log file
@@ -420,8 +421,8 @@ class WriteFile(object):
     def write(self, message):
         """Write network data to a file.
 
-        The :py:meth:`.WriteFile.write` method writes network data to a log
-        file. :py:meth:`.WriteFile.write` expects network data to be input as a
+        The :meth:`.WriteFile.write` method writes network data to a log
+        file. :meth:`.WriteFile.write` expects network data to be input as a
         dictionary with the following fields::
 
             message = {'topic': str(),
@@ -436,9 +437,9 @@ class WriteFile(object):
 
         Args:
             message (dict): Network data to be recorded. The network data must
-                            be stored as a dictionary with the time the data
-                            was received, the topic associated with the
-                            broadcast and the message payload.
+                be stored as a dictionary with the time the data was received,
+                the topic associated with the broadcast and the message
+                payload.
 
         """
 
@@ -500,10 +501,10 @@ class WriteFile(object):
     def close(self):
         """Close log files.
 
-        The :py:meth:`.WriteFile.close` method finalises the logging process by
+        The :meth:`.WriteFile.close` method finalises the logging process by
         changing the extension of the log file from '.tmp' to '.log'. If
-        :py:meth:`.WriteFile.close` is NOT called, no data will be lost,
-        however the log file will not be given the '.log' extension.
+        :meth:`.WriteFile.close` is NOT called, no data will be lost, however
+        the log file will not be given the '.log' extension.
 
         """
         self.__close_file()
@@ -512,13 +513,13 @@ class WriteFile(object):
 class ReadFile(object):
     """Read data from a log file.
 
-    The :py:class:`.ReadFile` object reads data from network dump log files
-    (see :py:class:`.WriteFile`). If the data has been logged to a single file,
-    :py:class:`.ReadFile` can read the data directly from the file::
+    The :class:`.ReadFile` object reads data from network dump log files (see
+    :class:`.WriteFile`). If the data has been logged to a single file,
+    :class:`.ReadFile` can read the data directly from the file::
 
             rf = ReadFile('logs/TestMessage.log')
 
-    If the log files have been split, :py:class:`.ReadFile` can read from the
+    If the log files have been split, :class:`.ReadFile` can read from the
     first split to the last split (in the directory) by specifying the prefix
     of the logs::
 
@@ -530,41 +531,41 @@ class ReadFile(object):
             rf = ReadFile('logs/TestMessage_002.log')
 
     Note that if a portion of a split log file is read using
-    :py:class:`.ReadFile`, header information will not be available. Header
+    :class:`.ReadFile`, header information will not be available. Header
     information is only recoreded in the first portion.
 
     Args:
         filename (str): Prefix/Path to log file. If a prefix is given,
-            :py:class:`.ReadFile` will assume the log files have been split
-            into numbered chunks. For example, if 'data/TestMessage' is
-            specified, :py:class:`.ReadFile` will read all
-            'data/TestMessage_*.log' files in sequence. If the path to a log
-            file is fully specified, :py:class:`.ReadFile` will only read the
-            contents of that file (e.g. 'data/TestMessage_000.log').
+            :class:`.ReadFile` will assume the log files have been split into
+            numbered chunks. For example, if 'data/TestMessage' is specified,
+            :class:`.ReadFile` will read all 'data/TestMessage_*.log' files in
+            sequence. If the path to a log file is fully specified,
+            :class:`.ReadFile` will only read the contents of that file
+            (e.g. 'data/TestMessage_000.log').
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
-        message (bool or str or :py:class:`.Message`): If set to
-            :py:data:`.False` (default), the logged data is returned 'raw'. If
-            set to :py:data:`.True` logged data will automatically be decoded
-            into the MCL message type stored in the log file header. To force
-            the reader to unpack logged data as a specific MCL message type,
-            set this argument to the required :py:class:`.Message` type or to
-            the string name of the required message type. This option can be
-            useful for reading unnamed messages or debugging log files. Use
-            with caution. *Note*: to read data as MCL messages, the messages
-            must be loaded into the namespace.
+        message (bool or str or :class:`.Message`): If set to :data:`.False`
+            (default), the logged data is returned 'raw'. If set to
+            :data:`.True` logged data will automatically be decoded into the
+            MCL message type stored in the log file header. To force the reader
+            to unpack logged data as a specific MCL message type, set this
+            argument to the required :class:`.Message` type or to the string
+            name of the required message type. This option can be useful for
+            reading unnamed messages or debugging log files. Use with
+            caution. *Note*: to read data as MCL messages, the messages must be
+            loaded into the namespace.
 
     Attributes:
         header (dict): Contents of the log file header. If the log file header
-            is not available :py:data:`.None` is returned, otherwise the
-            following dictionary is returned::
+            is not available :data:`.None` is returned, otherwise the following
+            dictionary is returned::
 
                 dct = {'text': string,
                        'end': int,
                        'version': string,
                        'revision': string,
                        'created': string,
-                       'type': :py:data:`.None` or :py:class:`.Message`}
+                       'type': :data:`.None` or :class:`.Message`}
 
             where:
                 - <text> is the header text
@@ -573,8 +574,8 @@ class ReadFile(object):
                 - <revision> Git hash of version used to log data
                 - <created> Time when log file was created
                 - <message> is the type, recorded in the header, used to
-                  represent the logged data (either :py:data:`.None` or
-                  :py:class:`.Message`)
+                  represent the logged data (either :data:`.None` or
+                  :class:`.Message`)
 
         min_time (float): Minimum time to extract from log file.
         max_time (float): Maximum time to extract from log file.
@@ -694,9 +695,8 @@ class ReadFile(object):
         """Return whether data is available for reading.
 
         Returns:
-            bool: Returns :py:data:`True` if more data is available. If all
-                data has been read from the log file(s), :py:data:`False` is
-                returned.
+            bool: Returns :data:`True` if more data is available. If all data
+                has been read from the log file(s), :data:`False` is returned.
 
         """
 
@@ -791,7 +791,7 @@ class ReadFile(object):
 
             dct = {'elapsed_time: <float>,
                    'topic': <string>,
-                   'payload': dict or <:py:class:`.Message` object>}
+                   'payload': dict or <:class:`.Message` object>}
 
         If an error is encountered during parsing an IOError is returned
         instead of a dictionary.
@@ -881,7 +881,7 @@ class ReadFile(object):
                    'version': string,
                    'revision': string,
                    'created': string,
-                   'type': dict or :py:class:`.Message`}
+                   'type': dict or :class:`.Message`}
 
         where:
             - <text> is the header text
@@ -890,7 +890,7 @@ class ReadFile(object):
             - <revision> Git hash of version used to log data
             - <created> Time when log file was created
             - <type> is the type used to represent the logged data (either dict
-              or :py:class:`.Message`)
+              or :class:`.Message`)
 
         Returns:
             dict: A dictionary containing the contents of the header.
@@ -1001,23 +1001,25 @@ class ReadFile(object):
 
             dct = {'elapsed_time: <float>,
                    'topic': <string>,
-                   'payload': dict or <:py:class:`.Message` object>}
+                   'payload': dict or <:class:`.Message` object>}
 
         where:
 
             - ``elapsed_time`` is the time elapsed between creating the log
               file and recording the message.
+
             - ``topic`` is the topic associated with the message during the
               broadcast.
+
             - ``message``: is the network message, delivered as a dictionary or
-              MCL :py:class:`.Message` object.
+              MCL :class:`.Message` object.
 
         If all data has been read from the log file, None is returned.
 
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
-                  text was recorded. The topic associated with the message
-                  broadcast and a populated MCL message object.
+                text was recorded. The topic associated with the message
+                broadcast and a populated MCL message object.
 
         Raises:
             IOError: If an error was encountered during reading.
@@ -1063,39 +1065,39 @@ class LogConnection(object):
 
     Args:
         prefix (str): Prefix used for log file(s). The extension is excluded
-            and is handled by :py:class:`.WriteFile` (to facilitate split
+            and is handled by :class:`.WriteFile` (to facilitate split
             logs). For example the prefix './data/TestMessage' will log data to
             the file './data/TestMessage.log' and will log data to the files
             './data/TestMessage_<NNN>.log' for split log files (where NNN is
             incremented for each new split log).
-        connection (:py:class:`~.abstract.Connection`): MCL
-            :py:class:`.Message` object to record to log file(s).
+        connection (:class:`~.abstract.Connection`): MCL :class:`.Message`
+            object to record to log file(s).
         revision (str): Revision of code used to generate logs. For instance,
            the hash identifying a commit in a Git repository, can be used to
            record what version of code was used during logging. The function
-           :py:func:`.retrieve_git_hash` can be used for this purpose. If
-           `revision` is set to :py:data:`.None` (default), no revision will be
+           :func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :data:`.None` (default), no revision will be
            recorded in the log header.
         time_origin (datetime.datetime): Time origin used to calculate elapsed
             time during logging (time data was received - time origin). This
             option allows the time origin to be synchronised across multiple
-            log files. If set to :py:data:`.None`, the time origin will be set
-            to the time the first logged message was received. This results in
-            the first logged item having an elapsed time of zero.
+            log files. If set to :data:`.None`, the time origin will be set to
+            the time the first logged message was received. This results in the
+            first logged item having an elapsed time of zero.
         max_entries (int): Maximum number of entries to record per log file. If
             set, a new log file will be created once the maximum number of
             entries has been recorded. Files follow the naming scheme
             '<prefix>_<NNN>.log' where NNN is incremented for each new log
-            file. If set to :py:data:`.None` all data will be logged to a
-            single file called '<prefix>.log'. This option can be used in
-            combination with `max_time`.
+            file. If set to :data:`.None` all data will be logged to a single
+            file called '<prefix>.log'. This option can be used in combination
+            with `max_time`.
         max_time (int): Maximum length of time, in seconds, to log data. If
             set, a new log file will be created after the maximum length of
             time has elapsed. Files follow the naming scheme
             '<prefix>_<NNN>.log' where NNN is incremented for each new log
-            file. If set to :py:data:`.None` all data will be logged to a
-            single file called '<prefix>.log'. This option can be used in
-            combination with `max_entries`.
+            file. If set to :data:`.None` all data will be logged to a single
+            file called '<prefix>.log'. This option can be used in combination
+            with `max_entries`.
         open_init (bool): open connection immediately after initialisation.
 
     Attributes:
@@ -1205,18 +1207,18 @@ class LogConnection(object):
 class LogNetwork(object):
     """Dump network traffic to files.
 
-    The :py:class:`.LogNetwork` object records network traffic to multiple log
-    files.  The input `directory` specifies the location to create a directory,
+    The :class:`.LogNetwork` object records network traffic to multiple log
+    files. The input `directory` specifies the location to create a directory,
     using the following format::
 
         <year><month><day>T<hours><minutes><seconds>_<hostname>
 
     for logging network traffic. The input `messages` specifies a list of MCL
-    :py:class:`.Message` objects to record. A log file is created for each
-    message specified in the input `messages`. For instance if `message`
-    specifies a configuration for receiving ``MessageA`` and ``MessageB``
-    objects, the following directory tree will be created (almost midnight on
-    December 31st 1999)::
+    :class:`.Message` objects to record. A log file is created for each message
+    specified in the input `messages`. For instance if `message` specifies a
+    configuration for receiving ``MessageA`` and ``MessageB`` objects, the
+    following directory tree will be created (almost midnight on December 31st
+    1999)::
 
         directory/19991231T235959_host/
                                       |-MessageA.log
@@ -1234,35 +1236,35 @@ class LogNetwork(object):
                                       |-MessageB_003.log
 
     Args:
-        messages (list): List of :py:class:`.Message` objects specifying the
+        messages (list): List of :class:`.Message` objects specifying the
             network traffic to be logged.
         directory (str): Path to record a directory of network traffic.
         revision (str): Revision of code used to generate logs. For instance,
            the hash identifying a commit in a Git repository, can be used to
            record what version of code was used during logging. The function
-           :py:func:`.retrieve_git_hash` can be used for this purpose. If
-           `revision` is set to :py:data:`.None` (default), no revision will be
+           :func:`.retrieve_git_hash` can be used for this purpose. If
+           `revision` is set to :data:`.None` (default), no revision will be
            recorded in the log header.
         max_entries (int): Maximum number of entries to record per log file. If
             set, a new log file will be created once the maximum number of
-            entries has been recorded. If set to :py:data:`.None` all data will
-            be logged to a single file. This option can be used in combination
+            entries has been recorded. If set to :data:`.None` all data will be
+            logged to a single file. This option can be used in combination
             with `max_time`.
         max_time (int): Maximum length of time, in seconds, to log data. If
             set, a new log file will be created after the maximum length of
-            time has elapsed. If set to :py:data:`.None` all data will be
-            logged to a single file. This option can be used in combination
-            with `max_entries`.
+            time has elapsed. If set to :data:`.None` all data will be logged
+            to a single file. This option can be used in combination with
+            `max_entries`.
 
     Attributes:
-        messages (list): List of :py:class:`.Message` objects specifying which
+        messages (list): List of :class:`.Message` objects specifying which
             network traffic is being logged.
         root_directory (str): Location where new log directories are
             created. This path returns the input specified by the optional
             `directory` argument.
         directory (str): String specifying the directory where data is being
-            recorded. This attribute is set to none :py:data:`.None` if the
-            data is NOT being logged to file (stopped state). If the logger is
+            recorded. This attribute is set to none :data:`.None` if the data
+            is NOT being logged to file (stopped state). If the logger is
             recording data, this attribute is returned as a full path to a
             newly created directory in the specified `directory` input using
             the following the format::
@@ -1270,14 +1272,13 @@ class LogNetwork(object):
                 <year><month><day>T<hours><minutes><seconds>_<hostname>
 
         max_entries (int): Maximum number of entries to record per log file. If
-            set to :py:data:`.None` all data will be logged to a single
-            file.
+            set to :data:`.None` all data will be logged to a single file.
         max_time (int): Maximum length of time, in seconds, to log data. If set
-            to :py:data:`.None` all data will be logged to a single file.
+            to :data:`.None` all data will be logged to a single file.
 
-        Raises:
-            IOError: If the log directory does not exist.
-            TypeError: If the any of the inputs are an incorrect type.
+    Raises:
+        IOError: If the log directory does not exist.
+        TypeError: If the any of the inputs are an incorrect type.
 
     """
 
@@ -1429,9 +1430,9 @@ class LogNetwork(object):
 class ReadDirectory(object):
     """Read data from multiple log files in time order.
 
-    The :py:class:`.ReadDirectory` object reads data from multiple network dump
+    The :class:`.ReadDirectory` object reads data from multiple network dump
     log files in a common directory. The directory may contain single or split
-    log files (see :py:class:`.WriteFile` and :py:class:`.ReadFile`).
+    log files (see :class:`.WriteFile` and :class:`.ReadFile`).
 
     Example usage::
 
@@ -1440,31 +1441,29 @@ class ReadDirectory(object):
 
     .. note::
 
-        :py:class:`.ReadDirectory` assumes the log files have been created by
-        :py:class:`.WriteFile` and searches for files with the '.log' extension
-        in the specified directory. :py:class:`.ReadDirectory` can operate on
+        :class:`.ReadDirectory` assumes the log files have been created by
+        :class:`.WriteFile` and searches for files with the '.log' extension in
+        the specified directory. :class:`.ReadDirectory` can operate on
         directories which contain non '.log' files. Renaming '.log' files or
-        including '.log' files which were not formatted by
-        :py:class:`.WriteFile` is likely to cause an error in
-        :py:class:`.ReadDirectory`.
+        including '.log' files which were not formatted by :class:`.WriteFile`
+        is likely to cause an error in :class:`.ReadDirectory`.
 
     Args:
         source (str): Path to directory containing log files.
         min_time (float): Minimum time to extract from log file in seconds.
         max_time (float): Maximum time to extract from log file in seconds.
-        message (bool): If set to :py:data:`.False` (default), the logged data
-            is returned 'raw'. If set to :py:data:`.True` logged data will
+        message (bool): If set to :data:`.False` (default), the logged data is
+            returned 'raw'. If set to :data:`.True` logged data will
             automatically be decoded into the MCL message type stored in the
             log file header. *Note*: to read data as MCL messages, the messages
             must be loaded into the namespace.
-        ignore_raw (bool): If set to :py:data:`.True` (default), any raw log
-            files in the path `source` will be ignored. If set to
-            :py:data:`.False` an exception will be raised if any raw logs are
-            encountered.
+        ignore_raw (bool): If set to :data:`.True` (default), any raw log files
+            in the path `source` will be ignored. If set to :data:`.False` an
+            exception will be raised if any raw logs are encountered.
 
 
     Attributes:
-        messages (list): List of :py:class:`.Message` object stored in the
+        messages (list): List of :class:`.Message` object stored in the
             directory of log files.
         min_time (float): Minimum time to extract from log file in seconds.
         max_time (float): Maximum time to extract from log file in seconds.
@@ -1669,16 +1668,18 @@ class ReadDirectory(object):
 
             {'elapsed_time: <float>,
              'topic': <string>,
-             'payload': <dict or :py:class:`.Message`>}
+             'payload': <dict or :class:`.Message`>}
 
         where:
 
             - ``elapsed_time`` is the time elapsed between creating the log
               file and recording the message.
+
             - ``topic`` is the topic associated with the message during the
               broadcast.
+
             - ``message``: is the network message, delivered as a dictionary or
-              MCL :py:class:`.Message` object.
+              MCL :class:`.Message` object.
 
         If all data has been read from the log files (directory), None is
         returned.

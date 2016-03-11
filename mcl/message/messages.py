@@ -1,21 +1,21 @@
 """Object specification for creating messages in MCL.
 
-The :py:mod:`~.message.messages` module provides a means for implementing MCL
-message objects. This is done through the :py:class:`.Message` object.  Since
-:py:class:`.Message` objects derive from python dictionaries, they operate
-near identically.
+The :mod:`~.message.messages` module provides a means for implementing MCL
+message objects. This is done through the :class:`.Message` object.  Since
+:class:`.Message` objects derive from python dictionaries, they operate near
+identically.
 
-:py:class:`.Message` objects are a specification of what structure of data is
-being transmitted on a particular :py:class:`.abstract.Connection`. As a result
-:py:class:`.Message` objects are defined by:
+:class:`.Message` objects are a specification of what structure of data is
+being transmitted on a particular :class:`.abstract.Connection`. As a result
+:class:`.Message` objects are defined by:
 
     - mandatory message attributes that must be present when instances of the
-      new :py:class:`.Message` objects are created
+      new :class:`.Message` objects are created
 
-    - a :py:class:`~.abstract.Connection` object instance specifying where the
+    - a :class:`~.abstract.Connection` object instance specifying where the
       message can be broadcast and received
 
-Creating MCL :py:class:`.Message` objects is simple and is demonstrated in the
+Creating MCL :class:`.Message` objects is simple and is demonstrated in the
 following example:
 
 .. testcode::
@@ -59,16 +59,16 @@ following example:
    ...
 
 The following functions can be used to retrieve and manipulate
-:py:class:`.Message` objects:
+:class:`.Message` objects:
 
-    - :py:func:`~.messages.get_message_objects` return :py:class:`.Message`
-      object(s) from name(s)
+    - :func:`~.messages.get_message_objects` return :class:`.Message` object(s)
+      from name(s)
 
-    - :py:func:`~.messages.list_messages` list message objects derived from
-      :py:class:`.Message`
+    - :func:`~.messages.list_messages` list message objects derived from
+      :class:`.Message`
 
-    - :py:func:`~.messages.remove_message_object` de-register a
-      :py:class:`.Message` object from the list of known messages
+    - :func:`~.messages.remove_message_object` de-register a :class:`.Message`
+      object from the list of known messages
 
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: James Ward <j.ward@acfr.usyd.edu.au>
@@ -90,46 +90,44 @@ _MESSAGES = list()
 class _MessageMeta(type):
     """Meta-class for manufacturing and globally registering Message() objects.
 
-    The :py:class:`._MessageMeta` object is a meta-class designed to
-    manufacture MCL :py:class:`.Message` classes. The meta-class works by
-    dynamically adding mandatory attributes to a class definition at run time
-    if and ONLY if the class inherits from :py:class:`.abstract.Connection`.
+    The :class:`._MessageMeta` object is a meta-class designed to manufacture
+    MCL :class:`.Message` classes. The meta-class works by dynamically adding
+    mandatory attributes to a class definition at run time if and ONLY if the
+    class inherits from :class:`.abstract.Connection`.
 
-    Classes that inherit from :py:class:`.Message` must implement the
-    `mandatory` and `connection` attributes where:
+    Classes that inherit from :class:`.Message` must implement the `mandatory`
+    and `connection` attributes where:
 
         - `mandatory` is a list of strings defining the names of mandatory
           message attributes that must be present when instances of the new
-          :py:class:`.Message` objects are created. During instantiation the
-          input list *args is mapped to the attributes defined by
-          `mandatory`. If `mandatory` is not present, a :py:exc:`.TypeError`
-          will be raised.
+          :class:`.Message` objects are created. During instantiation the input
+          list *args is mapped to the attributes defined by `mandatory`. If
+          `mandatory` is not present, a :exc:`.TypeError` will be raised.
 
-        - `connection` is an instance of a :py:class:`~.abstract.Connection`
+        - `connection` is an instance of a :class:`~.abstract.Connection`
           object specifying where the message can be broadcast and received.
 
-    The meta-class also maintains a global register of :py:class:`.Message`
-    sub-classes. :py:class:`.Message` sub-classes are added to the register
-    when they are defined. During this process :py:class:`._MessageMeta` checks
-    to see if a :py:class:`.Message` class with the same name has already been
-    defined.
+    The meta-class also maintains a global register of :class:`.Message`
+    sub-classes. :class:`.Message` sub-classes are added to the register when
+    they are defined. During this process :class:`._MessageMeta` checks to see
+    if a :class:`.Message` class with the same name has already been defined.
 
-    Note that the list of :py:class:`.Message` sub-classes can be acquired by
+    Note that the list of :class:`.Message` sub-classes can be acquired by
     calling::
 
         messages = Message.__subclasses__()
 
-    The reason the :py:class:`._MessageMeta` is preferred is that it can
-    provide error checking at the time of definition. Note that sub-classes
-    cannot easily be removed from the list returned by
-    ``Message.__subclasses__()``. By using this meta-class,
-    :py:class:`.Message` objects can be removed from the global register via
-    other methods (see :py:func:`.remove_message_object`).
+    The reason the :class:`._MessageMeta` is preferred is that it can provide
+    error checking at the time of definition. Note that sub-classes cannot
+    easily be removed from the list returned by
+    ``Message.__subclasses__()``. By using this meta-class, :class:`.Message`
+    objects can be removed from the global register via other methods (see
+    :func:`.remove_message_object`).
 
     Raises:
-        TypeError: If a :py:class:`.Message` object with the same name already
+        TypeError: If a :class:`.Message` object with the same name already
             exists.
-        TypeError: If the parent class is a :py:class:`.Message` object and
+        TypeError: If the parent class is a :class:`.Message` object and
             `mandatory` is ill-specified.
 
     """
@@ -138,23 +136,23 @@ class _MessageMeta(type):
         """Manufacture a message class.
 
         Manufacture a Message class for objects inheriting from
-        :py:class:`.Message`. This is done by searching the input dictionary
-        `dct` for the keys `mandatory` and `connection` where:
+        :class:`.Message`. This is done by searching the input dictionary `dct`
+        for the keys `mandatory` and `connection` where:
 
             - `mandatory` is a list of strings defining the names of mandatory
               message attributes that must be present when instances of the new
-              :py:class:`.Message` object are created. During instantiation the
+              :class:`.Message` object are created. During instantiation the
               input list *args is mapped to the attributes defined by
-              `mandatory`. If `mandatory` is not present, a
-              :py:exc:`.TypeError` will be raised.
+              `mandatory`. If `mandatory` is not present, a :exc:`.TypeError`
+              will be raised.
 
-            - `connection` is an instance of a
-              :py:class:`~.abstract.Connection` object specifying where the
-              message can be broadcast and received.
+            - `connection` is an instance of a :class:`~.abstract.Connection`
+              object specifying where the message can be broadcast and
+              received.
 
         A new message class is manufactured using the definition specified by
-        the attribute `mandatory`. The property 'mandatory' is attached to
-        the returned class.
+        the attribute `mandatory`. The property 'mandatory' is attached to the
+        returned class.
 
         Args:
           cls (class): is the class being instantiated.
@@ -163,13 +161,12 @@ class _MessageMeta(type):
           dct (dict): dictionary mapping the class attribute names to objects.
 
         Returns:
-            :py:class:`.Message`: sub-class of :py:class:`.Message` with
-                mandatory attributes defined by the original `mandatory`
-                attribute.
+            :class:`.Message`: sub-class of :class:`.Message` with mandatory
+                attributes defined by the original `mandatory` attribute.
 
         Raises:
-            NameError: If the `name` is message or a :py:class:`.Message`
-                subclass with the same name already exists.
+            NameError: If the `name` is message or a :class:`.Message` subclass
+                with the same name already exists.
             TypeError: If the `mandatory` or `connection` attributes are
                 ill-specified.
             ValueError: If the `mandatory` attribute contains the words
@@ -255,16 +252,16 @@ class _MessageMeta(type):
 class Message(dict):
     """Base class for MCL message objects.
 
-    The :py:class:`.Message` object provides a base class for defining MCL
-    message objects. Objects inheriting from :py:class:`.Message` must
-    implement the attribute `mandatory` where:
+    The :class:`.Message` object provides a base class for defining MCL message
+    objects. Objects inheriting from :class:`.Message` must implement the
+    attribute `mandatory` where:
 
         - `mandatory` is a list of strings defining the names of mandatory
           connection parameters that must be present when instances of the new
-          :py:class:`~.abstract.Connection` object are created. If `mandatory`
-          is not present, a TypeError will be raised.
+          :class:`~.abstract.Connection` object are created. If `mandatory` is
+          not present, a TypeError will be raised.
 
-    These attributes define a message format and allow :py:class:`.Message` to
+    These attributes define a message format and allow :class:`.Message` to
     manufacture a message class adhering to the specified definition.
 
     Raises:
@@ -517,15 +514,15 @@ class Message(dict):
 
 
 def remove_message_object(name):
-    """De-register a :py:class:`.Message` object from the list of known messages.
+    """De-register a :class:`.Message` object from the list of known messages.
 
     Args:
-        name (string): Name of the :py:class:`.Message` object to de-register.
+        name (string): Name of the :class:`.Message` object to de-register.
 
     Returns:
-        bool: :py:data:`.True` if the :py:class:`.Message` object was
-            de-registered. :py:data:`.False` if the :py:class:`.Message` object
-            does not exist.
+        bool: :data:`.True` if the :class:`.Message` object was
+            de-registered. :data:`.False` if the :class:`.Message` object does
+            not exist.
 
     """
 
@@ -545,14 +542,14 @@ def remove_message_object(name):
 
 
 def list_messages(include=None, exclude=None):
-    """List objects derived from :py:class:`.Message`.
+    """List objects derived from :class:`.Message`.
 
     Args:
         include (list): list of message object names to include.
         exclude (list): list of message object names to exclude.
 
     Returns:
-        list: a list of message objects derived from :py:class:`.Message` is
+        list: a list of message objects derived from :class:`.Message` is
             returned.
 
     """
@@ -593,15 +590,14 @@ def list_messages(include=None, exclude=None):
 
 
 def get_message_objects(names):
-    """Return :py:class:`.Message` object(s) from name(s).
+    """Return :class:`.Message` object(s) from name(s).
 
     Args:
-        name (:py:obj:`python:string` or :py:obj:`python:list`): The name (as a
+        name (:obj:`python:string` or :obj:`python:list`): The name (as a
             string) of a single message object to retrieve. To retrieve
             multiple message objects, input a list containing the object names.
 
     Returns:
-
         Message or list: If a single message object is requested (string
             input), the requested py:class:`.Message` is returned. If multiple
             message objects are requested (list input), a list of message
