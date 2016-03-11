@@ -363,8 +363,8 @@ class Connection(tuple):
           message attributes that must be present when instances of the new
           :py:class:`.Message` objects are created. During instantiation the
           input list \*args is mapped to the attributes defined by
-          `mandatory`. If `mandatory` is not present, a TypeError will be
-          raised.
+          `mandatory`. If `mandatory` is not present, a
+          :py:exc:`~python:exceptions.TypeError` will be raised.
 
         - `broadcaster` is a reference to the :py:class:`.RawBroadcaster`
           object associated with the :py:class:`~.abstract.Connection` object.
@@ -424,6 +424,7 @@ class Connection(tuple):
         print example
 
     .. testoutput::
+       :hide:
 
        ExampleConnection(A='A')
        ExampleConnection(A='A', C=2, B=1, D=5)
