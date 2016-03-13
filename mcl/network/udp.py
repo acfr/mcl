@@ -1,11 +1,50 @@
 """Publish and receive data using UDP sockets.
 
-This module provides an interface for publishing data over UDP
-sockets. Messages are transmitted using IPv6 `multicasts
+This module provides an interface for publishing data over UDP sockets. The
+main objects responsible for transmitting data over UDP sockets are:
+
+    - :class:`~.udp.Connection`
+    - :class:`~.udp.RawBroadcaster`
+    - :class:`~.udp.RawListener`
+
+Data are transmitted using IPv6 `multicasts
 <http://en.wikipedia.org/wiki/Multicast>`_. Note that this module inherits the
-advantages and disadvantages of UDP. That is UDP allows connectionless,
-low-latency broadcasts but there is no guarantee of delivery, ordering, or
-duplicate protection.
+advantages and disadvantages of UDP. That is; UDP allows connectionless,
+low-latency broadcasts with no guarantee of delivery, ordering, or duplicate
+protection.
+
+Example usage:
+
+.. testcode:: send-receive
+
+    import os
+    import time
+    from mcl.network.udp import Connection
+    from mcl.network.udp import RawListener
+    from mcl.network.udp import RawBroadcaster
+
+    # Create UDP connection.
+    connection = Connection('ff15::c73d:cf41:ea8e:b0a0')
+
+    # Create raw listener and broadcaster from IPv6 connection.
+    listener = RawListener(connection)
+    broadcaster = RawBroadcaster(connection)
+
+    # Print received data to screen.
+    listener.subscribe(lambda d: os.sys.stdout.write(d['payload']))
+
+    # Broadcast data.
+    broadcaster.publish('hello world')
+    time.sleep(0.1)
+
+    # Close connections.
+    listener.close()
+    broadcaster.close()
+
+.. testoutput:: send-receive
+   :hide:
+
+   hello world
 
 .. note::
 
