@@ -113,7 +113,7 @@ class BufferData(object):
 
 
     The purpose of this object is to continually cache a small amount of data
-    from a slow resource (hard-disk), to memory for faster access. It is
+    from a slow resource (e.g. hard-disk), to memory for faster access. It is
     designed to continually load data into a multiprocessing.Queue, such that
     the queue is always full.
 
@@ -224,7 +224,7 @@ class BufferData(object):
         :class:`.ReadDirectory` object. The format of data inserted into the
         queue is documented in :meth:`.ReadDirectory.read`.
 
-        Note::
+        .. note::
 
             This method will start buffering data to the end of the queue. If
             the process has been stopped (:meth:`.stop`) and restarted, it will
