@@ -13,7 +13,7 @@ multiple packages within the MCL namespace.
 
 # Location of MCL.
 import os
-MCL_ROOT = os.path.dirname(__file__)
+MCL_ROOT = os.path.dirname(os.path.abspath(os.path.join(__file__, '../')))
 
 # Import core objects into root namespace.
 from mcl.event.event import Event
