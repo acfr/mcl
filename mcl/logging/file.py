@@ -29,10 +29,10 @@ connection can be specified by either a :class:`~.abstract.Connection` or MCL
 Example: Log raw data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following code illustrates recording (:class:`.LogConnection`) and reading
+The following code illustrates writing (:class:`.LogConnection`) and reading
 (:class:`.ReadFile`) raw data to/from log files:
 
-.. testsetup:: raw-log, message-log
+.. testsetup:: raw-log, message-log, network-log
 
     import mcl
     import os
@@ -43,7 +43,7 @@ The following code illustrates recording (:class:`.LogConnection`) and reading
     if not os.path.exists(EXAMPLE_PATH):
         os.makedirs(EXAMPLE_PATH)
 
-.. testcleanup:: raw-log, message-log
+.. testcleanup:: raw-log, message-log, network-log
 
     import shutil
 
@@ -98,9 +98,9 @@ The following code illustrates recording (:class:`.LogConnection`) and reading
 Example: Log message data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following code illustrates recording (:class:`.LogConnection`) and reading
-(:class:`.ReadFile`) messages to/from log files. Note that the example is
-largely the same as the previous example:
+The following code illustrates writing (:class:`.LogConnection`) and reading
+(:class:`.ReadFile`) a single message type to/from log files. Note that the
+example is largely the same as the previous example:
 
 .. testcode:: message-log
 
@@ -114,7 +114,7 @@ largely the same as the previous example:
     # Path (prefix) to log file.
     prefix = os.path.join(EXAMPLE_PATH, 'example')
 
-    # Create MCL message
+    # Create MCL message.
     class ExampleMessage(mcl.message.messages.Message):
         mandatory = ('data',)
         connection = Connection('ff15::c43d:ce41:ea7b:c1b0')
@@ -152,6 +152,83 @@ largely the same as the previous example:
    <type 'dict'>
    {'timestamp': ..., 'data': 'hello world', 'name': 'ExampleMessage'}
    <class 'ExampleMessage'>
+
+
+Example: Log network data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following code illustrates writing (:class:`.LogNetwork`) and reading
+(:class:`.ReadDirectory`) multiple network message types to/from log
+files.
+
+.. testcode:: network-log
+
+    import time
+    import mcl.message.messages
+    from mcl.network.udp import Connection
+    from mcl.logging.file import LogNetwork
+    from mcl.logging.file import ReadDirectory
+    from mcl.network.network import MessageBroadcaster
+
+    # Create MCL messages.
+    class ExampleMessageA(mcl.message.messages.Message):
+        mandatory = ('string',)
+        connection = Connection('ff15::c43d:ce41:ae5b:d1b0')
+
+    class ExampleMessageB(mcl.message.messages.Message):
+        mandatory = ('number',)
+        connection = Connection('ff15::c43d:ce41:ae5b:d1b1')
+
+    # Log network traffic.
+    messages = [ExampleMessageA, ExampleMessageB]
+    logger = LogNetwork(EXAMPLE_PATH, messages)
+    logger.open()
+    log_path = logger.directory
+
+    # Create raw broadcaster from IPv6 connection and broadcast data.
+    broadcaster_A = MessageBroadcaster(ExampleMessageA)
+    broadcaster_B = MessageBroadcaster(ExampleMessageB)
+    broadcaster_A.publish(ExampleMessageA(string='one'))
+    broadcaster_A.publish(ExampleMessageA(string='two'))
+    broadcaster_B.publish(ExampleMessageB(number=1))
+    broadcaster_B.publish(ExampleMessageB(number=2))
+    time.sleep(0.1)
+
+    # Close broadcasters and stop logger.
+    broadcaster_A.close()
+    broadcaster_B.close()
+    logger.close()
+
+    # Ensure that the log directory exists.
+    print os.path.exists(log_path)
+
+    # Read contents of log file as an unformatted dictionary. Note that each
+    # message type has been recorded in a separate .log file.
+    rf = ReadDirectory(log_path)
+    for i in range(4):
+        msg = rf.read()['payload']
+        print type(msg), msg
+
+    # Like ReadFile(), ReadDirectory() can return the logged data as MCL
+    # messages.
+    rf = ReadDirectory(log_path, message=True)
+    for i in range(4):
+        msg = rf.read()['payload']
+        print type(msg), msg
+
+.. testoutput:: network-log
+   :hide:
+
+   True
+   <type 'dict'> {'timestamp': ..., 'string': 'one', 'name': 'ExampleMessageA'}
+   <type 'dict'> {'timestamp': ..., 'string': 'two', 'name': 'ExampleMessageA'}
+   <type 'dict'> {'timestamp': ..., 'number': 1, 'name': 'ExampleMessageB'}
+   <type 'dict'> {'timestamp': ..., 'number': 2, 'name': 'ExampleMessageB'}
+   <class 'ExampleMessageA'> {'timestamp': ..., 'string': 'one', 'name': 'ExampleMessageA'}
+   <class 'ExampleMessageA'> {'timestamp': ..., 'string': 'two', 'name': 'ExampleMessageA'}
+   <class 'ExampleMessageB'> {'timestamp': ..., 'number': 1, 'name': 'ExampleMessageB'}
+   <class 'ExampleMessageB'> {'timestamp': ..., 'number': 2, 'name': 'ExampleMessageB'}
+
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>

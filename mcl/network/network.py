@@ -62,7 +62,7 @@ Example usage:
 .. testcleanup:: send-receive
 
     # WARNING: this should not be deployed in production code. It is an
-    #          abuse that has been used for the purposes of unit-testing.
+    #          abuse that has been used for the purposes of doc-testing.
     mcl.message.messages._MESSAGES = list()
 
 .. testcode:: send-receive
@@ -386,7 +386,7 @@ class MessageListener(object):
     .. testcleanup:: listen
 
         # WARNING: this should not be deployed in production code. It is an
-        #          abuse that has been used for the purposes of unit-testing.
+        #          abuse that has been used for the purposes of doc-testing.
         mcl.message.messages._MESSAGES = list()
 
     .. testcode:: listen
@@ -575,7 +575,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
     .. testcleanup:: queuedlistener-message
 
         # WARNING: this should not be deployed in production code. It is an
-        #          abuse that has been used for the purposes of unit-testing.
+        #          abuse that has been used for the purposes of doc-testing.
         mcl.message.messages._MESSAGES = list()
 
     .. testcode:: queuedlistener-message

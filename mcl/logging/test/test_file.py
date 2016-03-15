@@ -24,9 +24,9 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 TIME_OUT = 1
 
-URL_A = 'ff15::c75d:c34a:ee8f:000a'
-URL_B = 'ff15::c75d:c34a:ee8f:000b'
-URL_C = 'ff15::c75d:c34a:ee8f:000c'
+URL_A = 'ff15::a74b:c34a:ee8f:000a'
+URL_B = 'ff15::a74b:c34a:ee8f:000b'
+URL_C = 'ff15::a74b:c34a:ee8f:000c'
 
 
 # -----------------------------------------------------------------------------
