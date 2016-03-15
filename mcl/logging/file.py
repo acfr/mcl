@@ -1366,9 +1366,9 @@ class LogNetwork(object):
                                       |-MessageB_003.log
 
     Args:
+        directory (str): Path to record a directory of network traffic.
         messages (list): List of :class:`.Message` objects specifying the
             network traffic to be logged.
-        directory (str): Path to record a directory of network traffic.
         revision (str): Revision of code used to generate logs. For instance,
            the hash identifying a commit in a Git repository, can be used to
            record what version of code was used during logging. The function
@@ -1385,6 +1385,9 @@ class LogNetwork(object):
             time has elapsed. If set to :data:`.None` all data will be logged
             to a single file. This option can be used in combination with
             `max_entries`.
+        open_init (bool): If set to :data:`.True`, open connection immediately
+            after initialisation (default). If set to :data:`.False` only open
+            connection and log data when :meth:`.open` is called.
 
     Attributes:
         messages (list): List of :class:`.Message` objects specifying which
@@ -1413,22 +1416,32 @@ class LogNetwork(object):
     """
 
     def __init__(self,
-                 messages,
                  directory,
+                 messages,
                  revision=None,
                  max_entries=None,
-                 max_time=None):
+                 max_time=None,
+                 open_init=True):
         """Document the __init__ method at the class level."""
 
         # Ensure directory exists.
-        if directory and not os.path.isdir(directory):
-            raise IOError("The directory '%s' does not exist." % directory)
+        if directory and isinstance(directory, basestring):
+            if not os.path.isdir(directory):
+                raise IOError("The directory '%s' does not exist." % directory)
+        else:
+            msg = "The '%s' parameter must be a string."
+            raise TypeError(msg % 'directory')
 
-        # Input is not an iterable.
+        # Ensure message argument is an iterable.
         if not isinstance(messages, (list, tuple)):
             msg = "The '%s' parameter must be a list/tuple of Message() "
             msg += "objects."
             raise TypeError(msg % 'messages')
+
+        # Ensure argument is a boolean.
+        if not isinstance(open_init, bool):
+            msg = "'open_init' must be a boolean."
+            raise TypeError(msg)
 
         # Create empty variable for storing the path to the current log
         # directory. This is a combination of 'self.__root_directory' and a
@@ -1467,6 +1480,10 @@ class LogNetwork(object):
             except:
                 raise
 
+        # Open connections and start logging data.
+        if open_init:
+            self.open()
+
     @property
     def messages(self):
         return self.__messages
@@ -1491,8 +1508,8 @@ class LogNetwork(object):
     def is_alive(self):
         return self.__is_alive
 
-    def start(self):
-        """Start logging network data.
+    def open(self):
+        """Open connections and start logging network data.
 
         Returns:
             :class:`bool`: Returns :data:`True` if logging was started. If
@@ -1535,8 +1552,8 @@ class LogNetwork(object):
         else:
             return False
 
-    def stop(self):
-        """Stop logging network data.
+    def close(self):
+        """Close connections and stop logging network data.
 
         Returns:
             :class:`bool`: Returns :data:`True` if logging was stopped. If

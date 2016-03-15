@@ -24,9 +24,9 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 TIME_OUT = 1
 
-URL_A = 'ff15::c75d:ce41:ea8e:000b'
-URL_B = 'ff15::c75d:ce41:ea8e:000c'
-URL_C = 'ff15::c75d:ce41:ea8e:00cc'
+URL_A = 'ff15::c75d:c34a:ee8f:000a'
+URL_B = 'ff15::c75d:c34a:ee8f:000b'
+URL_C = 'ff15::c75d:c34a:ee8f:000c'
 
 
 # -----------------------------------------------------------------------------
@@ -758,37 +758,43 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
 
         # Ensure error is raised if the logging directory does not exist.
         with self.assertRaises(IOError):
-            LogNetwork(messages, os.path.join(TMP_PATH, 'not', 'found'))
+            LogNetwork(os.path.join(TMP_PATH, 'not', 'found'), messages)
 
         # Ensure error is raised if the input connections are wrong.
         with self.assertRaises(TypeError):
-            LogNetwork('connection', TMP_PATH)
+            LogNetwork(messages, messages)
         with self.assertRaises(TypeError):
-            LogNetwork([UnitTestMessageA, 'connection'], TMP_PATH)
+            LogNetwork(TMP_PATH, 'connection')
         with self.assertRaises(TypeError):
-            LogNetwork([UnitTestMessageA, UnitTestMessageA.connection], TMP_PATH)
+            LogNetwork(TMP_PATH, [UnitTestMessageA, 'connection'])
+        with self.assertRaises(TypeError):
+            LogNetwork(TMP_PATH, [UnitTestMessageA, UnitTestMessageA.connection])
 
         # Ensure max_entries is specified properly.
         with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries='a')
+            LogNetwork(TMP_PATH, messages, max_entries='a')
         with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_entries=0)
+            LogNetwork(TMP_PATH, messages, max_entries=0)
 
         # Ensure max_time is specified properly.
         with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time='a')
+            LogNetwork(TMP_PATH, messages, max_time='a')
         with self.assertRaises(TypeError):
-            LogNetwork(messages, TMP_PATH, max_time=0)
+            LogNetwork(TMP_PATH, messages, max_time=0)
+
+        # Ensure open_init is specified correctly.
+        with self.assertRaises(TypeError):
+            LogNetwork(TMP_PATH, messages, open_init='True')
 
     def test_init(self):
         """Test LogNetwork() initialisation."""
 
         # Ensure all valid connections can be instantiated.
-        LogNetwork([UnitTestMessageA, UnitTestMessageB], TMP_PATH)
-
-        # Initialise network dump.
         messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
+        dump = LogNetwork(TMP_PATH, messages, open_init=False)
+
+        # Ensure logger is not running.
+        self.assertFalse(dump.is_alive)
 
         # Ensure properties can be accessed.
         self.assertEqual(dump.messages, messages)
@@ -800,8 +806,8 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
         # started. Ensure it is set to None initially.
         self.assertEqual(dump.directory, None)
 
-    def test_start_stop(self):
-        """Test LogNetwork() start/stop."""
+    def test_open_close(self):
+        """Test LogNetwork() open/close."""
 
         # Create broadcasters.
         broadcaster_A = MessageBroadcaster(UnitTestMessageA)
@@ -809,17 +815,18 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
 
         # Initialise network dump.
         messages = [UnitTestMessageA, UnitTestMessageB]
-        dump = LogNetwork(messages, TMP_PATH)
+        dump = LogNetwork(TMP_PATH, messages, open_init=False)
         self.assertEqual(dump.directory, None)
+        self.assertFalse(dump.is_alive)
 
         # Ensure a log directory has NOT been created (Note a README file is
         # created in the /tmp directory).
         self.assertEqual(len(os.listdir(TMP_PATH)), 1)
 
         # Start network dump.
-        self.assertTrue(dump.start())
+        self.assertTrue(dump.open())
         self.assertTrue(dump.is_alive)
-        self.assertFalse(dump.start())
+        self.assertFalse(dump.open())
         self.assertNotEqual(dump.directory, None)
 
         # Ensure a log directory as been created and it is empty.
@@ -846,9 +853,9 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
             self.assertTrue((message.name + '.tmp') in files)
 
         # Stop network dump.
-        self.assertTrue(dump.stop())
+        self.assertTrue(dump.close())
         self.assertFalse(dump.is_alive)
-        self.assertFalse(dump.stop())
+        self.assertFalse(dump.close())
         self.assertEqual(dump.directory, None)
 
         # Ensure the log files have been closed.
@@ -856,6 +863,13 @@ class TestLogNetwork(SetupTestingDirectory, unittest.TestCase):
         self.assertEqual(len(files), 2)
         for message in messages:
             self.assertTrue((message.name + '.log') in files)
+
+        # Ensure LogNetwork auto-opens by default.
+        dump = LogNetwork(TMP_PATH, messages)
+        self.assertNotEqual(dump.directory, None)
+        self.assertFalse(dump.open())
+        self.assertTrue(dump.is_alive)
+        self.assertTrue(dump.close())
 
 
 # -----------------------------------------------------------------------------
