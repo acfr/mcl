@@ -16,7 +16,7 @@ The main objects responsible for logging network data are:
 
 These objects can write/read arbitrary data to/from a log file(s). The network
 connection can be specified by either a :class:`~.abstract.Connection` or MCL
-:class:`~.messages.Message` object. These following objects can only write/read
+:class:`~.messages.Message` object. The following objects can only write/read
 :class:`~.messages.Message` objects to/from a log file(s):
 
     - :class:`.LogNetwork` logs data from multiple connections to a directory
@@ -24,6 +24,72 @@ connection can be specified by either a :class:`~.abstract.Connection` or MCL
 
     - :class:`.ReadDirectory` for reading data from a directory of log files
       representing multiple network connections.
+
+
+Example: Log raw transmissions to disk
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following code illustrates recording (:class:`.LogConnection`) and reading
+(:class:`.ReadFile`) raw data to/from log files:
+
+.. testsetup:: raw-log
+
+    import os
+    from mcl import MCL_ROOT
+
+    # Create directory for doc-test.
+    EXAMPLE_PATH = os.path.join(MCL_ROOT, 'doctest')
+    if not os.path.exists(EXAMPLE_PATH):
+        os.makedirs(EXAMPLE_PATH)
+
+.. testcleanup:: raw-log
+
+    import shutil
+
+    # Remove directory for doc-test.
+    if os.path.exists(EXAMPLE_PATH):
+        shutil.rmtree(EXAMPLE_PATH)
+
+.. testcode:: raw-log
+
+    import time
+    from mcl.logging.file import ReadFile
+    from mcl.network.udp import Connection
+    from mcl.network.udp import RawBroadcaster
+    from mcl.logging.file import LogConnection
+
+    # Path (prefix) to log file.
+    prefix = os.path.join(EXAMPLE_PATH, 'example')
+
+    # Create UDP connection.
+    connection = Connection('ff15::c73d:ce41:ea8b:c0a0')
+
+    # Log raw data transmissions.
+    logger = LogConnection(prefix, connection)
+
+    # Create raw broadcaster from IPv6 connection and broadcast data.
+    broadcaster = RawBroadcaster(connection)
+    broadcaster.publish('hello world')
+    time.sleep(0.1)
+
+    # Close broadcaster and stop logger.
+    broadcaster.close()
+    logger.close()
+
+    # Ensure that the log file exists.
+    log_file = os.path.join(EXAMPLE_PATH, 'example.log')
+    print os.path.exists(log_file)
+
+    # Read contents of log file.
+    rf = ReadFile(log_file)
+    print rf.read()['payload']
+
+.. testoutput:: raw-log
+   :hide:
+
+   True
+   hello world
+
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
@@ -1101,8 +1167,6 @@ class LogConnection(object):
         open_init (bool): If set to :data:`.True`, open connection immediately
             after initialisation (default). If set to :data:`.False` only open
             connection and log data when :meth:`.open` is called.
-
-Default
 
     Attributes:
         max_entries (int): Maximum number of entries to record per log file
