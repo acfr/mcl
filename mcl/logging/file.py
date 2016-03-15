@@ -1098,7 +1098,11 @@ class LogConnection(object):
             file. If set to :data:`.None` all data will be logged to a single
             file called '<prefix>.log'. This option can be used in combination
             with `max_entries`.
-        open_init (bool): open connection immediately after initialisation.
+        open_init (bool): If set to :data:`.True`, open connection immediately
+            after initialisation (default). If set to :data:`.False` only open
+            connection and log data when :meth:`.open` is called.
+
+Default
 
     Attributes:
         max_entries (int): Maximum number of entries to record per log file
@@ -1115,7 +1119,7 @@ class LogConnection(object):
                  time_origin=None,
                  max_entries=None,
                  max_time=None,
-                 open_init=False):
+                 open_init=True):
         """Document the __init__ method at the class level."""
 
         # Create file logger.

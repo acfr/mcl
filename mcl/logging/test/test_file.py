@@ -134,14 +134,14 @@ class GitHashTests(unittest.TestCase):
         """Test retrieve_git_hash() can fetch git hash."""
 
         # Valid path, valid repository.
-        repository_path = os.path.join(MCL_ROOT, '../', '.git')
+        repository_path = os.path.join(MCL_ROOT, '.git')
         hsh = retrieve_git_hash(repository_path)
         self.assertNotEqual(hsh, None)
         self.assertNotEqual(hsh, '')
         self.assertGreaterEqual(len(hsh), 1)
 
         # Valid path, no repository.
-        repository_path = os.path.join(MCL_ROOT)
+        repository_path = os.path.join(MCL_ROOT, 'mcl')
         hsh = retrieve_git_hash(repository_path)
         self.assertEqual(hsh, None)
 
