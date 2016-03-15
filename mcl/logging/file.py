@@ -26,14 +26,15 @@ connection can be specified by either a :class:`~.abstract.Connection` or MCL
       representing multiple network connections.
 
 
-Example: Log raw transmissions to disk
+Example: Log raw data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following code illustrates recording (:class:`.LogConnection`) and reading
 (:class:`.ReadFile`) raw data to/from log files:
 
-.. testsetup:: raw-log
+.. testsetup:: raw-log, message-log
 
+    import mcl
     import os
     from mcl import MCL_ROOT
 
@@ -42,9 +43,13 @@ The following code illustrates recording (:class:`.LogConnection`) and reading
     if not os.path.exists(EXAMPLE_PATH):
         os.makedirs(EXAMPLE_PATH)
 
-.. testcleanup:: raw-log
+.. testcleanup:: raw-log, message-log
 
     import shutil
+
+    # WARNING: this should not be deployed in production code. It is an
+    #          abuse that has been used for the purposes of doc-testing.
+    mcl.message.messages._MESSAGES = list()
 
     # Remove directory for doc-test.
     if os.path.exists(EXAMPLE_PATH):
@@ -55,7 +60,7 @@ The following code illustrates recording (:class:`.LogConnection`) and reading
     import time
     from mcl.logging.file import ReadFile
     from mcl.network.udp import Connection
-    from mcl.network.udp import RawBroadcaster
+    from mcl.network.network import RawBroadcaster
     from mcl.logging.file import LogConnection
 
     # Path (prefix) to log file.
@@ -90,6 +95,63 @@ The following code illustrates recording (:class:`.LogConnection`) and reading
    True
    hello world
 
+Example: Log message data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following code illustrates recording (:class:`.LogConnection`) and reading
+(:class:`.ReadFile`) messages to/from log files. Note that the example is
+largely the same as the previous example:
+
+.. testcode:: message-log
+
+    import time
+    import mcl.message.messages
+    from mcl.logging.file import ReadFile
+    from mcl.network.udp import Connection
+    from mcl.network.network import MessageBroadcaster
+    from mcl.logging.file import LogConnection
+
+    # Path (prefix) to log file.
+    prefix = os.path.join(EXAMPLE_PATH, 'example')
+
+    # Create MCL message
+    class ExampleMessage(mcl.message.messages.Message):
+        mandatory = ('data',)
+        connection = Connection('ff15::c43d:ce41:ea7b:c1b0')
+
+    # Log raw data transmissions.
+    logger = LogConnection(prefix, ExampleMessage)
+
+    # Create raw broadcaster from IPv6 connection and broadcast data.
+    broadcaster = MessageBroadcaster(ExampleMessage)
+    broadcaster.publish(ExampleMessage(data='hello world'))
+    time.sleep(0.1)
+
+    # Close broadcaster and stop logger.
+    broadcaster.close()
+    logger.close()
+
+    # Ensure that the log file exists.
+    log_file = os.path.join(EXAMPLE_PATH, 'example.log')
+    print os.path.exists(log_file)
+
+    # Read contents of log file as an unformatted dictionary.
+    rf = ReadFile(log_file)
+    msg = rf.read()['payload']
+    print type(msg)
+    print msg
+
+    # Read contents of log file as an ExampleMessage.
+    rf = ReadFile(log_file, message=True)
+    print type(rf.read()['payload'])
+
+.. testoutput:: message-log
+   :hide:
+
+   True
+   <type 'dict'>
+   {'timestamp': ..., 'data': 'hello world', 'name': 'ExampleMessage'}
+   <class 'ExampleMessage'>
 
 .. sectionauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
 .. codeauthor:: Asher Bender <a.bender@acfr.usyd.edu.au>
