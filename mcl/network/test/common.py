@@ -230,6 +230,12 @@ class BroadcasterTests(object):
         # Test publish succeeds if the input is a serialisable non-string.
         broadcaster.publish(42)
 
+        # Test setting topic at publish.
+        self.assertEqual(broadcaster.topic, None)
+        broadcaster.publish('test', topic='topic')
+        with self.assertRaises(TypeError):
+            broadcaster('fail', topic=5)
+
         # Ensure attempts to publish on a closed connection raised an
         # exception.
         broadcaster.close()
@@ -298,6 +304,12 @@ class BroadcasterTests(object):
         # Ensure attempts to publish a non-message type raises an exception.
         with self.assertRaises(TypeError):
             broadcaster.publish(False)
+
+        # Test setting topic at publish.
+        self.assertEqual(broadcaster.topic, None)
+        broadcaster.publish(message, topic='topic')
+        with self.assertRaises(TypeError):
+            broadcaster(message, topic=5)
 
         # Ensure attempts to publish on a closed connection raises an
         # exception.
@@ -727,8 +739,8 @@ class PublishSubscribeTests(object):
         #          abuse that has been used for the purposes of unit-testing.
         mcl.message.messages._MESSAGES = list()
 
-    def publish_message(self, broadcaster, listener, message,
-                        received_buffer=None, send_attempts=5, timeout=1.0):
+    def publish(self, broadcaster, listener, message, topic=None,
+                 received_buffer=None, send_attempts=5, timeout=1.0):
 
         # Store received messages in a list.
         if received_buffer is None:
@@ -744,7 +756,10 @@ class PublishSubscribeTests(object):
 
             # Publish message.
             start_time = time.time()
-            broadcaster.publish(message)
+            if topic is not None:
+                broadcaster.publish(message, topic=topic)
+            else:
+                broadcaster.publish(message)
 
             # Block until message is received or until wait has timed out.
             while len(received_buffer) == length:
@@ -772,9 +787,9 @@ class PublishSubscribeTests(object):
         listener = self.listener(self.connection)
 
         # Test publish-subscribe functionality.
-        received_buffer = self.publish_message(broadcaster,
-                                               listener,
-                                               send_string)
+        received_buffer = self.publish(broadcaster,
+                                       listener,
+                                       send_string)
 
         # Close connections.
         broadcaster.close()
@@ -784,15 +799,14 @@ class PublishSubscribeTests(object):
         self.assertEqual(len(received_buffer), 1)
 
         # Only ONE message was published, ensure the data was received.
-        self.assertEqual(send_string, received_buffer[0]['payload'])
+        self.assertEqual(received_buffer[0]['topic'], None)
+        self.assertEqual(received_buffer[0]['payload'], send_string)
 
     def test_topic_at_init(self):
         """Test %s with broadcast topic set at initialisation."""
 
-        # Send multiple topics, receive all topics.
-        initial_topic = 'topic A'
-
         # Create broadcaster and listener.
+        initial_topic = 'topic A'
         broadcaster = self.broadcaster(self.connection, topic=initial_topic)
         listener = self.listener(self.connection)
 
@@ -801,9 +815,9 @@ class PublishSubscribeTests(object):
 
         # Publish message with topic from initialisation.
         send_string = 'send/receive test: %1.8f' % time.time()
-        received_buffer = self.publish_message(broadcaster,
-                                               listener,
-                                               send_string)
+        received_buffer = self.publish(broadcaster,
+                                       listener,
+                                       send_string)
 
         # Close connections.
         broadcaster.close()
@@ -811,8 +825,36 @@ class PublishSubscribeTests(object):
 
         # Ensure message was transmitted with a topic.
         self.assertEqual(len(received_buffer), 1)
-        self.assertEqual(initial_topic, received_buffer[0]['topic'])
-        self.assertEqual(send_string, received_buffer[0]['payload'])
+        self.assertEqual(received_buffer[0]['topic'], initial_topic)
+        self.assertEqual(received_buffer[0]['payload'], send_string)
+
+    def test_topic_at_publish(self):
+        """Test %s with broadcast topic set at publish."""
+
+        # Create broadcaster and listener.
+        broadcaster = self.broadcaster(self.connection)
+        listener = self.listener(self.connection)
+        self.assertEqual(broadcaster.topic, None)
+
+        # Create unique send string based on time.
+        send_string = 'send/receive test: %1.8f' % time.time()
+
+        # Publish message with topic from initialisation.
+        publish_topic = 'topic A'
+        send_string = 'send/receive test: %1.8f' % time.time()
+        received_buffer = self.publish(broadcaster,
+                                       listener,
+                                       send_string,
+                                       topic=publish_topic)
+
+        # Close connections.
+        broadcaster.close()
+        listener.close()
+
+        # Ensure message was transmitted with a topic.
+        self.assertEqual(len(received_buffer), 1)
+        self.assertEqual(received_buffer[0]['topic'], publish_topic)
+        self.assertEqual(received_buffer[0]['payload'], send_string)
 
     def test_listen_single_topic(self):
         """Test %s by listening for a single topic from many."""
@@ -820,6 +862,9 @@ class PublishSubscribeTests(object):
         # Send multiple topics, receive ONE topic.
         send_topics = ['topic A', 'topic B', 'topic C', 'topic D', 'topic E']
         listen_topic = 'topic C'
+
+        # Create broadcaster.
+        broadcaster = self.broadcaster(self.connection)
 
         # Catch messages with a specific topic.
         topic_buffer = list()
@@ -836,27 +881,23 @@ class PublishSubscribeTests(object):
         for (i, topic) in enumerate(send_topics):
             send_strings.append('send/receive test: %1.8f' % time.time())
 
-            # Create broadcaster.
-            broadcaster = self.broadcaster(self.connection, topic=topic)
-
             # Perform test.
-            message_buffer = self.publish_message(broadcaster,
-                                                  listener_message,
-                                                  send_strings[-1],
-                                                  received_buffer=message_buffer)
-
-            # Close broadcaster.
-            broadcaster.close()
+            message_buffer = self.publish(broadcaster,
+                                          listener_message,
+                                          send_strings[-1],
+                                          topic=topic,
+                                          received_buffer=message_buffer)
 
         # Close connections.
+        broadcaster.close()
         listener_topic.close()
         listener_message.close()
 
         # Ensure ONE specific topic was received.
         send_string = send_strings[send_topics.index(listen_topic)]
         self.assertEqual(len(topic_buffer), 1)
-        self.assertEqual(listen_topic, topic_buffer[0]['topic'])
-        self.assertEqual(send_string, topic_buffer[0]['payload'])
+        self.assertEqual(topic_buffer[0]['topic'], listen_topic)
+        self.assertEqual(topic_buffer[0]['payload'], send_string)
 
     def test_listen_multiple_topics(self):
         """Test %s by listening for multiple topics from many."""
@@ -864,6 +905,9 @@ class PublishSubscribeTests(object):
         # Send multiple topics, receive SOME topics.
         send_topics = ['topic A', 'topic B', 'topic C', 'topic D', 'topic E']
         listen_topics = ['topic A', 'topic C', 'topic E']
+
+        # Create broadcaster.
+        broadcaster = self.broadcaster(self.connection)
 
         # Catch messages with a specific topic.
         topic_buffer = list()
@@ -880,19 +924,15 @@ class PublishSubscribeTests(object):
         for (i, topic) in enumerate(send_topics):
             send_strings.append('send/receive test: %1.8f' % time.time())
 
-            # Create broadcaster.
-            broadcaster = self.broadcaster(self.connection, topic=topic)
-
             # Perform test.
-            message_buffer = self.publish_message(broadcaster,
-                                                  listener_message,
-                                                  send_strings[-1],
-                                                  received_buffer=message_buffer)
-
-            # Close broadcaster.
-            broadcaster.close()
+            message_buffer = self.publish(broadcaster,
+                                          listener_message,
+                                          send_strings[-1],
+                                          topic=topic,
+                                          received_buffer=message_buffer)
 
         # Close connections.
+        broadcaster.close()
         listener_topic.close()
         listener_message.close()
 
@@ -900,8 +940,8 @@ class PublishSubscribeTests(object):
         self.assertEqual(len(topic_buffer), len(listen_topics))
         for i, topic in enumerate(listen_topics):
             send_string = send_strings[send_topics.index(topic)]
-            self.assertEqual(topic, topic_buffer[i]['topic'])
-            self.assertEqual(send_string, topic_buffer[i]['payload'])
+            self.assertEqual(topic_buffer[i]['topic'], topic)
+            self.assertEqual(topic_buffer[i]['payload'], send_string)
 
     def test_message_send_receive(self):
         """Test %s with MessageBroadcaster/Listener() objects."""
@@ -914,6 +954,9 @@ class PublishSubscribeTests(object):
         # Send multiple topics, receive SOME topics.
         send_topics = ['topic A', 'topic B', 'topic C', 'topic D', 'topic E']
         listen_topics = ['topic A', 'topic C', 'topic E']
+
+        # Create broadcaster.
+        broadcaster = MessageBroadcaster(self.Message)
 
         # Catch messages with a specific topic.
         topic_buffer = list()
@@ -931,6 +974,7 @@ class PublishSubscribeTests(object):
         listener_message = MessageListener(self.Message)
 
         # Ensure network objects are open.
+        self.assertTrue(broadcaster.is_open)
         self.assertTrue(listener_topic.is_open)
         self.assertTrue(listener_message.is_open)
 
@@ -940,28 +984,23 @@ class PublishSubscribeTests(object):
             messages.append(self.Message())
             messages[-1]['text'] = '%s: %1.8f' % (topic, time.time())
 
-            # Create broadcaster.
-            broadcaster = MessageBroadcaster(self.Message, topic=topic)
-            self.assertTrue(broadcaster.is_open)
-
             # Perform test.
-            message_buffer = self.publish_message(broadcaster,
-                                                  listener_message,
-                                                  messages[-1],
-                                                  received_buffer=message_buffer)
-
-            # Close broadcaster.
-            broadcaster.close()
-            self.assertFalse(broadcaster.is_open)
+            message_buffer = self.publish(broadcaster,
+                                          listener_message,
+                                          messages[-1],
+                                          topic=topic,
+                                          received_buffer=message_buffer)
 
         # Close connections.
+        broadcaster.close()
         listener_topic.close()
         listener_message.close()
+        self.assertFalse(broadcaster.is_open)
         self.assertFalse(listener_topic.is_open)
         self.assertFalse(listener_message.is_open)
 
         # Ensure all topics were received.
         self.assertEqual(len(topic_buffer), len(listen_topics))
         for i, topic in enumerate(listen_topics):
-            self.assertEqual(messages[send_topics.index(topic)],
-                             topic_buffer[i]['payload'])
+            self.assertEqual(topic_buffer[i]['payload'],
+                             messages[send_topics.index(topic)])

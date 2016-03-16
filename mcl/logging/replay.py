@@ -570,7 +570,7 @@ class ScheduleBroadcasts(object):
 
                 # Publish data at beginning of loop.
                 if message:
-                    broadcasters[key].publish(message)
+                    broadcasters[key].publish(message, topic=topic)
 
                 # Get data from queue.
                 try:
@@ -586,10 +586,9 @@ class ScheduleBroadcasts(object):
                     message = data['payload']
 
                     # Create a list of active broadcasters as required.
-                    key = (type(message), topic)
+                    key = type(message)
                     if key not in broadcasters:
-                        broadcasters[key] = mcl.network.network.MessageBroadcaster(type(message),
-                                                                                   topic=topic)
+                        broadcasters[key] = mcl.network.network.MessageBroadcaster(type(message))
 
                 # Queue read timed out. Possibly no more data left in queue.
                 except Queue.Empty:

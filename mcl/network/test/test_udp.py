@@ -133,9 +133,9 @@ class TestPublishSubscribe(PublishSubscribeTests):
         listener = self.listener(self.connection)
 
         # Test publish-subscribe functionality on a large message.
-        received_buffer = self.publish_message(broadcaster,
-                                               listener,
-                                               send_string)
+        received_buffer = self.publish(broadcaster,
+                                       listener,
+                                       send_string)
 
         # Close connections.
         broadcaster.close()
@@ -165,9 +165,9 @@ class TestPublishSubscribe(PublishSubscribeTests):
         listener = self.listener(self.connection)
 
         # Test publish-subscribe functionality on a large message.
-        received_buffer = self.publish_message(broadcaster,
-                                               listener,
-                                               send_string)
+        received_buffer = self.publish(broadcaster,
+                                       listener,
+                                       send_string)
 
         # Close connections.
         broadcaster.close()

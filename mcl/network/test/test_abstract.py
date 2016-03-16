@@ -270,12 +270,20 @@ class RawBroadcasterTests(unittest.TestCase):
         class TestRawBroadcaster(AbstractRawBroadcaster):
             def is_open(self): pass
             def _open(self): pass
-            def publish(self): pass
+            def publish(self, *args, **kwargs):
+                super(TestRawBroadcaster, self).publish(*args, **kwargs)
             def close(self): pass
 
         # Ensure valid definitions can be instatiated.
         TestRawBroadcaster(TestConnection(A='A', B='B'))
         TestRawBroadcaster(TestConnection(A='A', B='B'), topic='topic')
+
+        # Ensure exception is raised if the topic specified at publish is not a
+        # string.
+        broadcaster = TestRawBroadcaster(TestConnection(A='A', B='B'))
+        broadcaster.publish(list(), topic='pass')
+        with self.assertRaises(TypeError):
+            broadcaster.publish(list(), topic=5)
 
         # Ensure input is a connection object.
         with self.assertRaises(TypeError):

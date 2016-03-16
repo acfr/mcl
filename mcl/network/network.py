@@ -338,11 +338,14 @@ class MessageBroadcaster(object):
 
             """
 
-            def publish(self, message):
+            def publish(self, message, topic=None):
                 """Send an MCL message over the network.
 
                 Args:
                     message (:class:`.Message`): MCL message object.
+                    topic (str): Topic associated with published message. This
+                        option will temporarily override the topic specified
+                        during instantiation.
 
                 Raises:
                     TypeError: If the input message type differs from the
@@ -356,7 +359,7 @@ class MessageBroadcaster(object):
                     raise TypeError(error_msg % message_type.__name__)
 
                 # Publish data.
-                super(MessageBroadcaster, self).publish(message)
+                super(MessageBroadcaster, self).publish(message, topic=topic)
 
         return MessageBroadcaster(message.connection, topic=topic)
 

@@ -123,11 +123,11 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 
     Args:
         connection (:class:`.Connection`): Connection object.
-        topic (str): Topic to associate with UDP broadcasts.
+        topic (str): Default topic associated with the IPv6 interface.
 
     Attributes:
         connection (:class:`.Connection`): Connection object.
-        topic (str): Topic associated with :class:`.RawBroadcaster` broadcasts.
+        topic (str): Default topic associated with the IPv6 interface.
         is_open (bool): Return whether the UDP socket is open.
 
     Raises:
@@ -196,7 +196,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         else:
             return False
 
-    def publish(self, data):
+    def publish(self, data, topic=None):
         """Send data over UDP interface.
 
         Large data is fragmented into smaller MTU sized packets. The protocol
@@ -204,6 +204,8 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
 
         Args:
             data (obj): Serialisable object to broadcast over UDP.
+            topic (str): Topic associated with published data. This option will
+                temporarily override the topic specified during instantiation.
 
         """
 
@@ -241,9 +243,17 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
         #
         if self.is_open:
 
+            # Validate input arguments.
+            try:
+                super(RawBroadcaster, self).publish(data, topic=topic)
+                if topic is None:
+                    topic = self.topic
+            except:
+                raise
+
             # Optimise for 'small' messages - assume data can be sent in a
             # single packet.
-            packet = msgpack.dumps((self.topic, data))
+            packet = msgpack.dumps((topic, data))
 
             # Send data in single packet.
             if len(packet) <= MTU:
@@ -266,7 +276,7 @@ class RawBroadcaster(mcl.network.abstract.RawBroadcaster):
                 for packet in range(packets):
                     start_ptr = packet * MTU
                     end_ptr = min(data_len, (packet + 1) * MTU)
-                    fragment = msgpack.dumps((self.topic,
+                    fragment = msgpack.dumps((topic,
                                               packet + 1,
                                               packets,
                                               data[start_ptr:end_ptr]))

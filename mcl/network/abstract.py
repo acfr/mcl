@@ -446,11 +446,11 @@ class RawBroadcaster(object):
 
     Args:
         connection (:class:`~.abstract.Connection`): Connection object.
-        topic (str): Topic associated with the network interface.
+        topic (str): Default topic associated with the network interface.
 
     Attributes:
         connection (:class:`~.abstract.Connection`): Connection object.
-        topic (str): Topic associated with the network interface.
+        topic (str): Default topic associated with the network interface.
         is_open (bool): Returns :data:`True` if the network interface is
             open. Otherwise returns :data:`False`.
         counter (int): Number of broadcasts issued.
@@ -506,15 +506,20 @@ class RawBroadcaster(object):
         pass                                                 # pragma: no cover
 
     @abc.abstractmethod
-    def publish(self, data):
+    def publish(self, data, topic=None):
         """Virtual: Send data over network interface.
 
         Args:
             data (obj): Serialisable object to publish over the network
                 interface.
+            topic (str): Topic associated with published data. This option will
+                temporarily override the topic specified during instantiation.
 
         """
-        pass                                                 # pragma: no cover
+
+        # Ensure topic is a string..
+        if topic is not None and not isinstance(topic, basestring):
+            raise TypeError("The argument 'topic' must be None or a string.")
 
     @abc.abstractmethod
     def close(self):

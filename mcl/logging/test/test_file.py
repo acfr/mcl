@@ -24,6 +24,7 @@ LOG_PATH = os.path.join(_DIRNAME, 'dataset')
 SPT_PATH = os.path.join(_DIRNAME, 'dataset_split')
 TIME_OUT = 1
 
+DELAY = 0.2
 URL_A = 'ff15::a74b:c34a:ee8f:000a'
 URL_B = 'ff15::a74b:c34a:ee8f:000b'
 URL_C = 'ff15::a74b:c34a:ee8f:000c'
@@ -498,7 +499,7 @@ class LogConnectionTests(SetupTestingDirectory, unittest.TestCase):
 
         # Broadcast data.
         broadcaster.publish(data)
-        time.sleep(0.1)
+        time.sleep(DELAY)
 
         # Ensure data exists.
         lc.close()
