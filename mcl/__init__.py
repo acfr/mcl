@@ -17,4 +17,4 @@ MCL_ROOT = os.path.dirname(os.path.abspath(os.path.join(__file__, '../')))
 
 # Import core objects into root namespace.
 from mcl.event.event import Event
-from mcl.message.messages import Message
+from mcl.messages.messages import Message

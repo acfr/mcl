@@ -61,7 +61,7 @@ import time
 import Queue
 import multiprocessing
 import mcl.network.network
-import mcl.message.messages
+import mcl.messages.messages
 
 
 # Time to wait for process to terminate.
@@ -375,7 +375,7 @@ class BufferData(object):
                             raise NameError(msg % key)
 
                     # Ensure payload is an MCL message.
-                    if not issubclass(type(data['payload']), mcl.message.messages.Message):
+                    if not issubclass(type(data['payload']), mcl.messages.messages.Message):
                         msg = "dict['payload'] must be an MCL message."
                         raise TypeError(msg)
 

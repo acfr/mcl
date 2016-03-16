@@ -52,7 +52,7 @@ The following packages are available in |MCL|:
 
     mcl.event
     mcl.logging
-    mcl.message
+    mcl.messages
     mcl.network
 
 

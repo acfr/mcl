@@ -63,19 +63,19 @@ Example usage:
 
     # WARNING: this should not be deployed in production code. It is an
     #          abuse that has been used for the purposes of doc-testing.
-    mcl.message.messages._MESSAGES = list()
+    mcl.messages.messages._MESSAGES = list()
 
 .. testcode:: send-receive
 
     import os
     import time
-    import mcl.message.messages
+    import mcl.messages.messages
     from mcl.network.udp import Connection
     from mcl.network.network import MessageListener
     from mcl.network.network import MessageBroadcaster
 
     # Define MCL message.
-    class ExampleMessage(mcl.message.messages.Message):
+    class ExampleMessage(mcl.messages.messages.Message):
         mandatory = ('text',)
         connection = Connection('ff15::c75d:ce41:ea8e:b000')
 
@@ -120,7 +120,7 @@ import multiprocessing
 
 import mcl.event.event
 import mcl.network.abstract
-import mcl.message.messages
+import mcl.messages.messages
 
 # Time to wait for threads and processes to start/stop. This parameter could be
 # exposed to the user. Currently it is viewed as an unnecessary tuning
@@ -274,16 +274,16 @@ class MessageBroadcaster(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     .. testcode:: broadcast
 
-        import mcl.message.messages
+        import mcl.messages.messages
         from mcl.network.udp import Connection
         from mcl.network.network import MessageBroadcaster
 
         # Define MCL message.
-        class ExampleMessage(mcl.message.messages.Message):
+        class ExampleMessage(mcl.messages.messages.Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00a0')
 
@@ -310,7 +310,7 @@ class MessageBroadcaster(object):
         # Ensure 'message' is a Message() object.
         msg = "'message' must reference a Message() sub-class."
         try:
-            if not issubclass(message, mcl.message.messages.Message):
+            if not issubclass(message, mcl.messages.messages.Message):
                 raise TypeError(msg)
         except:
             raise TypeError(msg)
@@ -390,16 +390,16 @@ class MessageListener(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of doc-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     .. testcode:: listen
 
-        import mcl.message.messages
+        import mcl.messages.messages
         from mcl.network.udp import Connection
         from mcl.network.network import MessageListener
 
         # Define MCL message.
-        class ExampleMessage(mcl.message.messages.Message):
+        class ExampleMessage(mcl.messages.messages.Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00b0')
 
@@ -437,7 +437,7 @@ class MessageListener(object):
     def __new__(cls, message, topics=None):
 
         # Ensure 'message' is a Message() object.
-        if not issubclass(message, mcl.message.messages.Message):
+        if not issubclass(message, mcl.messages.messages.Message):
             msg = "'message' must reference a Message() sub-class."
             raise TypeError(msg)
 
@@ -579,19 +579,19 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of doc-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     .. testcode:: queuedlistener-message
 
         import os
         import time
-        import mcl.message.messages
+        import mcl.messages.messages
         from mcl.network.udp import Connection
         from mcl.network.network import QueuedListener
         from mcl.network.network import MessageBroadcaster
 
         # Define MCL message.
-        class ExampleMessage(mcl.message.messages.Message):
+        class ExampleMessage(mcl.messages.messages.Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00c0')
 
@@ -635,7 +635,7 @@ class QueuedListener(mcl.network.abstract.RawListener):
                 self.__message_type = None
 
             # 'connection is a reference to a Message() subclass.
-            elif issubclass(connection, mcl.message.messages.Message):
+            elif issubclass(connection, mcl.messages.messages.Message):
                 self.__connection = connection.connection
                 self.__message_type = connection
             else:

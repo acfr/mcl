@@ -1,6 +1,6 @@
 """Object specification for creating messages in MCL.
 
-The :mod:`~.message.messages` module provides a means for implementing MCL
+The :mod:`~.messages.messages` module provides a means for implementing MCL
 message objects. This is done through the :class:`.Message` object.  Since
 :class:`.Message` objects derive from python dictionaries, they operate near
 identically.

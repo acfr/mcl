@@ -4,7 +4,7 @@ import unittest
 import threading
 import multiprocessing
 
-import mcl.message.messages
+import mcl.messages.messages
 from mcl.network.network import RawListener
 from mcl.network.network import RawBroadcaster
 from mcl.network.network import QueuedListener
@@ -146,13 +146,13 @@ class BroadcasterTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
-        class UnitTestMessage(mcl.message.messages.Message):
+        class UnitTestMessage(mcl.messages.messages.Message):
             mandatory = ('A', 'B',)
             connection = self.connection
 
-        class UnitTestBadMessage(mcl.message.messages.Message):
+        class UnitTestBadMessage(mcl.messages.messages.Message):
             mandatory = ('A', 'B',)
             connection = self.bad_connection
 
@@ -164,7 +164,7 @@ class BroadcasterTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     def test_init(self):
         """Test %s RawBroadcaster() can be initialised and closed."""
@@ -389,13 +389,13 @@ class ListenerTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
-        class UnitTestMessage(mcl.message.messages.Message):
+        class UnitTestMessage(mcl.messages.messages.Message):
             mandatory = ('A', 'B',)
             connection = self.connection
 
-        class UnitTestBadMessage(mcl.message.messages.Message):
+        class UnitTestBadMessage(mcl.messages.messages.Message):
             mandatory = ('A', 'B',)
             connection = self.bad_connection
 
@@ -407,7 +407,7 @@ class ListenerTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     def test_init(self):
         """Test %s RawListener() can be initialised and closed."""
@@ -724,9 +724,9 @@ class PublishSubscribeTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
-        class UnitTestMessage(mcl.message.messages.Message):
+        class UnitTestMessage(mcl.messages.messages.Message):
             mandatory = ('text',)
             connection = self.connection
 
@@ -737,7 +737,7 @@ class PublishSubscribeTests(object):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     def publish(self, broadcaster, listener, message, topic=None,
                  received_buffer=None, send_attempts=5, timeout=1.0):

@@ -2,7 +2,7 @@ import os
 import time
 import unittest
 import multiprocessing
-import mcl.message.messages
+import mcl.messages.messages
 from mcl.logging.replay import Replay
 from mcl.logging.replay import BufferData
 from mcl.logging.file import ReadDirectory
@@ -23,15 +23,15 @@ URL_B = 'ff15::c75e:ce42:ec8e:000e'
 
 # WARNING: this should not be deployed in production code. It is an
 #          abuse that has been used for the purposes of unit-testing.
-mcl.message.messages._MESSAGES = list()
+mcl.messages.messages._MESSAGES = list()
 
 
-class UnitTestMessageA(mcl.message.messages.Message):
+class UnitTestMessageA(mcl.messages.messages.Message):
     mandatory = ('data',)
     connection = Connection(URL_A)
 
 
-class UnitTestMessageB(mcl.message.messages.Message):
+class UnitTestMessageB(mcl.messages.messages.Message):
     mandatory = ('data',)
     connection = Connection(URL_B)
 

@@ -2,11 +2,11 @@ import json
 import types
 import msgpack
 import unittest
-import mcl.message.messages
-from mcl.message.messages import remove_message_object
-from mcl.message.messages import list_messages
-from mcl.message.messages import get_message_objects
-from mcl.message.messages import Message as BaseMessage
+import mcl.messages.messages
+from mcl.messages.messages import remove_message_object
+from mcl.messages.messages import list_messages
+from mcl.messages.messages import get_message_objects
+from mcl.messages.messages import Message as BaseMessage
 
 from mcl.network.abstract import Connection as AbstractConnection
 from mcl.network.abstract import RawBroadcaster as AbstractRawBroadcaster
@@ -42,7 +42,7 @@ class ManufactureMessages(unittest.TestCase):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
         self.TestMessageA = message_factory('TestMessageA', ('A',), 0)
         self.TestMessageB = message_factory('TestMessageB', ('B',), 1)
@@ -61,14 +61,14 @@ class RegisterMeta(unittest.TestCase):
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     def tearDown(self):
         """Clear known messages after testing."""
 
         # WARNING: this should not be deployed in production code. It is an
         #          abuse that has been used for the purposes of unit-testing.
-        mcl.message.messages._MESSAGES = list()
+        mcl.messages.messages._MESSAGES = list()
 
     def test_bad_init(self):
         """Test _RegisterMeta() catches bad initialisations."""
@@ -168,7 +168,7 @@ class RemoveMessageObject(ManufactureMessages):
         for name in message_names:
             self.assertEqual(remove_message_object(name), True)
 
-        self.assertEqual(mcl.message.messages._MESSAGES, list())
+        self.assertEqual(mcl.messages.messages._MESSAGES, list())
 
     def test_remove_missing(self):
         """Test remove_message_object() returns False for missing messages."""
@@ -182,7 +182,7 @@ class RemoveMessageObject(ManufactureMessages):
         for name in message_names:
             self.assertEqual(remove_message_object(name), False)
 
-        self.assertEqual(mcl.message.messages._MESSAGES,
+        self.assertEqual(mcl.messages.messages._MESSAGES,
                          [self.TestMessageA,
                           self.TestMessageB,
                           self.TestMessageC,

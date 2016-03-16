@@ -7,7 +7,7 @@ import textwrap
 import unittest
 
 from mcl import MCL_ROOT
-import mcl.message.messages
+import mcl.messages.messages
 from mcl.logging.file import ReadFile
 from mcl.logging.file import WriteFile
 from mcl.logging.file import LogNetwork
@@ -84,12 +84,12 @@ MESSAGE_TEMPLATE = textwrap.dedent(MESSAGE_TEMPLATE).splitlines()
 #                           Objects for unit-testing
 # -----------------------------------------------------------------------------
 
-class UnitTestMessageA(mcl.message.messages.Message):
+class UnitTestMessageA(mcl.messages.messages.Message):
     mandatory = ('data',)
     connection = Connection(URL_A)
 
 
-class UnitTestMessageB(mcl.message.messages.Message):
+class UnitTestMessageB(mcl.messages.messages.Message):
     mandatory = ('data',)
     connection = Connection(URL_B)
 

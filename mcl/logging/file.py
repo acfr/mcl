@@ -49,7 +49,7 @@ The following code illustrates writing (:class:`.LogConnection`) and reading
 
     # WARNING: this should not be deployed in production code. It is an
     #          abuse that has been used for the purposes of doc-testing.
-    mcl.message.messages._MESSAGES = list()
+    mcl.messages.messages._MESSAGES = list()
 
     # Remove directory for doc-test.
     if os.path.exists(EXAMPLE_PATH):
@@ -105,7 +105,7 @@ example is largely the same as the previous example:
 .. testcode:: message-log
 
     import time
-    import mcl.message.messages
+    import mcl.messages.messages
     from mcl.logging.file import ReadFile
     from mcl.network.udp import Connection
     from mcl.network.network import MessageBroadcaster
@@ -115,7 +115,7 @@ example is largely the same as the previous example:
     prefix = os.path.join(EXAMPLE_PATH, 'example')
 
     # Create MCL message.
-    class ExampleMessage(mcl.message.messages.Message):
+    class ExampleMessage(mcl.messages.messages.Message):
         mandatory = ('data',)
         connection = Connection('ff15::c43d:ce41:ea7b:c1b0')
 
@@ -164,18 +164,18 @@ files.
 .. testcode:: network-log
 
     import time
-    import mcl.message.messages
+    import mcl.messages.messages
     from mcl.network.udp import Connection
     from mcl.logging.file import LogNetwork
     from mcl.logging.file import ReadDirectory
     from mcl.network.network import MessageBroadcaster
 
     # Create MCL messages.
-    class ExampleMessageA(mcl.message.messages.Message):
+    class ExampleMessageA(mcl.messages.messages.Message):
         mandatory = ('string',)
         connection = Connection('ff15::c43d:ce41:ae5b:d1b0')
 
-    class ExampleMessageB(mcl.message.messages.Message):
+    class ExampleMessageB(mcl.messages.messages.Message):
         mandatory = ('number',)
         connection = Connection('ff15::c43d:ce41:ae5b:d1b1')
 
@@ -244,7 +244,7 @@ import subprocess
 
 import mcl.network.network
 import mcl.network.abstract
-import mcl.message.messages
+import mcl.messages.messages
 
 # Define version.
 VERSION = 1.0
@@ -398,7 +398,7 @@ class WriteFile(object):
             self.__message_type = None
 
         # 'connection is a reference to a Message() subclass.
-        elif issubclass(connection, mcl.message.messages.Message):
+        elif issubclass(connection, mcl.messages.messages.Message):
             self.__connection = connection.connection
             self.__message_type = connection
 
@@ -839,7 +839,7 @@ class ReadFile(object):
         # Force message type.
         try:
             # Force message type specified by MCL object.
-            if issubclass(message, mcl.message.messages.Message):
+            if issubclass(message, mcl.messages.messages.Message):
                 self.__message = message
         except:
             # Return raw data.
@@ -853,7 +853,7 @@ class ReadFile(object):
             # Force message type specified by string.
             elif isinstance(message, basestring):
                 try:
-                    self.__message = mcl.message.messages.get_message_objects(message)
+                    self.__message = mcl.messages.messages.get_message_objects(message)
                 except:
                     msg = 'Did not recognise the message type: %s'
                     raise TypeError(msg % message)
@@ -1172,7 +1172,7 @@ class ReadFile(object):
             message = None
         else:
             try:
-                message = mcl.message.messages.get_message_objects(message)
+                message = mcl.messages.messages.get_message_objects(message)
             except:
                 raise
 
@@ -1339,7 +1339,7 @@ class LogConnection(object):
         # Always operate on raw data. Do not incur the overhead of casting
         # received messages to their defined type prior to logging.
         try:
-            if issubclass(connection, mcl.message.messages.Message):
+            if issubclass(connection, mcl.messages.messages.Message):
                 connection = connection.connection
 
         # Must be a connection object.
@@ -1543,7 +1543,7 @@ class LogNetwork(object):
         # logger.
         for message in self.messages:
             try:
-                if not issubclass(message, mcl.message.messages.Message):
+                if not issubclass(message, mcl.messages.messages.Message):
                     msg = "The '%s' parameter must be a list/tuple of "
                     msg += "Message() objects."
                     raise TypeError(msg % 'messages')
