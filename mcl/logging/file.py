@@ -58,10 +58,10 @@ The following code illustrates writing (:class:`.LogConnection`) and reading
 .. testcode:: raw-log
 
     import time
-    from mcl.logging.file import ReadFile
+    from mcl import ReadFile
+    from mcl import LogConnection
     from mcl.network.udp import Connection
     from mcl.network.network import RawBroadcaster
-    from mcl.logging.file import LogConnection
 
     # Path (prefix) to log file.
     prefix = os.path.join(EXAMPLE_PATH, 'example')
@@ -106,10 +106,10 @@ example is largely the same as the previous example:
 
     import time
     import mcl.messages.messages
-    from mcl.logging.file import ReadFile
+    from mcl import ReadFile
     from mcl.network.udp import Connection
     from mcl.network.network import MessageBroadcaster
-    from mcl.logging.file import LogConnection
+    from mcl import LogConnection
 
     # Path (prefix) to log file.
     prefix = os.path.join(EXAMPLE_PATH, 'example')
@@ -166,8 +166,8 @@ files.
     import time
     import mcl.messages.messages
     from mcl.network.udp import Connection
-    from mcl.logging.file import LogNetwork
-    from mcl.logging.file import ReadDirectory
+    from mcl import LogNetwork
+    from mcl import ReadDirectory
     from mcl.network.network import MessageBroadcaster
 
     # Create MCL messages.
@@ -188,11 +188,10 @@ files.
     # Create raw broadcaster from IPv6 connection and broadcast data.
     broadcaster_A = MessageBroadcaster(ExampleMessageA)
     broadcaster_B = MessageBroadcaster(ExampleMessageB)
-    broadcaster_A.publish(ExampleMessageA(string='one'))
-    broadcaster_A.publish(ExampleMessageA(string='two'))
-    broadcaster_B.publish(ExampleMessageB(number=1))
-    broadcaster_B.publish(ExampleMessageB(number=2))
-    time.sleep(0.1)
+    broadcaster_A.publish(ExampleMessageA(string='one')); time.sleep(0.1)
+    broadcaster_A.publish(ExampleMessageA(string='two')); time.sleep(0.1)
+    broadcaster_B.publish(ExampleMessageB(number=1));     time.sleep(0.1)
+    broadcaster_B.publish(ExampleMessageB(number=2));     time.sleep(0.1)
 
     # Close broadcasters and stop logger.
     broadcaster_A.close()
