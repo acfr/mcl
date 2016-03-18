@@ -25,9 +25,9 @@ Example usage:
 
     import os
     import time
+    from mcl import RawListener
+    from mcl import RawBroadcaster
     from mcl.network.udp import Connection
-    from mcl.network.network import RawListener
-    from mcl.network.network import RawBroadcaster
 
     # Create raw listener and broadcaster from IPv6 connection.
     URL = 'ff15::c75d:ce41:ea8e:a000'
@@ -59,23 +59,24 @@ Similarly, *message* broadcasters and listeners can be created using a
 
 Example usage:
 
-.. testcleanup:: send-receive
+.. testcleanup:: send-receive, broadcast, listen, queuedlistener-message
 
-    # WARNING: this should not be deployed in production code. It is an
-    #          abuse that has been used for the purposes of doc-testing.
+    # WARNING: this should not be deployed in production code. It is an abuse
+    #          that has been used for the purposes of doc-testing.
+    import mcl.messages.messages
     mcl.messages.messages._MESSAGES = list()
 
 .. testcode:: send-receive
 
     import os
     import time
-    import mcl.messages.messages
+    from mcl import Message
+    from mcl import MessageListener
+    from mcl import MessageBroadcaster
     from mcl.network.udp import Connection
-    from mcl.network.network import MessageListener
-    from mcl.network.network import MessageBroadcaster
 
     # Define MCL message.
-    class ExampleMessage(mcl.messages.messages.Message):
+    class ExampleMessage(Message):
         mandatory = ('text',)
         connection = Connection('ff15::c75d:ce41:ea8e:b000')
 
@@ -152,8 +153,8 @@ def RawBroadcaster(connection, topic=None):
 
     .. testcode::
 
+        from mcl import RawBroadcaster
         from mcl.network.udp import Connection
-        from mcl.network.network import RawBroadcaster
 
         # Create raw broadcaster from IPv6 connection.
         URL = 'ff15::c75d:ce41:ea8e:0a00'
@@ -215,8 +216,8 @@ def RawListener(connection, topics=None):
     .. testcode::
 
         import os
+        from mcl import RawListener
         from mcl.network.udp import Connection
-        from mcl.network.network import RawListener
 
         # Create raw listener from IPv6 connection.
         URL = 'ff15::c75d:ce41:ea8e:0b00'
@@ -270,20 +271,14 @@ class MessageBroadcaster(object):
 
     Example usage:
 
-    .. testcleanup:: broadcast
-
-        # WARNING: this should not be deployed in production code. It is an
-        #          abuse that has been used for the purposes of unit-testing.
-        mcl.messages.messages._MESSAGES = list()
-
     .. testcode:: broadcast
 
-        import mcl.messages.messages
+        from mcl import Message
+        from mcl import MessageBroadcaster
         from mcl.network.udp import Connection
-        from mcl.network.network import MessageBroadcaster
 
         # Define MCL message.
-        class ExampleMessage(mcl.messages.messages.Message):
+        class ExampleMessage(Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00a0')
 
@@ -386,20 +381,14 @@ class MessageListener(object):
 
     Example usage:
 
-    .. testcleanup:: listen
-
-        # WARNING: this should not be deployed in production code. It is an
-        #          abuse that has been used for the purposes of doc-testing.
-        mcl.messages.messages._MESSAGES = list()
-
     .. testcode:: listen
 
-        import mcl.messages.messages
+        from mcl import Message
+        from mcl import MessageListener
         from mcl.network.udp import Connection
-        from mcl.network.network import MessageListener
 
         # Define MCL message.
-        class ExampleMessage(mcl.messages.messages.Message):
+        class ExampleMessage(Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00b0')
 
@@ -546,9 +535,9 @@ class QueuedListener(mcl.network.abstract.RawListener):
 
         import os
         import time
+        from mcl import QueuedListener
+        from mcl import RawBroadcaster
         from mcl.network.udp import Connection
-        from mcl.network.network import QueuedListener
-        from mcl.network.network import RawBroadcaster
 
         # Define MCL connection.
         URL = 'ff15::c75d:ce41:ea8e:00c0'
@@ -575,23 +564,17 @@ class QueuedListener(mcl.network.abstract.RawListener):
     :func:`.MessageListener`. Note how the interface is the same as the
     previous example but only the input object has changed:
 
-    .. testcleanup:: queuedlistener-message
-
-        # WARNING: this should not be deployed in production code. It is an
-        #          abuse that has been used for the purposes of doc-testing.
-        mcl.messages.messages._MESSAGES = list()
-
     .. testcode:: queuedlistener-message
 
         import os
         import time
-        import mcl.messages.messages
+        from mcl import Message
+        from mcl import QueuedListener
+        from mcl import MessageBroadcaster
         from mcl.network.udp import Connection
-        from mcl.network.network import QueuedListener
-        from mcl.network.network import MessageBroadcaster
 
         # Define MCL message.
-        class ExampleMessage(mcl.messages.messages.Message):
+        class ExampleMessage(Message):
             mandatory = ('text',)
             connection = Connection('ff15::c75d:ce41:ea8e:00c0')
 
