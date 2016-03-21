@@ -60,8 +60,8 @@ The following code illustrates writing (:class:`.LogConnection`) and reading
     import time
     from mcl import ReadFile
     from mcl import LogConnection
+    from mcl import RawBroadcaster
     from mcl.network.udp import Connection
-    from mcl.network.network import RawBroadcaster
 
     # Path (prefix) to log file.
     prefix = os.path.join(EXAMPLE_PATH, 'example')
@@ -105,17 +105,17 @@ example is largely the same as the previous example:
 .. testcode:: message-log
 
     import time
-    import mcl.messages.messages
+    from mcl import Message
     from mcl import ReadFile
-    from mcl.network.udp import Connection
-    from mcl.network.network import MessageBroadcaster
     from mcl import LogConnection
+    from mcl import MessageBroadcaster
+    from mcl.network.udp import Connection
 
     # Path (prefix) to log file.
     prefix = os.path.join(EXAMPLE_PATH, 'example')
 
     # Create MCL message.
-    class ExampleMessage(mcl.messages.messages.Message):
+    class ExampleMessage(Message):
         mandatory = ('data',)
         connection = Connection('ff15::c43d:ce41:ea7b:c1b0')
 
@@ -164,18 +164,18 @@ files.
 .. testcode:: network-log
 
     import time
-    import mcl.messages.messages
-    from mcl.network.udp import Connection
+    from mcl import Message
     from mcl import LogNetwork
     from mcl import ReadDirectory
-    from mcl.network.network import MessageBroadcaster
+    from mcl import MessageBroadcaster
+    from mcl.network.udp import Connection
 
     # Create MCL messages.
-    class ExampleMessageA(mcl.messages.messages.Message):
+    class ExampleMessageA(Message):
         mandatory = ('string',)
         connection = Connection('ff15::c43d:ce41:ae5b:d1b0')
 
-    class ExampleMessageB(mcl.messages.messages.Message):
+    class ExampleMessageB(Message):
         mandatory = ('number',)
         connection = Connection('ff15::c43d:ce41:ae5b:d1b1')
 
@@ -634,10 +634,14 @@ class WriteFile(object):
                        'time_received': datetime}
 
         where:
-            - `time_received` is the time the network data was received
-            - `topic` is the topic that was associated with the message
-              broadcast
-            - `payload` is the network data received during transmission
+
+            - ``topic`` is the topic associated with the network data during
+              the broadcast.
+
+            - ``payload``: is the network data to be recorded to file.
+
+            - ``time_received`` is a :obj:`.datetime.datetime` object used to
+              record the time the network data was received.
 
         Args:
             message (dict): Network data to be recorded. The network data must
@@ -1210,12 +1214,12 @@ class ReadFile(object):
         where:
 
             - ``elapsed_time`` is the time elapsed between creating the log
-              file and recording the message.
+              file and recording the network data.
 
-            - ``topic`` is the topic associated with the message during the
-              broadcast.
+            - ``topic`` is the topic associated with the network data during
+              the broadcast.
 
-            - ``message``: is the network message, delivered as a dictionary or
+            - ``payload``: is the network data, delivered as a dictionary or
               MCL :class:`.Message` object.
 
         If all data has been read from the log file, None is returned.
@@ -1657,19 +1661,15 @@ class ReadDirectory(object):
     log files in a common directory. The directory may contain single or split
     log files (see :class:`.WriteFile` and :class:`.ReadFile`).
 
-    Example usage::
-
-            rf = ReadDirectory('./logs')
-            data = rd.read()
-
     .. note::
 
         :class:`.ReadDirectory` assumes the log files have been created by
-        :class:`.WriteFile` and searches for files with the '.log' extension in
-        the specified directory. :class:`.ReadDirectory` can operate on
-        directories which contain non '.log' files. Renaming '.log' files or
-        including '.log' files which were not formatted by :class:`.WriteFile`
-        is likely to cause an error in :class:`.ReadDirectory`.
+        :class:`.WriteFile` and searches for files with the ``.log`` extension
+        in the specified directory. :class:`.ReadDirectory` can operate on
+        directories which contain non ``.log`` files. Renaming ``.log`` files
+        or including ``.log`` files which were not formatted by
+        :class:`.WriteFile` is likely to cause an error in
+        :class:`.ReadDirectory`.
 
     Args:
         source (str): Path to directory containing log files.
@@ -1886,8 +1886,8 @@ class ReadDirectory(object):
     def read(self):
         """Read data from the log files.
 
-        Read one line of data from the log files in time order. The data is
-        parsed into a dictionary containing the following fields::
+        Read a line of data from the log files. The data is parsed into a
+        dictionary containing the following fields::
 
             {'elapsed_time: <float>,
              'topic': <string>,
@@ -1896,16 +1896,16 @@ class ReadDirectory(object):
         where:
 
             - ``elapsed_time`` is the time elapsed between creating the log
-              file and recording the message.
+              file and recording the network data.
 
-            - ``topic`` is the topic associated with the message during the
-              broadcast.
+            - ``topic`` is the topic associated with the network data during
+              the broadcast.
 
-            - ``message``: is the network message, delivered as a dictionary or
+            - ``payload``: is the network data, delivered as a dictionary or
               MCL :class:`.Message` object.
 
-        If all data has been read from the log files (directory), None is
-        returned.
+        If all network data has been read from the log files (directory), None
+        is returned.
 
         Returns:
             dict: A dictionary containing, the time elapsed when the line of
