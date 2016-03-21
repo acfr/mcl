@@ -50,6 +50,7 @@ The following packages are available in |MCL|:
     :template: module.tpl
     :nosignatures:
 
+    mcl
     mcl.event
     mcl.logging
     mcl.messages
