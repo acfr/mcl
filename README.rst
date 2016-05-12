@@ -87,11 +87,10 @@ Citation
 If you use this work for academic research please cite the following `article
 <http://dx.doi.org/10.1109/TITS.2016.2524523>`_:
 
-    A. Bender, G. Agamennoni, J. Ward, S. Worrall, and E. NebotBender, A.;
-    Ward, J. R.; Worrall, S.; Moreyra, M.; Konrad, S. G.; Masson, F. &
-    Nebot, E. M., "A Flexible System Architecture for Acquisition and
-    Storage of Naturalistic Driving Data", *IEEE Transactions on
-    Intelligent Transportation Systems*, 2016, pp. 1-14
+    Bender,  A.;  Ward,  J.  R.;  Worrall,  S.;  Moreyra,  M.;  Konrad,  S.  G.;
+    Masson, F. &  Nebot, E. M., "A Flexible System  Architecture for Acquisition
+    and Storage of Naturalistic Driving Data", *IEEE Transactions on Intelligent
+    Transportation Systems*, 2016, pp. 1-14
 
 BibTeX::
 
